@@ -1,0 +1,59 @@
+body {
+  background: #eef2f7;
+  font-family: sans-serif;
+}
+
+.task-container {
+  padding: 20px;
+}
+
+.title {
+  color: #2563eb;
+  margin-bottom: 15px;
+}
+
+.user-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #e5e7eb;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.switch-btn {
+  background: linear-gradient(90deg, #6d28d9, #9333ea);
+  border: none;
+}
+
+.task-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 20px;
+  color: white;
+  background: linear-gradient(90deg, #2563eb, #9333ea);
+}
+
+.status-badge {
+  background: #fecaca;
+  color: #b91c1c;
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+
+.join-btn {
+  background: linear-gradient(90deg, #2563eb, #9333ea);
+  border: none;
+}
+
+.no-user {
+  border: 1px dashed #ccc;
+  padding: 5px 10px;
+  border-radius: 10px;
+  color: gray;
+}
