@@ -7,45 +7,40 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { Divider } from "primereact/divider";
-import { Password } from "primereact/password"; // นำเข้า Password component
 
 function Login() {
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState(""); // เพิ่ม State สำหรับ Password
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async () => {
-  if (!username || !password) return;
+    if (!username || !password) return;
 
-  setLoading(true);
-  try {
-    const res = await API.post("/auth/login", { username, password });
-
-    localStorage.setItem("token", res.data.token);
-    navigate("/tasks");
-
-  } catch (err) {
-    const msg =
-      err.response?.data?.message || "เกิดข้อผิดพลาด ❌";
-
-    alert(msg); // ✅ แสดง message จาก backend
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      const res = await API.post("/auth/login", { username, password });
+      localStorage.setItem("token", res.data.token);
+      navigate("/tasks");
+    } catch (err) {
+      const msg = err.response?.data?.message || "เกิดข้อผิดพลาด ❌";
+      alert(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div style={styles.container}>
-      <Card style={styles.card}>
+    <div className="h-screen flex justify-center items-center bg-gradient-to-b from-[#f0f7ff] to-[#e0efff] font-sans">
+      <Card className="w-[380px] rounded-[20px] border-none p-2 shadow-[0_15px_35px_rgba(37,99,235,0.1)]">
         
         {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.iconCircle}>
-            <i className="pi pi-user" style={{ fontSize: '1.5rem', color: '#2563eb' }}></i>
+        <div className="text-center mb-4">
+          <div className="w-[60px] h-[60px] bg-[#eff6ff] rounded-full flex justify-center items-center mx-auto mb-4">
+            <i className="pi pi-user text-[#2563eb] text-2xl"></i>
           </div>
-          <h2 style={styles.title}>ยินดีต้อนรับ</h2>
-          <p style={styles.subtitle}>กรุณาเข้าสู่ระบบเพื่อใช้งาน</p>
+          <h2 className="m-0 text-[#1e3a8a] text-2xl font-bold">ยินดีต้อนรับ</h2>
+          <p className="m-0 mt-1 text-[#64748b] text-sm">กรุณาเข้าสู่ระบบเพื่อใช้งาน</p>
         </div>
 
         <Divider />
@@ -54,32 +49,36 @@ function Login() {
         <div className="p-fluid">
           
           {/* Username Field */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label htmlFor="username" style={styles.label}>ชื่อผู้ใช้งาน</label>
-            <span className="p-input-icon-left">
-              <i className="pi pi-user" style={{ color: '#93c5fd', zIndex: 1 }} />
+          <div className="mb-4">
+            <label htmlFor="username" className="font-semibold mb-2 block text-[#475569] text-sm">
+              ชื่อผู้ใช้งาน
+            </label>
+            <span className="p-input-icon-left w-full">
+              <i className="pi pi-user text-[#93c5fd] z-10" />
               <InputText
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Username"
-                style={styles.input}
+                className="rounded-xl border-[#d1d5db] w-full"
               />
             </span>
           </div>
 
           {/* Password Field */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label htmlFor="password" style={styles.label}>รหัสผ่าน</label>
-            <span className="p-input-icon-left">
-              <i className="pi pi-lock" style={{ color: '#93c5fd', zIndex: 1 }} />
+          <div className="mb-6">
+            <label htmlFor="password" className="font-semibold mb-2 block text-[#475569] text-sm">
+              รหัสผ่าน
+            </label>
+            <span className="p-input-icon-left w-full">
+              <i className="pi pi-lock text-[#93c5fd] z-10" />
               <InputText
                 id="password"
-                type="password" // กำหนดเป็น password เพื่อซ่อนตัวอักษร
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                style={styles.input}
+                className="rounded-xl border-[#d1d5db] w-full"
               />
             </span>
           </div>
@@ -89,84 +88,16 @@ function Login() {
             icon="pi pi-sign-in"
             loading={loading}
             onClick={handleLogin}
-            style={styles.button}
+            className="w-full bg-[#2563eb] border-none rounded-xl py-3 font-semibold shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:bg-[#1d4ed8] transition-all"
           />
         </div>
 
-        <div style={styles.footer}>
+        <div className="text-center mt-6 text-[#94a3b8] text-xs">
           <small>© 2026 Your App Name</small>
         </div>
       </Card>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "linear-gradient(180deg, #f0f7ff 0%, #e0efff 100%)"
-  },
-  card: {
-    width: "380px",
-    borderRadius: "20px",
-    border: "none",
-    padding: "10px",
-    boxShadow: "0 15px 35px rgba(37, 99, 235, 0.1)"
-  },
-  header: {
-    textAlign: "center",
-    marginBottom: "15px"
-  },
-  iconCircle: {
-    width: "60px",
-    height: "60px",
-    backgroundColor: "#eff6ff",
-    borderRadius: "50%",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    margin: "0 auto 15px auto"
-  },
-  title: { 
-    margin: "0", 
-    color: "#1e3a8a", 
-    fontSize: "1.5rem",
-    fontWeight: "700" 
-  },
-  subtitle: { 
-    margin: "5px 0 0 0", 
-    color: "#64748b",
-    fontSize: "0.9rem"
-  },
-  label: {
-    fontWeight: "600",
-    marginBottom: "8px",
-    display: "block",
-    color: "#475569",
-    fontSize: "0.9rem"
-  },
-  input: {
-    borderRadius: "10px",
-    border: "1px solid #d1d5db",
-  },
-  button: {
-    marginTop: "10px",
-    width: "100%",
-    borderRadius: "10px",
-    padding: "12px",
-    backgroundColor: "#2563eb",
-    border: "none",
-    fontWeight: "600",
-    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
-  },
-  footer: {
-    textAlign: "center",
-    marginTop: "25px",
-    color: "#94a3b8"
-  }
-};
 
 export default Login;
