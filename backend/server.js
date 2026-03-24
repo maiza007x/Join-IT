@@ -16,8 +16,9 @@ require("dotenv").config();
 const { createServer } = require("node:http");
 const pool = require("./mysql");
 const app = require("./app");
-
+const userRoutes = require('./api_routes/user'); // นำเข้าไฟล์ route ที่เราเพิ่งสร้าง
 async function startServer() {
+  
   try {
     // ✅ test mysql connection ก่อน
     const connection = await pool.getConnection();

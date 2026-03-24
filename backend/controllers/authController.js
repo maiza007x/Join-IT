@@ -1,16 +1,16 @@
 const bcrypt = require('bcrypt');
-const db = require('../helper/db.js')
+const db = require('../helper/db.js');
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || "secret_key";
+
+// ใช้รหัสลับจาก env หรือค่า default
+const JWT_SECRET = process.env.JWT_SECRET || "secret_key"; 
 
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res
-        .status(400)
-        .json({ message: "username and password is required" });
+      return res.status(400).json({ message: "username and password is required" });
     }
 
     const [results] = await db.query(
@@ -19,9 +19,7 @@ exports.login = async (req, res) => {
     );
 
     if (results.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "ไม่พบผู้ใช้งานนี้ในระบบ" });
+      return res.status(404).json({ message: "ไม่พบผู้ใช้งานนี้ในระบบ" });
     }
 
     const user = results[0];
@@ -31,11 +29,8 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "รหัสผ่านไม่ถูกต้อง" });
     }
 
-    const token = jwt.sign(
-      { username: user.username, id: user.id },
-      JWT_SECRET,
-      { expiresIn: "12h" }
-    );
+    // ✅ แก้ไขจุดนี้: เปลี่ยนจาก 'secret' เป็นตัวแปร JWT_SECRET
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '1d' });
 
     delete user.password;
 
@@ -48,8 +43,6 @@ exports.login = async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    return res
-      .status(500)
-      .json({ message: "มีบางอย่างผิดพลาด โปรดลองอีกครั้ง" });
+    return res.status(500).json({ message: "มีบางอย่างผิดพลาด โปรดลองอีกครั้ง" });
   }
 };
