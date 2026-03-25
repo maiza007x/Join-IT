@@ -1,40 +1,30 @@
-// // backend/server.js
-// const express = require("express");
-// const app = express();
-
-// app.use(express.json());
-
-// app.post("/auth/login", (req, res) => {
-//   const { username } = req.body;
-//   res.json({ token: "123456" });
-// });
-
-// app.listen(5000, () => {
-//   console.log("Server running on port 5000");
-// });
 require("dotenv").config();
 const { createServer } = require("node:http");
 const pool = require("./mysql");
 const app = require("./app");
-const userRoutes = require('./api_routes/user'); // นำเข้าไฟล์ route ที่เราเพิ่งสร้าง
+
 async function startServer() {
-  
   try {
-    // ✅ test mysql connection ก่อน
+    // ✅ 1. ตรวจสอบการเชื่อมต่อฐานข้อมูล
     const connection = await pool.getConnection();
-    console.log("✅ MySQL connected");
+    console.log("🟢 [Database]: MySQL connected successfully.");
     connection.release();
 
+    // ✅ 2. สร้าง Server จาก App (Express)
     const server = createServer(app);
 
-    const HOST = "0.0.0.0";
+    const PORT = process.env.PORT || 5000;
+    const HOST = "0.0.0.0"; // เพื่อให้เข้าถึงได้จาก IP อื่นในวงแลนเดียวกัน
 
-    server.listen(process.env.PORT, HOST, () => {
-      console.log(`🚀 Server running at http://${HOST}:${process.env.PORT}`);
+    server.listen(PORT, HOST, () => {
+      console.log(`-------------------------------------------`);
+      console.log(`🚀  Server is flying at http://localhost:${PORT}`);
+      console.log(`📁  Static assets: http://localhost:${PORT}/uploads`);
+      console.log(`-------------------------------------------`);
     });
 
   } catch (err) {
-    console.error("❌ Failed to start server:", err);
+    console.error("🔴 [Error]: Failed to start server:", err.message);
     process.exit(1);
   }
 }
