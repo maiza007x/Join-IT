@@ -1,14 +1,19 @@
 require("dotenv").config();
 const { createServer } = require("node:http");
-const pool = require("./mysql");
+const { joinPool, orderPool } = require("./mysql");
 const app = require("./app");
 
 async function startServer() {
   try {
-    // ✅ 1. ตรวจสอบการเชื่อมต่อฐานข้อมูล
-    const connection = await pool.getConnection();
-    console.log("🟢 [Database]: MySQL connected successfully.");
-    connection.release();
+// ตรวจสอบ Join-IT
+    const conn1 = await joinPool.getConnection();
+    console.log("🟢 [Database]: Join-IT connected.");
+    conn1.release();
+
+    // ตรวจสอบ Order-IT
+    const conn2 = await orderPool.getConnection();
+    console.log("🟢 [Database]: Order-IT connected.");
+    conn2.release();
 
     // ✅ 2. สร้าง Server จาก App (Express)
     const server = createServer(app);

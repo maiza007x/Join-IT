@@ -9,7 +9,7 @@ const bodyParser = require("body-parser");
 const indexRoutes = require("./api_routes/auth");
 const linenRoutes = require("./api_routes/tasks");
 const userRoutes = require("./api_routes/user");
-
+const taskRoutes = require('./api_routes/tasks'); // ตรวจสอบ path ไฟล์ให้ถูก
 const app = express();
 const handleLogout = () => {
     localStorage.clear(); // ล้างทิ้งให้หมด ไม่ใช่แค่ token
@@ -33,7 +33,7 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(cookieParser());
-
+app.use('/api/tasks', taskRoutes);
 // ✅ 3. Static Files: เพิ่ม Header ย้ำอีกครั้งเพื่อความชัวร์ในการดึงรูป
 app.use('/uploads', (req, res, next) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");

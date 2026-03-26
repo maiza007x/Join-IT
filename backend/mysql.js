@@ -1,44 +1,34 @@
-// import mysql from "mysql2";
-
-// export const db = mysql.createConnection({
-//   host: "localhost",
-//   user: "root",
-//   password: "",
-//   database: "taskdb"
-// });
-
-// db.connect(err => {
-//   if (err) {
-//     console.error("DB Error:", err);
-//   } else {
-//     console.log("MySQL Connected ✅");
-//   }
-// });
-// mysql.js
 require("dotenv").config();
 const mysql = require("mysql2/promise");
 
-const pool = mysql.createPool({
+// ค่า Configuration ส่วนกลาง
+const commonConfig = {
   host: process.env.CONNECTSQL,
   user: process.env.USERSQL,
   password: "",
-  database: process.env.DBSQL,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-
   timezone: "+07:00",
   dateStrings: true,
   decimalNumbers: true,
-
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0, // 10 seconds
-  idleTimeout: 60000, // 60 seconds
-  maxIdle: 10,
+};
+
+// สร้าง Pool สำหรับ Join-IT
+const joinPool = mysql.createPool({
+  ...commonConfig,
+  database: process.env.DBSQL,
 });
 
-pool.on("error", (err) => {
-  console.error("MySQL Pool Error:", err);
+// สร้าง Pool สำหรับ Order-IT
+const orderPool = mysql.createPool({
+  ...commonConfig,
+  database: process.env.DBSQL_ORDER,
 });
 
-module.exports = pool;
+// ดักจับ Error แยกกัน
+joinPool.on("error", (err) => console.error("Join-IT Pool Error:", err));
+orderPool.on("error", (err) => console.error("Order-IT Pool Error:", err));
+
+module.exports = { joinPool, orderPool };

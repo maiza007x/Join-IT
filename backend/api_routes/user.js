@@ -51,5 +51,6 @@ router.put('/me/password', authMiddleware, userController.changePassword);
 
 // อัปโหลดรูปโปรไฟล์: POST /api/users/upload-avatar
 router.post('/upload-avatar', authMiddleware, upload.single('avatar'), userController.uploadAvatar);
-
+// ตัวอย่างการเพิ่มใน routes
+router.post('/contributions', authMiddleware, userController.addTaskContribution);
 module.exports = router;

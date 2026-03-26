@@ -115,7 +115,7 @@ function Login() {
         </div>
         
         <p className="text-center mt-8 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-semibold">
-          Powered by Nexus Intelligence • 2026
+          Powered by Chinawat • 2026
         </p>
       </div>
 

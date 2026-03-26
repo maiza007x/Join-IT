@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Tasks from "./pages/Tasks";
-import Profile from "./pages/profile";
+import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";

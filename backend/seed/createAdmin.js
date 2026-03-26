@@ -24,7 +24,7 @@ async function createAdmin() {
   } catch (error) {
     console.error("❌ Error:", error);
   } finally {
-    // ปิด process หลังจากทำทุกอย่างเสร็จ
+  
     process.exit(0);
   }
 }
