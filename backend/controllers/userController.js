@@ -1,15 +1,13 @@
-// เปลี่ยนจาก const pool = require('../mysql'); เป็นแบบนี้:
-const { query } = require('../mysql'); // ดึงมาเฉพาะ query
-const joinPool = require('../helper/db'); 
+const joinPool = require('../helper/db'); // ใช้ตัวแปรนี้เป็นหลัก
 const bcrypt = require('bcrypt');
 
-// จากนั้นในฟังก์ชันต่างๆ ให้เปลี่ยนจาก pool.query เป็น query เฉยๆ
+// --- 1. GET /api/users/me (ดึงข้อมูลโปรไฟล์) ---
 exports.getProfile = async (req, res) => {
     try {
         console.log("User ID from Token:", req.user?.id);
         
-        // ใช้ db.query และเอา [ ] ออก เพราะฟังก์ชัน query ใน db.js คืนค่า rows มาให้เลย
-        const[rows] = await joinPool.query(
+        // ใช้ joinPool และ destruct [rows] ออกมา
+        const [rows] = await joinPool.query(
             'SELECT id, username, full_name, university_name, academic_year, faculty, role, avatar_url FROM users WHERE id = ?', 
             [req.user.id]
         );
@@ -19,7 +17,6 @@ exports.getProfile = async (req, res) => {
         }
 
         const user = rows[0];
-        
         const responseData = {
             ...user,
             fullName: user.full_name 
@@ -34,7 +31,6 @@ exports.getProfile = async (req, res) => {
 
 // --- 2. PUT /api/users/me (อัปเดตข้อมูลส่วนตัว) ---
 exports.updateProfile = async (req, res) => {
-    // รองรับทั้งการส่งมาแบบ fullName (React) และ full_name (API Test)
     const { fullName, full_name, university_name, academic_year } = req.body;
     const finalName = fullName || full_name;
 
@@ -43,7 +39,8 @@ exports.updateProfile = async (req, res) => {
     }
 
     try {
-        await pool.query(
+        // เปลี่ยนจาก pool เป็น joinPool
+        await joinPool.query(
             'UPDATE users SET full_name = ?, university_name = ?, academic_year = ? WHERE id = ?',
             [finalName, university_name, academic_year, req.user.id]
         );
@@ -69,7 +66,8 @@ exports.changePassword = async (req, res) => {
     }
 
     try {
-        const [rows] = await pool.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
+        // เปลี่ยนเป็น joinPool
+        const [rows] = await joinPool.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
         if (rows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้" });
 
         const isMatch = await bcrypt.compare(currentPassword, rows[0].password);
@@ -80,7 +78,7 @@ exports.changePassword = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPwd = await bcrypt.hash(newPassword, salt);
 
-        await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPwd, req.user.id]);
+        await joinPool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPwd, req.user.id]);
         res.json({ success: true, message: "เปลี่ยนรหัสผ่านเรียบร้อย" });
     } catch (err) {
         console.error("Change Password Error:", err);
@@ -97,8 +95,8 @@ exports.uploadAvatar = async (req, res) => {
 
         const imageUrl = `/uploads/${req.file.filename}`;
         
-        // อัปเดต DB
-        await pool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [imageUrl, req.user.id]);
+        // เปลี่ยนเป็น joinPool
+        await joinPool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [imageUrl, req.user.id]);
 
         res.json({ 
             success: true, 
@@ -110,7 +108,8 @@ exports.uploadAvatar = async (req, res) => {
         res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการบันทึกรูปภาพ" });
     }
 };
-// --- 5. POST /api/tasks/contributions (บันทึกการมีส่วนร่วมของเด็กฝึกงาน) ---
+
+// --- 5. POST /api/tasks/contributions ---
 exports.addTaskContribution = async (req, res) => {
     const { 
         task_staff_id, 
@@ -119,20 +118,17 @@ exports.addTaskContribution = async (req, res) => {
         mentor_feedback 
     } = req.body;
 
-    // ตรวจสอบข้อมูลเบื้องต้น
     if (!task_staff_id) {
         return res.status(400).json({ success: false, message: "ไม่พบรหัสงานของเจ้าหน้าที่" });
     }
 
     try {
-        // 1. ดึงชื่อคนทำจาก req.user (ที่ได้จาก middleware auth)
-        // เราจะใช้ชื่อจาก DB เพื่อความแม่นยำ หรือใช้จาก token ก็ได้
-        const [userRows] = await pool.query('SELECT full_name, username FROM users WHERE id = ?', [req.user.id]);
+        // เปลี่ยนเป็น joinPool
+        const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [req.user.id]);
         if (userRows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้" });
         
         const creatorName = userRows[0].full_name || userRows[0].username;
 
-        // 2. Insert ข้อมูลลงตาราง tasks
         const sql = `
             INSERT INTO tasks 
             (task_staff_id, intern_id, contribution_detail, learning_outcome, mentor_feedback, created_by, updated_by) 
@@ -141,15 +137,16 @@ exports.addTaskContribution = async (req, res) => {
 
         const values = [
             task_staff_id, 
-            req.user.id, // intern_id คือคนที่ Login อยู่
+            req.user.id, 
             contribution_detail || null, 
             learning_outcome || null, 
             mentor_feedback || null, 
-            creatorName, // created_by
-            creatorName  // updated_by (ใส่ไว้ตอนสร้างครั้งแรก)
+            creatorName, 
+            creatorName  
         ];
 
-        const [result] = await pool.query(sql, values);
+        // เปลี่ยนเป็น joinPool
+        const [result] = await joinPool.query(sql, values);
 
         res.status(201).json({ 
             success: true, 

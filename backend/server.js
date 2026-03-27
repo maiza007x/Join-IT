@@ -28,8 +28,9 @@ async function startServer() {
       console.log(`-------------------------------------------`);
     });
 
-  } catch (err) {
-    console.error("🔴 [Error]: Failed to start server:", err.message);
+ } catch (err) {
+    console.error("🔴 [Error]: Failed to start server:");
+    console.error(err); // <--- แก้ตรงนี้: เอา .message ออก เพื่อให้เห็น Error ทั้งก้อน (Stack Trace)
     process.exit(1);
   }
 }
