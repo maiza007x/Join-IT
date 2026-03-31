@@ -25,7 +25,7 @@ function Tasks() {
         try {
             const token = localStorage.getItem('token');
             const formattedDate = date ? date.toISOString().split('T')[0] : '';
-            const response = await axios.get(`http://10.0.0.27:5000/api/tasks/tasks_collab`, {
+            const response = await axios.get(`http://10.0.0.7:5000/api/tasks/tasks_collab`, {
                 params: { date: formattedDate, q: query },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -47,7 +47,7 @@ function Tasks() {
         setActionLoading(taskId);
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`http://10.0.0.27:5000/api/tasks/join`, 
+            await axios.post(`http://10.0.0.7:5000/api/tasks/join`, 
                 { task_staff_id: taskId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -66,7 +66,7 @@ function Tasks() {
         try {
             const token = localStorage.getItem('token');
             // ✅ แก้ไขให้ถูกต้อง
-await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
+await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
     headers: { Authorization: `Bearer ${token}` }
 });
             toast.current.show({ severity: 'warn', summary: 'ยกเลิก', detail: 'ยกเลิกการมีส่วนร่วมแล้ว', life: 2000 });

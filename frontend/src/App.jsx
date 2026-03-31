@@ -6,6 +6,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css"; // ✅ อย่าลืม import icons นะครับ
+import Register from "./pages/Register"; // 1. import ไฟล์ใหม่เข้ามาตรงนี้!
 
 function App() {
   return (
@@ -17,12 +18,17 @@ function App() {
 
         {/* ✅ แนะนำ: ใช้ตัวเล็กทั้งหมดเพื่อป้องกันการพิมพ์ผิด (จาก /Tasks เป็น /tasks) */}
         <Route path="/tasks" element={<Tasks />} />
-        
+
         <Route path="/profile" element={<Profile />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* ✅ ถ้าพิมพ์ URL มั่วๆ ให้ดีดกลับไปหน้า Login */}
         <Route path="*" element={<Navigate to="/" />} />
+
+
+        <Route path="/register" element={<Register />} />
+
+
       </Routes>
     </BrowserRouter>
   );

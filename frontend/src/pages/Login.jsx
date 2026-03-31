@@ -99,6 +99,12 @@ function Login() {
               loading={loading}
               className="w-full py-4 bg-slate-900 border-none rounded-2xl text-white font-bold text-sm shadow-xl shadow-slate-200 hover:bg-slate-800 hover:-translate-y-0.5 active:scale-95 transition-all"
             />
+            <button
+              onClick={() => navigate("/register")}
+              className="w-full py-4 bg-white border border-slate-200 rounded-2xl text-slate-700 font-bold text-sm hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all mt-3"
+            >
+              สมัครสมาชิก
+            </button>
           </div>
 
           <div className="mt-10 text-center">
