@@ -25,7 +25,9 @@ function Tasks() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const formattedDate = date ? date.toISOString().split('T')[0] : '';
+            const formattedDate = date instanceof Date 
+    ? date.toLocaleDateString('en-CA') // คืนค่า YYYY-MM-DD ตามเวลาท้องถิ่น
+    : '';
             const response = await axios.get(`http://10.0.0.7:5000/api/tasks/tasks_collab`, {
                 params: { date: formattedDate, q: query },
                 headers: { Authorization: `Bearer ${token}` }

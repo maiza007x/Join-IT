@@ -2,7 +2,22 @@ const joinPool = require('../helper/db');
 
 // --- GET /api/tasks (ดึงงานพร้อมรายชื่อเด็กฝึกงาน) ---
 exports.getTasks = async (req, res) => {
-    const { date, q } = req.query;
+   const { date, q } = req.query;
+
+// ถ้าไม่มีการส่ง date มาจากหน้าเว็บ ให้ใช้ CURDATE() (วันที่ปัจจุบันของ DB)
+let sql = `
+    SELECT t.*, r.deviceName, r.report, r.department, r.time_report
+    FROM orderit.data_report r
+    LEFT JOIN join_it.tasks t ON r.id = t.task_staff_id
+    WHERE 1=1
+`;
+
+if (date) {
+    sql += ` AND DATE(r.date_report) = ? `;
+} else {
+    // กรณีโหลดครั้งแรก ให้เอาวันที่ปัจจุบัน
+    sql += ` AND DATE(r.date_report) = CURDATE() `;
+}
     
     // แก้ไขจุดนี้: ใช้ locale 'sv-SE' เพื่อให้ได้ YYYY-MM-DD และล็อค Timezone เป็นเอเชีย/กรุงเทพ
     // เพื่อป้องกันปัญหา Server เป็นเวลา UTC (ช้ากว่าไทย 7 ชม.) แล้วดึงงานของ "เมื่อวาน" มาแทน
