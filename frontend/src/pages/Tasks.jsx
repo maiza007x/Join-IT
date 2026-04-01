@@ -18,16 +18,14 @@ function Tasks() {
     const [actionLoading, setActionLoading] = useState(null);
     const navigate = useNavigate();
     const toast = useRef(null);
-    const [userData, setUserData] = useState(null); // เก็บข้อมูลโปรไฟล์
+    const [userData, setUserData] = useState(null);
 
-    // ✅ 1. ดึงข้อมูลงาน (รองรับทั้ง Filter วันที่ และ คำค้นหา)
+    // ✅ 1. ดึงข้อมูลงาน
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const formattedDate = date instanceof Date 
-    ? date.toLocaleDateString('en-CA') // คืนค่า YYYY-MM-DD ตามเวลาท้องถิ่น
-    : '';
+            const formattedDate = date instanceof Date ? date.toLocaleDateString('en-CA') : '';
             const response = await axios.get(`http://10.0.0.7:5000/api/tasks/tasks_collab`, {
                 params: { date: formattedDate, q: query },
                 headers: { Authorization: `Bearer ${token}` }
@@ -55,13 +53,11 @@ function Tasks() {
         }
     };
 
-    // ✅ 3. รวบรวม useEffect ให้เหลืออันเดียว (โหลดงานและโปรไฟล์พร้อมกัน)
     useEffect(() => {
         fetchTasks();
         fetchProfile();
     }, []);
 
-    // ... ( handleJoin, handleLeave, confirmJoin, confirmLeave ไม่เปลี่ยนแปลง)
     const handleJoin = async (taskId) => {
         setActionLoading(taskId);
         try {
@@ -122,7 +118,6 @@ function Tasks() {
         navigate("/", { replace: true }); 
     };
 
-    // ... ( internTemplate, actionTemplate ไม่เปลี่ยนแปลง)
     const internTemplate = (rowData) => (
         <div className="flex flex-wrap gap-1">
             {rowData.interns && rowData.interns.length > 0 ? (
@@ -170,41 +165,32 @@ function Tasks() {
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-4"> {/* จัดกลุ่มทางขวา */}
+                    <div className="flex items-center gap-3">
+                        {/* ✅ ปุ่มงานของฉัน - เพิ่มเข้ามาใหม่ */}
+                        <button onClick={() => navigate("/my-tasks")} 
+                                className="px-5 py-2.5 bg-[#1e293b] text-white rounded-2xl font-bold text-xs hover:bg-slate-700 transition-all shadow-lg shadow-slate-200 flex items-center group">
+                            <i className="pi pi-user-edit mr-2 group-hover:scale-110 transition-transform"></i>
+                            งานของฉัน
+                        </button>
 
-                        {/* ✅ รูปโปรไฟล์คลิกได้ หรูหรา */}
+                        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
+
+                        {/* ✅ รูปโปรไฟล์คลิกได้ */}
                         <div className="relative cursor-pointer group" onClick={() => navigate("/profile")}>
                             <div className="p-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-full shadow-sm group-hover:shadow-md group-hover:from-blue-400 group-hover:to-indigo-400 transition-all duration-300">
                                 <img
                                     src={userData?.avatar_url ? `http://10.0.0.7:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
                                     alt="Profile"
-                                    style={{ 
-                                        width: '40px', 
-                                        height: '40px', 
-                                        borderRadius: '50%', 
-                                        objectFit: 'cover',
-                                        border: '2px solid #fff'
-                                    }}
+                                    style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff' }}
                                 />
                             </div>
-                            {/* จุดสีเขียวบอกสถานะออนไลน์ */}
-                            <div style={{ 
-                                position: 'absolute', 
-                                bottom: '1px', 
-                                right: '1px', 
-                                width: '11px', 
-                                height: '11px', 
-                                backgroundColor: '#2ecc71', 
-                                borderRadius: '50%', 
-                                border: '2px solid white',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                            }}></div>
+                            <div style={{ position: 'absolute', bottom: '1px', right: '1px', width: '10px', height: '10px', backgroundColor: '#2ecc71', borderRadius: '50%', border: '2px solid white' }}></div>
                         </div>
                         
-                        <div className="h-6 w-[1px] bg-slate-200"></div>
+                        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
                         
                         <button onClick={() => confirmDialog({ message: 'ต้องการออกจากระบบ?', header: 'ออกจากระบบ', icon: 'pi pi-power-off', accept: handleLogout })} 
-                                className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-sm hover:bg-red-50 hover:text-red-600 transition-colors">
+                                className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-xs hover:bg-red-50 hover:text-red-600 transition-colors">
                             <i className="pi pi-sign-out mr-2"></i>ออกจากระบบ
                         </button>
                     </div>
@@ -220,7 +206,6 @@ function Tasks() {
                         <div className="flex flex-col gap-2 flex-grow">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">คำค้นหา (ปัญหา, อุปกรณ์, แผนก)</span>
                             <div className="relative w-full">
-                                {/* จัดตำแหน่งไอคอนแว่นขยายให้เป็นระเบียบ และเพิ่ม pl-11 ที่ InputText เพื่อเว้นระยะหลบไอคอน */}
                                 <i className="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 text-sm" />
                                 <InputText 
                                     value={searchQuery} 
@@ -234,7 +219,7 @@ function Tasks() {
                     </div>
                 </div>
 
-                {/* ... ( Main Data Table และ CSS Luxury Overrides ไม่เปลี่ยนแปลง) */}
+                {/* 📊 Main Data Table */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden">
                     <div className="p-7 flex items-center justify-between bg-slate-900">
                         <div className="flex items-center gap-4">
@@ -279,7 +264,6 @@ function Tasks() {
                         </DataTable>
                     </div>
                 </div>
-
             </div>
 
             <style dangerouslySetInnerHTML={{ __html: `

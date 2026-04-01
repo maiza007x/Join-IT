@@ -7,7 +7,7 @@ import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css"; // ✅ อย่าลืม import icons นะครับ
 import Register from "./pages/Register"; // 1. import ไฟล์ใหม่เข้ามาตรงนี้!
-
+import MyTasks from "./pages/MyTasks"; // หรือ path ที่คุณเก็บไฟล์ไว้
 function App() {
   return (
     <BrowserRouter>
@@ -18,7 +18,7 @@ function App() {
 
         {/* ✅ แนะนำ: ใช้ตัวเล็กทั้งหมดเพื่อป้องกันการพิมพ์ผิด (จาก /Tasks เป็น /tasks) */}
         <Route path="/tasks" element={<Tasks />} />
-
+        <Route path="/my-tasks" element={<MyTasks />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 

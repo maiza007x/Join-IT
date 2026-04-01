@@ -5,7 +5,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "secret_key";
 function auth(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; 
-
+// ที่ด้านบนของไฟล์ tasks.js
+    const { authenticateToken } = require('../middleware/auth');
     if (!token) {
         console.log("❌ No Token Found in Header");
         return res.sendStatus(401); 
