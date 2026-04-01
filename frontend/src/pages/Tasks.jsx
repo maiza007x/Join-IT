@@ -19,6 +19,9 @@ function Tasks() {
     const navigate = useNavigate();
     const toast = useRef(null);
 
+const [userData, setUserData] = useState(null); // 👈 เพิ่มบรรทัดนี้เพื่อเก็บรูปโปรไฟล์เสริมมมมมมมมมมมมมมมมมมมมมมมมม
+
+
     // ✅ 1. ดึงข้อมูลงาน (รองรับทั้ง Filter วันที่ และ คำค้นหา)
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
@@ -37,6 +40,39 @@ function Tasks() {
             setLoading(false);
         }
     };
+
+
+
+
+
+
+
+// ✅ เพิ่มฟังก์ชันดึงข้อมูลโปรไฟล์ลลลลลลลลลลลลลลลลลลล
+const fetchProfile = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get('http://10.0.0.7:5000/api/users/me', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data && res.data.username) {
+            setUserData(res.data);
+        }
+    } catch (err) {
+        console.error("Fetch Profile Error:", err);
+    }
+};
+
+useEffect(() => {
+    fetchTasks();
+    fetchProfile(); // 👈 เพิ่มให้เรียกใช้ฟังก์ชันดึงโปรไฟล์ที่นี่ด้วยยยยยยยยยยยยยยยยยยยยยยย
+}, []);
+
+
+
+
+
+
+
 
     useEffect(() => {
         fetchTasks();
@@ -155,7 +191,53 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
                     </div>
                     
                     <div className="flex items-center gap-3">
-                        <Button icon="pi pi-user" label="โปรไฟล์" className="p-button-text p-button-rounded text-slate-600 font-bold" onClick={() => navigate("/profile")} />
+
+
+
+
+
+
+
+
+                         {/* เปลี่ยนปุ่มโปรไฟล์ธรรมดา ให้เป็นรูปโปรไฟล์กลมๆ หรูๆ */}
+<div className="relative cursor-pointer group" onClick={() => navigate("/profile")}>
+    <div className="p-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-full shadow-sm group-hover:shadow-md group-hover:from-blue-400 group-hover:to-indigo-400 transition-all duration-300">
+        <img
+            src={userData?.avatar_url ? `http://10.0.0.7:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+            alt="Profile"
+            style={{ 
+                width: '40px', 
+                height: '40px', 
+                borderRadius: '50%', 
+                objectFit: 'cover',
+                border: '2px solid #fff'
+            }}
+        />
+    </div>
+    {/* จุดสีเขียวบอกสถานะออนไลน์มุมขวาล่าง */}
+    <div style={{ 
+        position: 'absolute', 
+        bottom: '1px', 
+        right: '1px', 
+        width: '11px', 
+        height: '11px', 
+        backgroundColor: '#2ecc71', 
+        borderRadius: '50%', 
+        border: '2px solid white',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    }}></div>
+</div>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
                         <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
                         <button onClick={() => confirmDialog({ message: 'ต้องการออกจากระบบ?', header: 'ออกจากระบบ', icon: 'pi pi-power-off', accept: handleLogout })} 
                                 className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-sm hover:bg-red-50 hover:text-red-600 transition-colors">
