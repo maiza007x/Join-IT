@@ -18,10 +18,9 @@ function Tasks() {
     const [actionLoading, setActionLoading] = useState(null);
     const navigate = useNavigate();
     const toast = useRef(null);
+    const [userData, setUserData] = useState(null); // เก็บข้อมูลโปรไฟล์
 
-const [userData, setUserData] = useState(null); // 👈 เพิ่มบรรทัดนี้เพื่อเก็บรูปโปรไฟล์เสริมมมมมมมมมมมมมมมมมมมมมมมมม
-
-
+    // ✅ 1. ดึงข้อมูลงาน (รองรับทั้ง Filter วันที่ และ คำค้นหา)
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
         try {
@@ -39,43 +38,28 @@ const [userData, setUserData] = useState(null); // 👈 เพิ่มบรร
         }
     };
 
-
-
-
-
-
-
-// ✅ เพิ่มฟังก์ชันดึงข้อมูลโปรไฟล์ลลลลลลลลลลลลลลลลลลล
-const fetchProfile = async () => {
-    try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://10.0.0.7:5000/api/users/me', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data && res.data.username) {
-            setUserData(res.data);
+    // ✅ 2. ดึงข้อมูลโปรไฟล์
+    const fetchProfile = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://10.0.0.7:5000/api/users/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data && res.data.username) {
+                setUserData(res.data);
+            }
+        } catch (err) {
+            console.error("Fetch Profile Error:", err);
         }
-    } catch (err) {
-        console.error("Fetch Profile Error:", err);
-    }
-};
+    };
 
-useEffect(() => {
-    fetchTasks();
-    fetchProfile(); // 👈 เพิ่มให้เรียกใช้ฟังก์ชันดึงโปรไฟล์ที่นี่ด้วยยยยยยยยยยยยยยยยยยยยยยย
-}, []);
-
-
-
-
-
-
-
-
+    // ✅ 3. รวบรวม useEffect ให้เหลืออันเดียว (โหลดงานและโปรไฟล์พร้อมกัน)
     useEffect(() => {
         fetchTasks();
+        fetchProfile();
     }, []);
 
+    // ... ( handleJoin, handleLeave, confirmJoin, confirmLeave ไม่เปลี่ยนแปลง)
     const handleJoin = async (taskId) => {
         setActionLoading(taskId);
         try {
@@ -97,10 +81,9 @@ useEffect(() => {
         setActionLoading(taskId);
         try {
             const token = localStorage.getItem('token');
-            // ✅ แก้ไขให้ถูกต้อง
-await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-});
+            await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             toast.current.show({ severity: 'warn', summary: 'ยกเลิก', detail: 'ยกเลิกการมีส่วนร่วมแล้ว', life: 2000 });
             fetchTasks();
         } catch (err) {
@@ -137,6 +120,7 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
         navigate("/", { replace: true }); 
     };
 
+    // ... ( internTemplate, actionTemplate ไม่เปลี่ยนแปลง)
     const internTemplate = (rowData) => (
         <div className="flex flex-wrap gap-1">
             {rowData.interns && rowData.interns.length > 0 ? (
@@ -184,55 +168,39 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4"> {/* จัดกลุ่มทางขวา */}
 
-
-
-
-
-
-
-
-                         {/* เปลี่ยนปุ่มโปรไฟล์ธรรมดา ให้เป็นรูปโปรไฟล์กลมๆ หรูๆ */}
-<div className="relative cursor-pointer group" onClick={() => navigate("/profile")}>
-    <div className="p-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-full shadow-sm group-hover:shadow-md group-hover:from-blue-400 group-hover:to-indigo-400 transition-all duration-300">
-        <img
-            src={userData?.avatar_url ? `http://10.0.0.7:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
-            alt="Profile"
-            style={{ 
-                width: '40px', 
-                height: '40px', 
-                borderRadius: '50%', 
-                objectFit: 'cover',
-                border: '2px solid #fff'
-            }}
-        />
-    </div>
-    {/* จุดสีเขียวบอกสถานะออนไลน์มุมขวาล่าง */}
-    <div style={{ 
-        position: 'absolute', 
-        bottom: '1px', 
-        right: '1px', 
-        width: '11px', 
-        height: '11px', 
-        backgroundColor: '#2ecc71', 
-        borderRadius: '50%', 
-        border: '2px solid white',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}></div>
-</div>
+                        {/* ✅ รูปโปรไฟล์คลิกได้ หรูหรา */}
+                        <div className="relative cursor-pointer group" onClick={() => navigate("/profile")}>
+                            <div className="p-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-full shadow-sm group-hover:shadow-md group-hover:from-blue-400 group-hover:to-indigo-400 transition-all duration-300">
+                                <img
+                                    src={userData?.avatar_url ? `http://10.0.0.7:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+                                    alt="Profile"
+                                    style={{ 
+                                        width: '40px', 
+                                        height: '40px', 
+                                        borderRadius: '50%', 
+                                        objectFit: 'cover',
+                                        border: '2px solid #fff'
+                                    }}
+                                />
+                            </div>
+                            {/* จุดสีเขียวบอกสถานะออนไลน์ */}
+                            <div style={{ 
+                                position: 'absolute', 
+                                bottom: '1px', 
+                                right: '1px', 
+                                width: '11px', 
+                                height: '11px', 
+                                backgroundColor: '#2ecc71', 
+                                borderRadius: '50%', 
+                                border: '2px solid white',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}></div>
+                        </div>
                         
+                        <div className="h-6 w-[1px] bg-slate-200"></div>
                         
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-                        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
                         <button onClick={() => confirmDialog({ message: 'ต้องการออกจากระบบ?', header: 'ออกจากระบบ', icon: 'pi pi-power-off', accept: handleLogout })} 
                                 className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-sm hover:bg-red-50 hover:text-red-600 transition-colors">
                             <i className="pi pi-sign-out mr-2"></i>ออกจากระบบ
@@ -240,7 +208,7 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
                     </div>
                 </div>
 
-                {/* 🔍 Filter & Search Bar (ปรับปรุงไอคอนแว่นขยายที่นี่) */}
+                {/* 🔍 Filter & Search Bar */}
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 mb-8">
                     <div className="flex flex-wrap gap-5 items-end">
                         <div className="flex flex-col gap-2">
@@ -250,7 +218,7 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
                         <div className="flex flex-col gap-2 flex-grow">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">คำค้นหา (ปัญหา, อุปกรณ์, แผนก)</span>
                             <div className="relative w-full">
-                                {/* จัดตำแหน่งไอคอนแว่นขยายให้เป็นระเบียบ */}
+                                {/* จัดตำแหน่งไอคอนแว่นขยายให้เป็นระเบียบ และเพิ่ม pl-11 ที่ InputText เพื่อเว้นระยะหลบไอคอน */}
                                 <i className="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 text-sm" />
                                 <InputText 
                                     value={searchQuery} 
@@ -264,7 +232,7 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
                     </div>
                 </div>
 
-                {/* 📊 Main Data Table */}
+                {/* ... ( Main Data Table และ CSS Luxury Overrides ไม่เปลี่ยนแปลง) */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden">
                     <div className="p-7 flex items-center justify-between bg-slate-900">
                         <div className="flex items-center gap-4">
@@ -312,7 +280,6 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
 
             </div>
 
-            {/* 🎨 CSS Luxury Overrides */}
             <style dangerouslySetInnerHTML={{ __html: `
                 .custom-luxury-table .p-datatable-thead > tr > th {
                     background-color: #fafafa !important;
