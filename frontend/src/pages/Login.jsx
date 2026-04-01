@@ -69,7 +69,7 @@ function Login() {
               <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Password</label>
               <div className="relative flex items-center group custom-password">
                 {/* แม่กุญแจอยู่ด้านซ้าย */}
-                <i className="pi pi-lock absolute left-4 top-1/2 -translate-y-2 slate-200 group-focus-within:text-blue-200 transition-colors z-20"></i>
+                <i className="pi pi-lock absolute left-4 top-1/2 -translate-y-2 slate-100 group-focus-within:text-blue-200 transition-colors z-20"></i>
                 <Password
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
