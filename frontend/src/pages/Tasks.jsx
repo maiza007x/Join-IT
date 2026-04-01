@@ -59,7 +59,6 @@ function Tasks() {
         fetchProfile();
     }, []);
 
-    // ... ( handleJoin, handleLeave, confirmJoin, confirmLeave ไม่เปลี่ยนแปลง)
     const handleJoin = async (taskId) => {
         setActionLoading(taskId);
         try {
@@ -120,7 +119,6 @@ function Tasks() {
         navigate("/", { replace: true }); 
     };
 
-    // ... ( internTemplate, actionTemplate ไม่เปลี่ยนแปลง)
     const internTemplate = (rowData) => (
         <div className="flex flex-wrap gap-1">
             {rowData.interns && rowData.interns.length > 0 ? (
@@ -170,7 +168,18 @@ function Tasks() {
                     
                     <div className="flex items-center gap-4"> {/* จัดกลุ่มทางขวา */}
 
-                        {/* ✅ รูปโปรไฟล์คลิกได้ หรูหรา */}
+                        {/* ✅ เพิ่มปุ่มตัวเลือก "จัดการสมาชิก" ข้างๆ โปรไฟล์ */}
+                        <div 
+                            className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-2.5 rounded-2xl transition-all duration-200 group mr-1"
+                            onClick={() => navigate("/members")}
+                        >
+                            <div className="bg-blue-50 p-2 rounded-xl group-hover:bg-blue-100 transition-colors">
+                                <i className="pi pi-users text-blue-600 text-base"></i>
+                            </div>
+                            <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">จัดการสมาชิก</span>
+                        </div>
+
+                        {/* รูปโปรไฟล์คลิกได้ หรูหรา */}
                         <div className="relative cursor-pointer group" onClick={() => navigate("/profile")}>
                             <div className="p-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-full shadow-sm group-hover:shadow-md group-hover:from-blue-400 group-hover:to-indigo-400 transition-all duration-300">
                                 <img
@@ -218,7 +227,6 @@ function Tasks() {
                         <div className="flex flex-col gap-2 flex-grow">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">คำค้นหา (ปัญหา, อุปกรณ์, แผนก)</span>
                             <div className="relative w-full">
-                                {/* จัดตำแหน่งไอคอนแว่นขยายให้เป็นระเบียบ และเพิ่ม pl-11 ที่ InputText เพื่อเว้นระยะหลบไอคอน */}
                                 <i className="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 text-sm" />
                                 <InputText 
                                     value={searchQuery} 
@@ -232,7 +240,7 @@ function Tasks() {
                     </div>
                 </div>
 
-                {/* ... ( Main Data Table และ CSS Luxury Overrides ไม่เปลี่ยนแปลง) */}
+                {/* Main Data Table */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden">
                     <div className="p-7 flex items-center justify-between bg-slate-900">
                         <div className="flex items-center gap-4">
