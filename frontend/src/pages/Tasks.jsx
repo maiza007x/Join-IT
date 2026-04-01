@@ -18,14 +18,14 @@ function Tasks() {
     const [actionLoading, setActionLoading] = useState(null);
     const navigate = useNavigate();
     const toast = useRef(null);
-    const [userData, setUserData] = useState(null); // เก็บข้อมูลโปรไฟล์
+    const [userData, setUserData] = useState(null);
 
-    // ✅ 1. ดึงข้อมูลงาน (รองรับทั้ง Filter วันที่ และ คำค้นหา)
+    // ✅ 1. ดึงข้อมูลงาน
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const formattedDate = date ? date.toISOString().split('T')[0] : '';
+            const formattedDate = date instanceof Date ? date.toLocaleDateString('en-CA') : '';
             const response = await axios.get(`http://10.0.0.7:5000/api/tasks/tasks_collab`, {
                 params: { date: formattedDate, q: query },
                 headers: { Authorization: `Bearer ${token}` }
@@ -53,7 +53,6 @@ function Tasks() {
         }
     };
 
-    // ✅ 3. รวบรวม useEffect ให้เหลืออันเดียว (โหลดงานและโปรไฟล์พร้อมกัน)
     useEffect(() => {
         fetchTasks();
         fetchProfile();
@@ -166,7 +165,15 @@ function Tasks() {
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-4"> {/* จัดกลุ่มทางขวา */}
+                    <div className="flex items-center gap-3">
+                        {/* ✅ ปุ่มงานของฉัน - เพิ่มเข้ามาใหม่ */}
+                        <button onClick={() => navigate("/my-tasks")} 
+                                className="px-5 py-2.5 bg-[#1e293b] text-white rounded-2xl font-bold text-xs hover:bg-slate-700 transition-all shadow-lg shadow-slate-200 flex items-center group">
+                            <i className="pi pi-user-edit mr-2 group-hover:scale-110 transition-transform"></i>
+                            งานของฉัน
+                        </button>
+
+                        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
 
                         {/* ✅ เพิ่มปุ่มตัวเลือก "จัดการสมาชิก" ข้างๆ โปรไฟล์ */}
                         <div 
@@ -185,33 +192,16 @@ function Tasks() {
                                 <img
                                     src={userData?.avatar_url ? `http://10.0.0.7:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
                                     alt="Profile"
-                                    style={{ 
-                                        width: '40px', 
-                                        height: '40px', 
-                                        borderRadius: '50%', 
-                                        objectFit: 'cover',
-                                        border: '2px solid #fff'
-                                    }}
+                                    style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff' }}
                                 />
                             </div>
-                            {/* จุดสีเขียวบอกสถานะออนไลน์ */}
-                            <div style={{ 
-                                position: 'absolute', 
-                                bottom: '1px', 
-                                right: '1px', 
-                                width: '11px', 
-                                height: '11px', 
-                                backgroundColor: '#2ecc71', 
-                                borderRadius: '50%', 
-                                border: '2px solid white',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                            }}></div>
+                            <div style={{ position: 'absolute', bottom: '1px', right: '1px', width: '10px', height: '10px', backgroundColor: '#2ecc71', borderRadius: '50%', border: '2px solid white' }}></div>
                         </div>
                         
-                        <div className="h-6 w-[1px] bg-slate-200"></div>
+                        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
                         
                         <button onClick={() => confirmDialog({ message: 'ต้องการออกจากระบบ?', header: 'ออกจากระบบ', icon: 'pi pi-power-off', accept: handleLogout })} 
-                                className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-sm hover:bg-red-50 hover:text-red-600 transition-colors">
+                                className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-xs hover:bg-red-50 hover:text-red-600 transition-colors">
                             <i className="pi pi-sign-out mr-2"></i>ออกจากระบบ
                         </button>
                     </div>
@@ -285,7 +275,6 @@ function Tasks() {
                         </DataTable>
                     </div>
                 </div>
-
             </div>
 
             <style dangerouslySetInnerHTML={{ __html: `
