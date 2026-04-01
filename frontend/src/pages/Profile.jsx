@@ -24,44 +24,26 @@ const Profile = () => {
 
     const toast = useRef(null);
 
-   // 1. แก้ไขฟังก์ชัน fetchTasks ให้ฉลาดขึ้น
-// แก้ฟังก์ชัน fetchTasks ใน Tasks.jsx
-const fetchTasks = async (date = selectedDate, query = searchQuery) => {
-    setLoading(true);
-    try {
-        const token = localStorage.getItem('token');
-        
-        let formattedDate = "";
-        if (date instanceof Date) {
-            // ดึงปี-เดือน-วัน ตรงๆ เพื่อป้องกันปัญหา Timezone
-            const y = date.getFullYear();
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const d = String(date.getDate()).padStart(2, '0');
-            formattedDate = `${y}-${m}-${d}`; 
+    const fetchProfile = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://10.0.0.7:5000/api/users/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = res.data;
+            if (data && data.username) {
+                setUserData(data);
+                setFullName(data.fullName || "");
+                setAcademicYear(data.academic_year || "");
+                setUniversityName(data.university_name || "");
+            }
+        } catch (err) {
+            console.error("Fetch Error:", err);
+            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'โหลดข้อมูลล้มเหลว' });
+        } finally {
+            setLoading(false);
         }
-
-        console.log("ส่งวันที่ไป API:", formattedDate); // ดูที่ Console ว่าเลขตรงกับ 2026-04-01 ไหม
-
-        const response = await axios.get(`http://10.0.0.7:5000/api/tasks/tasks_collab`, {
-            params: { date: formattedDate, q: query },
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        setTasks(response.data.tasks || []);
-    } catch (err) {
-        toast.current?.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'โหลดข้อมูลงานล้มเหลว' });
-    } finally {
-        setLoading(false);
-    }
-};
-
-// 2. รวม useEffect ให้เหลืออันเดียว และเรียกใช้ให้ถูกต้อง
-useEffect(() => {
-    // ดึงโปรไฟล์ก่อน
-    fetchProfile();
-    // ดึงงานโดยใช้ค่าเริ่มต้น (วันนี้)
-    fetchTasks(new Date(), searchQuery);
-}, []); 
-// ^ ลบ useEffect อันที่สองที่ซ้ำกันออกด้วยนะครับ
+    };
 
     useEffect(() => {
         fetchProfile();
