@@ -223,7 +223,7 @@ function Tasks() {
                                 <InputText 
                                     value={searchQuery} 
                                     onChange={(e) => setSearchQuery(e.target.value)} 
-                                    placeholder="พิมพ์เพื่อค้นหา..." 
+                                    placeholder="       พิมพ์เพื่อค้นหา..." 
                                     className="w-full rounded-2xl border-slate-100 bg-slate-50/50 pl-11 py-3 focus:ring-2 focus:ring-blue-100 transition-all text-sm" 
                                 />
                             </div>
