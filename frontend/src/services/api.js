@@ -1,13 +1,17 @@
-import axios from "axios";
+// src/services/api.js
+import axios from 'axios';
 
-const API = axios.create({
-  baseURL: "http://10.0.0.27:5000/api"
+const api = axios.create({
+    baseURL: import.meta.env.VITE_REACT_APP_API, // ดึงค่าจาก .env
 });
 
-API.interceptors.request.use(req => {
-  const token = localStorage.getItem("token");
-  if (token) req.headers.Authorization = token;
-  return req;
+// ใส่ Interceptor เพื่อดึง Token มาแนบอัตโนมัติ (ลดการ Hardcode ในหน้า Tasks)
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
 });
 
-export default API;
+export default api;

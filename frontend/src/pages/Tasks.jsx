@@ -18,19 +18,19 @@ function Tasks() {
     const [actionLoading, setActionLoading] = useState(null);
     const navigate = useNavigate();
     const toast = useRef(null);
+    const [userData, setUserData] = useState(null);
 
-    // ✅ 1. ดึงข้อมูลงาน (รองรับทั้ง Filter วันที่ และ คำค้นหา)
+    // ✅ 1. ดึงข้อมูลงาน
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const formattedDate = date ? date.toISOString().split('T')[0] : '';
-            const response = await axios.get(`http://10.0.0.27:5000/api/tasks/tasks_collab`, {
+            const formattedDate = date instanceof Date ? date.toLocaleDateString('en-CA') : '';
+            const response = await axios.get(`http://10.0.0.7:5000/api/tasks/tasks_collab`, {
                 params: { date: formattedDate, q: query },
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTasks(response.data.tasks || []);
-            console.log(response)
         } catch (err) {
             toast.current?.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'โหลดข้อมูลงานล้มเหลว' });
         } finally {
@@ -38,16 +38,31 @@ function Tasks() {
         }
     };
 
+    // ✅ 2. ดึงข้อมูลโปรไฟล์
+    const fetchProfile = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://10.0.0.7:5000/api/users/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data && res.data.username) {
+                setUserData(res.data);
+            }
+        } catch (err) {
+            console.error("Fetch Profile Error:", err);
+        }
+    };
+
     useEffect(() => {
         fetchTasks();
+        fetchProfile();
     }, []);
 
-    // ✅ 2. Logic: กดมีส่วนร่วม (Join)
     const handleJoin = async (taskId) => {
         setActionLoading(taskId);
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`http://10.0.0.27:5000/api/tasks/join`, 
+            await axios.post(`http://10.0.0.7:5000/api/tasks/join`, 
                 { task_staff_id: taskId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -60,15 +75,13 @@ function Tasks() {
         }
     };
 
-    // ✅ 3. Logic: ยกเลิกการมีส่วนร่วม (Leave - Soft Delete)
     const handleLeave = async (taskId) => {
         setActionLoading(taskId);
         try {
             const token = localStorage.getItem('token');
-            // ✅ แก้ไขให้ถูกต้อง
-await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-});
+            await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             toast.current.show({ severity: 'warn', summary: 'ยกเลิก', detail: 'ยกเลิกการมีส่วนร่วมแล้ว', life: 2000 });
             fetchTasks();
         } catch (err) {
@@ -78,7 +91,6 @@ await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
         }
     };
 
-    // ✅ 4. Confirm Dialogs
     const confirmJoin = (taskId) => {
         confirmDialog({
             message: 'ต้องการมีส่วนร่วมกับงานนี้ใช่หรือไม่?',
@@ -106,7 +118,6 @@ await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
         navigate("/", { replace: true }); 
     };
 
-    // ✅ 5. Templates สำหรับตาราง
     const internTemplate = (rowData) => (
         <div className="flex flex-wrap gap-1">
             {rowData.interns && rowData.interns.length > 0 ? (
@@ -136,7 +147,7 @@ await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
     };
 
     return (
-        <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 font-sans">
+        <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 font-sans text-slate-700">
             <Toast ref={toast} />
             <ConfirmDialog />
             
@@ -149,16 +160,48 @@ await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
                             <i className="pi pi-briefcase text-white text-xl"></i>
                         </div>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-black text-[#1e293b] tracking-tight">ระบบจัดการงานเจ้าหน้าที่</h1>
-                            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Join-IT Operation Center</p>
+                            <h1 className="text-xl md:text-2xl font-black text-[#1e293b] tracking-tight leading-none">ระบบจัดการงานเจ้าหน้าที่</h1>
+                            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mt-1">Join-IT Operation Center</p>
                         </div>
                     </div>
                     
                     <div className="flex items-center gap-3">
-                        <Button icon="pi pi-user" label="โปรไฟล์" className="p-button-text p-button-rounded text-slate-600 font-bold" onClick={() => navigate("/profile")} />
+                        {/* ✅ ปุ่มงานของฉัน - เพิ่มเข้ามาใหม่ */}
+                        <button onClick={() => navigate("/my-tasks")} 
+                                className="px-5 py-2.5 bg-[#1e293b] text-white rounded-2xl font-bold text-xs hover:bg-slate-700 transition-all shadow-lg shadow-slate-200 flex items-center group">
+                            <i className="pi pi-user-edit mr-2 group-hover:scale-110 transition-transform"></i>
+                            งานของฉัน
+                        </button>
+
                         <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
+
+                        {/* ✅ เพิ่มปุ่มตัวเลือก "จัดการสมาชิก" ข้างๆ โปรไฟล์ */}
+                        <div 
+                            className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-2.5 rounded-2xl transition-all duration-200 group mr-1"
+                            onClick={() => navigate("/members")}
+                        >
+                            <div className="bg-blue-50 p-2 rounded-xl group-hover:bg-blue-100 transition-colors">
+                                <i className="pi pi-users text-blue-600 text-base"></i>
+                            </div>
+                            <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">จัดการสมาชิก</span>
+                        </div>
+
+                        {/* รูปโปรไฟล์คลิกได้ หรูหรา */}
+                        <div className="relative cursor-pointer group" onClick={() => navigate("/profile")}>
+                            <div className="p-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-full shadow-sm group-hover:shadow-md group-hover:from-blue-400 group-hover:to-indigo-400 transition-all duration-300">
+                                <img
+                                    src={userData?.avatar_url ? `http://10.0.0.7:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+                                    alt="Profile"
+                                    style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff' }}
+                                />
+                            </div>
+                            <div style={{ position: 'absolute', bottom: '1px', right: '1px', width: '10px', height: '10px', backgroundColor: '#2ecc71', borderRadius: '50%', border: '2px solid white' }}></div>
+                        </div>
+                        
+                        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
+                        
                         <button onClick={() => confirmDialog({ message: 'ต้องการออกจากระบบ?', header: 'ออกจากระบบ', icon: 'pi pi-power-off', accept: handleLogout })} 
-                                className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-sm hover:bg-red-50 hover:text-red-600 transition-colors">
+                                className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-xs hover:bg-red-50 hover:text-red-600 transition-colors">
                             <i className="pi pi-sign-out mr-2"></i>ออกจากระบบ
                         </button>
                     </div>
@@ -173,16 +216,21 @@ await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
                         </div>
                         <div className="flex flex-col gap-2 flex-grow">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">คำค้นหา (ปัญหา, อุปกรณ์, แผนก)</span>
-                            <div className="p-input-icon-left">
-                                <i className="pi pi-search text-slate-400" />
-                                <InputText value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="พิมพ์เพื่อค้นหา..." className="w-full rounded-2xl border-slate-100 bg-slate-50/50" />
+                            <div className="relative w-full">
+                                <i className="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 text-sm" />
+                                <InputText 
+                                    value={searchQuery} 
+                                    onChange={(e) => setSearchQuery(e.target.value)} 
+                                    placeholder="       พิมพ์เพื่อค้นหา..." 
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50/50 pl-11 py-3 focus:ring-2 focus:ring-blue-100 transition-all text-sm" 
+                                />
                             </div>
                         </div>
-                        <Button label="ค้นหาข้อมูล" icon="pi pi-search" className="rounded-2xl px-8 bg-blue-600 border-none font-bold h-[48px] shadow-lg shadow-blue-100" onClick={() => fetchTasks()} loading={loading} />
+                        <Button label="ค้นหาข้อมูล" icon="pi pi-search" className="rounded-2xl px-8 bg-blue-600 border-none font-bold h-[48px] shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all" onClick={() => fetchTasks()} loading={loading} />
                     </div>
                 </div>
 
-                {/* 📊 Main Data Table */}
+                {/* Main Data Table */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden">
                     <div className="p-7 flex items-center justify-between bg-slate-900">
                         <div className="flex items-center gap-4">
@@ -227,10 +275,8 @@ await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
                         </DataTable>
                     </div>
                 </div>
-
             </div>
 
-            {/* 🎨 CSS Luxury Overrides */}
             <style dangerouslySetInnerHTML={{ __html: `
                 .custom-luxury-table .p-datatable-thead > tr > th {
                     background-color: #fafafa !important;
