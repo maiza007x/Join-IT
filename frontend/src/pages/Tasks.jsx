@@ -19,7 +19,6 @@ function Tasks() {
     const navigate = useNavigate();
     const toast = useRef(null);
 
-    // ✅ 1. ดึงข้อมูลงาน (รองรับทั้ง Filter วันที่ และ คำค้นหา)
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
         try {
@@ -30,7 +29,6 @@ function Tasks() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTasks(response.data.tasks || []);
-            console.log(response)
         } catch (err) {
             toast.current?.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'โหลดข้อมูลงานล้มเหลว' });
         } finally {
@@ -42,7 +40,6 @@ function Tasks() {
         fetchTasks();
     }, []);
 
-    // ✅ 2. Logic: กดมีส่วนร่วม (Join)
     const handleJoin = async (taskId) => {
         setActionLoading(taskId);
         try {
@@ -60,7 +57,6 @@ function Tasks() {
         }
     };
 
-    // ✅ 3. Logic: ยกเลิกการมีส่วนร่วม (Leave - Soft Delete)
     const handleLeave = async (taskId) => {
         setActionLoading(taskId);
         try {
@@ -78,7 +74,6 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
         }
     };
 
-    // ✅ 4. Confirm Dialogs
     const confirmJoin = (taskId) => {
         confirmDialog({
             message: 'ต้องการมีส่วนร่วมกับงานนี้ใช่หรือไม่?',
@@ -106,7 +101,6 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
         navigate("/", { replace: true }); 
     };
 
-    // ✅ 5. Templates สำหรับตาราง
     const internTemplate = (rowData) => (
         <div className="flex flex-wrap gap-1">
             {rowData.interns && rowData.interns.length > 0 ? (
@@ -136,7 +130,7 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
     };
 
     return (
-        <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 font-sans">
+        <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 font-sans text-slate-700">
             <Toast ref={toast} />
             <ConfirmDialog />
             
@@ -149,8 +143,8 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
                             <i className="pi pi-briefcase text-white text-xl"></i>
                         </div>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-black text-[#1e293b] tracking-tight">ระบบจัดการงานเจ้าหน้าที่</h1>
-                            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Join-IT Operation Center</p>
+                            <h1 className="text-xl md:text-2xl font-black text-[#1e293b] tracking-tight leading-none">ระบบจัดการงานเจ้าหน้าที่</h1>
+                            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mt-1">Join-IT Operation Center</p>
                         </div>
                     </div>
                     
@@ -164,7 +158,7 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
                     </div>
                 </div>
 
-                {/* 🔍 Filter & Search Bar */}
+                {/* 🔍 Filter & Search Bar (ปรับปรุงไอคอนแว่นขยายที่นี่) */}
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 mb-8">
                     <div className="flex flex-wrap gap-5 items-end">
                         <div className="flex flex-col gap-2">
@@ -173,12 +167,18 @@ await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
                         </div>
                         <div className="flex flex-col gap-2 flex-grow">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">คำค้นหา (ปัญหา, อุปกรณ์, แผนก)</span>
-                            <div className="p-input-icon-left">
-                                <i className="pi pi-search text-slate-400" />
-                                <InputText value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="พิมพ์เพื่อค้นหา..." className="w-full rounded-2xl border-slate-100 bg-slate-50/50" />
+                            <div className="relative w-full">
+                                {/* จัดตำแหน่งไอคอนแว่นขยายให้เป็นระเบียบ */}
+                                <i className="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 text-sm" />
+                                <InputText 
+                                    value={searchQuery} 
+                                    onChange={(e) => setSearchQuery(e.target.value)} 
+                                    placeholder="พิมพ์เพื่อค้นหา..." 
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50/50 pl-11 py-3 focus:ring-2 focus:ring-blue-100 transition-all text-sm" 
+                                />
                             </div>
                         </div>
-                        <Button label="ค้นหาข้อมูล" icon="pi pi-search" className="rounded-2xl px-8 bg-blue-600 border-none font-bold h-[48px] shadow-lg shadow-blue-100" onClick={() => fetchTasks()} loading={loading} />
+                        <Button label="ค้นหาข้อมูล" icon="pi pi-search" className="rounded-2xl px-8 bg-blue-600 border-none font-bold h-[48px] shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all" onClick={() => fetchTasks()} loading={loading} />
                     </div>
                 </div>
 

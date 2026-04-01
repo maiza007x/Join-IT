@@ -69,7 +69,7 @@ function Login() {
               <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Password</label>
               <div className="relative flex items-center group custom-password">
                 {/* แม่กุญแจอยู่ด้านซ้าย */}
-                <i className="pi pi-lock absolute left-4 text-slate-400 group-focus-within:text-blue-500 transition-colors z-20"></i>
+                <i className="pi pi-lock absolute left-4 top-1/2 -translate-y-2 slate-200 group-focus-within:text-blue-200 transition-colors z-20"></i>
                 <Password
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -77,7 +77,7 @@ function Login() {
                   feedback={false}
                   placeholder="••••••••"
                   // ดันตัวหนังสือหลบทั้งแม่กุญแจ (ซ้าย) และลูกตา (ขวา)
-                  inputStyle={{ paddingLeft: '2.75rem', paddingRight: '2.75rem', width: '100%' }}
+                  inputStyle={{ paddingLeft: '2.5rem', paddingRight: '2.5rem', width: '100%' }}
                   inputClassName="py-3.5 bg-white/50 border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
                   className="w-full"
                 />
@@ -143,11 +143,11 @@ function Login() {
         .custom-password .p-password-show-icon, 
         .custom-password .p-password-hide-icon {
           position: absolute !important;
-          top: 50% !important;
-          right: 1.25rem !important; /* ระยะห่างจากขอบขวา */
+          top: auto !important;
+          right: 1rem !important; /* ระยะห่างจากขอบขวา */
           left: auto !important;     /* ป้องกันการทับซ้อนกับไอคอนด้านซ้าย */
-          transform: translateY(-50%) !important;
-          z-index: 30 !important;
+          transform: translate auto !important;
+          z-index: auto !important;
           color: #94a3b8 !important;
           cursor: pointer;
         }
