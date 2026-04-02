@@ -1,51 +1,49 @@
 const express = require("express");
-const path = require("path"); // ✅ เพิ่ม path
+const path = require("path"); 
 const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 
 // Routes
-const indexRoutes = require("./api_routes/auth");
-const linenRoutes = require("./api_routes/tasks");
+const authRoutes = require("./api_routes/auth");
 const userRoutes = require("./api_routes/user");
-const taskRoutes = require('./api_routes/tasks'); // ตรวจสอบ path ไฟล์ให้ถูก
+const taskRoutes = require("./api_routes/tasks"); // รวมงานทั้งหมดไว้ที่นี่
+
 const app = express();
-const handleLogout = () => {
-    localStorage.clear(); // ล้างทิ้งให้หมด ไม่ใช่แค่ token
-    sessionStorage.clear(); // ล้าง session เผื่อมีค้าง
-    navigate("/login", { replace: true }); // replace: true จะทำให้ย้อนกลับมาหน้า task ไม่ได้
-};
-// ✅ 1. แก้ไข Helmet: ปิด Resource Policy บางตัวที่ขัดขวางการแสดงรูปภาพ
+
+// ✅ 1. Middleware Setup
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }, // อนุญาตให้ดึงรูปข้าม origin
-    crossOriginEmbedderPolicy: false, // ปิดตัวที่ทำให้เกิด NotSameOrigin error
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
   })
 );
 
-// ✅ 2. CORS: แนะนำให้ระบุ Origin เฉพาะเจาะจงแทน "*" เพื่อความปลอดภัยและความเสถียร
 app.use(cors({ 
-  origin: true, // หรือใส่ "http://localhost:5173"
+  origin: true, 
   credentials: true 
 }));
 
 app.use(express.json());
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(cookieParser());
-app.use('/api/tasks', taskRoutes);
-// ✅ 3. Static Files: เพิ่ม Header ย้ำอีกครั้งเพื่อความชัวร์ในการดึงรูป
+
+// ✅ 2. Static Files (รูปภาพ)
 app.use('/uploads', (req, res, next) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     next();
 }, express.static(path.join(__dirname, 'uploads')));
 
-// Routes Setup
-app.use("/api/auth", indexRoutes);
-app.use("/api", linenRoutes);
-app.use('/api/users', userRoutes);
+// ✅ 3. Routes Setup (จัดลำดับใหม่ให้ไม่งง)
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
-// Error Handler
+// ⚠️ สำคัญมาก: ถ้าใช้ /api/tasks ตรงนี้ 
+// ในไฟล์ taskRoutes.js ห้ามเขียน path ซ้ำซ้อน
+app.use("/api/tasks", taskRoutes); 
+
+// ✅ 4. Error Handler
 app.use((err, req, res, next) => {
   console.error("🔴 Server Error:", err.stack);
   res.status(500).json({ 

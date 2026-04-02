@@ -27,22 +27,25 @@ exports.getProfile = async (req, res) => {
 };
 
 // --- 2. GET /api/users/all (ดึงข้อมูลผู้ใช้ทั้งหมด - สำหรับหน้า Admin) ---
+// ในไฟล์ controllers/userController.js
+// --- 2. GET /api/users/all (ดึงข้อมูลผู้ใช้ทั้งหมด - สำหรับหน้า Admin) ---
 exports.getAllUsers = async (req, res) => {
     try {
-        // แก้ไข: ลบ created_at ออกชั่วคราวเพราะ SQL ฟ้องว่าไม่มีคอลัมน์นี้
-        // และใช้ full_name AS name เพื่อให้ตรงกับฟิลด์ที่ Frontend เรียกใช้
+        // ใช้ Query ที่ปลอดภัยที่สุด (ถ้าตัวไหนไม่มีใน DB ให้ลบออกทีละตัวครับ)
         const [users] = await joinPool.query(`
             SELECT 
                 id, 
                 username, 
                 full_name AS name, 
                 role
-            FROM users
+            FROM users 
         `);
+        // หมายเหตุ: ถ้าคุณรัน ALTER TABLE เพิ่ม created_at แล้ว 
+        // สามารถเพิ่ม created_at เข้าไปใน SELECT ด้านบนได้ครับ
 
         res.status(200).json(users);
     } catch (error) {
-        console.error("SQL ERROR DETAILS:", error.message); 
+        console.error("❌ SQL ERROR:", error.message); 
         res.status(500).json({ 
             success: false, 
             message: "Database Error", 
@@ -106,7 +109,7 @@ exports.changePassword = async (req, res) => {
     }
 };
 
-// --- 5. POST /api/users/upload-avatar (อัปโหลดรูป) ---
+// --- 5. POST /api/users/upload-avatar (อัปโหลดรูปโปรไฟล์) ---
 exports.uploadAvatar = async (req, res) => {
     try {
         if (!req.file) {
@@ -127,20 +130,25 @@ exports.uploadAvatar = async (req, res) => {
     }
 };
 
-// --- 6. POST /api/users/contributions (บันทึกรายละเอียดการปฏิบัติงาน) ---
+// --- 6. POST /api/users/contributions (บันทึกรายละเอียดการปฏิบัติงานพร้อม 3 ฟิลด์ใหม่) ---
 exports.addTaskContribution = async (req, res) => {
     const { 
         task_staff_id, 
-        contribution_detail, 
-        learning_outcome, 
-        mentor_feedback 
+        contribution_detail, // ได้ทำอะไรในงานนี้
+        learning_outcome,    // สิ่งที่ได้เรียนรู้
+        mentor_feedback      // คำแนะนำ (ถ้ามี)
     } = req.body;
 
+    // ตรวจสอบฟิลด์บังคับ (ตัวอย่างคือ contribution_detail)
     if (!task_staff_id) {
         return res.status(400).json({ success: false, message: "ไม่พบรหัสงานของเจ้าหน้าที่" });
     }
+    if (!contribution_detail || contribution_detail.trim() === "") {
+        return res.status(400).json({ success: false, message: "กรุณากรอกรายละเอียดสิ่งที่ได้ทำ" });
+    }
 
     try {
+        // ดึงชื่อผู้บันทึกมาเก็บไว้ใน created_by / updated_by
         const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [req.user.id]);
         if (userRows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้" });
         
@@ -155,7 +163,7 @@ exports.addTaskContribution = async (req, res) => {
         const values = [
             task_staff_id, 
             req.user.id, 
-            contribution_detail || null, 
+            contribution_detail, 
             learning_outcome || null, 
             mentor_feedback || null, 
             creatorName, 
@@ -166,12 +174,12 @@ exports.addTaskContribution = async (req, res) => {
 
         res.status(201).json({ 
             success: true, 
-            message: "บันทึกข้อมูลการช่วยงานสำเร็จ",
+            message: "บันทึกข้อมูลสำเร็จแล้ว",
             contributionId: result.insertId 
         });
 
     } catch (err) {
         console.error("Add Task Contribution Error:", err);
-        res.status(500).json({ success: false, message: "ไม่สามารถบันทึกข้อมูลการช่วยงานได้" });
+        res.status(500).json({ success: false, message: "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง" });
     }
 };
