@@ -10,7 +10,6 @@ import MyTasks from "./pages/MyTasks";
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css"; // ✅ อย่าลืม import icons นะครับ
-import MyTasks from "./pages/MyTasks"; // หรือ path ที่คุณเก็บไฟล์ไว้
 const ProtectedAdminRoute = ({ children }) => {
   const userRole = localStorage.getItem("userRole"); // ดึง role ที่เก็บไว้ตอนล็อกอิน
 
