@@ -1,24 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
+import axios from 'axios'; // ⚠️ อย่าลืมติดตั้งด้วยคำสั่ง npm install axios ใน Terminal นะครับ
 
 function Members() {
     const navigate = useNavigate();
     
-    // ข้อมูลตัวอย่างสำหรับแสดงผล (อิงจากภาพใหม่ของคุณ)
-    const [users] = useState([
-        { id: 1, username: 'potto', name: 'อธิรญา จำปาวัน', role: 'ผู้ดูแลระบบ', verified: 'ยืนยันแล้ว', created_at: '13/03/2026', status: 'Active' },
-        { id: 2, username: 'user1', name: 'พริมลกา เตือนแก้ว', role: 'ผู้ดูแลระบบ', verified: 'ยืนยันแล้ว', created_at: '12/03/2026', status: 'Inactive' },
-        { id: 3, username: 'user3', name: 'user3', role: 'ผู้ดูแลระบบ', verified: 'ยืนยันแล้ว', created_at: '13/03/2026', status: 'Active' },
-        { id: 4, username: 'user3', name: 'user3', role: 'พยาบาล', verified: 'ยังไม่ยืนยัน', created_at: '23/03/2026', status: 'Active' },
-        { id: 6, username: 'user4', name: 'user4', role: 'พยาบาล', verified: 'ยังไม่ยืนยัน', created_at: '23/03/2026', status: 'Active' },
-        { id: 7, username: 'user6', name: 'user6', role: 'พยาบาล', verified: 'ยังไม่ยืนยัน', created_at: '23/03/2026', status: 'Inactive' },
-        { id: 8, username: 'user7', name: 'user7', role: 'พยาบาล', verified: 'ยังไม่ยืนยัน', created_at: '23/03/2026', status: 'Active' },
-        { id: 10, username: 'user8', name: 'user4', role: 'พยาบาล', verified: 'ยังไม่ยืนยัน', created_at: '23/03/2026', status: 'Active' }
-    ]);
+    // 1. เปลี่ยนจากข้อมูล Mockup (จำลอง) เป็นการเก็บ State ข้อมูลจริง
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // 2. ดึงข้อมูลจาก Database ทันทีที่เปิดหน้าเว็บ
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            // ⚠️ สำคัญ: อย่าลืมแก้ตรง join-it ให้ตรงกับชื่อโฟลเดอร์โปรเจกต์ใน htdocs (XAMPP) ของคุณนะครับ
+            const response = await axios.get("http://localhost/join-it/backend/get_users.php");
+            setUsers(response.data);
+        } catch (error) {
+            console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
+            alert("ไม่สามารถดึงข้อมูลสมาชิกได้ กรุณาตรวจสอบการเชื่อมต่อ API");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 3. ฟังก์ชันสำหรับให้ Admin ลบสมาชิก
+    const handleDeleteUser = async (id, username) => {
+        const currentUserRole = localStorage.getItem("userRole"); // เช็กสิทธิ์ที่เก็บไว้ตอนล็อกอิน
+
+        // ล็อกสิทธิ์ขั้นที่ 1 ที่หน้าบ้าน: ถ้าไม่ใช่ admin จะกดลบไม่ได้
+        if (currentUserRole !== "admin") {
+            alert("คุณไม่มีสิทธิ์ลบผู้ใช้งานระบบ");
+            return;
+        }
+
+        // แจ้งเตือนยืนยันการลบ
+        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${username}" ?`)) {
+            try {
+                // ⚠️ สำคัญ: แก้ตรง join-it ให้ตรงกับชื่อโฟลเดอร์โปรเจกต์ของคุณเช่นกันครับ
+                const response = await axios.post("http://localhost/join-it/backend/delete_user.php", {
+                    id: id,
+                    current_user_role: currentUserRole
+                });
+
+                if (response.data.status === "success") {
+                    alert("ลบผู้ใช้สำเร็จ!");
+                    // อัปเดต UI หน้าเว็บทันทีโดยไม่ต้อง Refresh หน้าจอ
+                    setUsers(users.filter((user) => user.id !== id));
+                } else {
+                    alert(response.data.message);
+                }
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการลบ:", error);
+                alert("ไม่สามารถเชื่อมต่อกับระบบเพื่อลบข้อมูลได้");
+            }
+        }
+    };
 
     return (
         <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 font-sans text-slate-700">
@@ -59,6 +104,7 @@ function Members() {
                             value={users} 
                             paginator 
                             rows={10} 
+                            loading={loading} // แสดงสถานะหมุน ๆ ตอนกำลังดึงข้อมูล
                             className="p-datatable-sm custom-luxury-table" 
                             rowHover
                             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
@@ -66,24 +112,21 @@ function Members() {
                         >
                             <Column field="id" header="#" style={{width: '3rem'}} bodyStyle={{fontWeight: 'bold', color: '#cbd5e1'}} />
                             <Column field="username" header="Username ↑↓" sortable />
-                            <Column field="name" header="ชื่อ ↑↓" sortable />
-                            <Column field="role" header="บทบาท ↑↓" body={(row) => (
-                                <Tag value={row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'ผู้ดูแลระบบ' ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'}`} />
+                            <Column field="full_name" header="ชื่อ ↑↓" sortable /> {/* เปลี่ยนเป็น full_name ตาม database */}
+                            <Column field="role" header="บทบาท ↑↓" sortable body={(row) => (
+                                <Tag value={row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'}`} />
                             )} />
-                            <Column field="verified" header="ยืนยันการใช้งาน ↑↓" body={(row) => (
-                                <Tag value={row.verified} className={`px-3 py-1 text-[11px] font-bold border-none ${row.verified === 'ยืนยันแล้ว' ? 'bg-green-500 text-white' : 'bg-slate-400 text-white'}`} />
-                            )} />
-                            <Column field="created_at" header="วันที่สร้าง ↑↓" />
-                            <Column field="status" header="สถานะ" body={(row) => (
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-3 h-3 rounded-full ${row.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                    <span className="text-sm font-semibold">{row.status}</span>
-                                </div>
-                            )} />
-                            <Column header="จัดการ" body={() => (
+                            <Column field="updated_at" header="อัปเดตล่าสุด ↑↓" sortable /> {/* ใส่ updated_at ที่มีอยู่ใน db */}
+                            
+                            <Column header="จัดการ" body={(row) => (
                                 <div className="flex gap-2">
                                     <Button icon="pi pi-cog" rounded className="p-button-info p-button-sm bg-blue-500 border-none" />
-                                    <Button icon="pi pi-trash" rounded className="p-button-danger p-button-sm bg-red-500 border-none" />
+                                    <Button 
+                                        icon="pi pi-trash" 
+                                        rounded 
+                                        className="p-button-danger p-button-sm bg-red-500 border-none" 
+                                        onClick={() => handleDeleteUser(row.id, row.username)} // เรียกใช้ฟังก์ชันลบ
+                                    />
                                 </div>
                             )} style={{ width: '8rem' }} />
                         </DataTable>
@@ -92,7 +135,7 @@ function Members() {
 
             </div>
 
-            {/* Custom Style ให้เหมือนกับหน้า Tasks */}
+            {/* Custom Style */}
             <style dangerouslySetInnerHTML={{ __html: `
                 .custom-luxury-table .p-datatable-thead > tr > th {
                     background-color: #fafafa !important;
@@ -125,5 +168,4 @@ function Members() {
     );
 }
 
-// ⚠️ สำคัญมาก! บรรทัดนี้แหละครับที่ระบบแจ้งเตือนว่าหายไป
 export default Members;
