@@ -26,7 +26,7 @@ function Tasks() {
         try {
             const token = localStorage.getItem('token');
             const formattedDate = date instanceof Date ? date.toLocaleDateString('en-CA') : '';
-            const response = await axios.get(`http://10.0.0.7:5000/api/tasks/tasks_collab`, {
+            const response = await axios.get(`http://10.0.0.27:5000/api/tasks/tasks_collab`, {
                 params: { date: formattedDate, q: query },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -42,7 +42,7 @@ function Tasks() {
     const fetchProfile = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://10.0.0.7:5000/api/users/me', {
+            const res = await axios.get('http://10.0.0.27:5000/api/users/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data && res.data.username) {
@@ -62,7 +62,7 @@ function Tasks() {
         setActionLoading(taskId);
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`http://10.0.0.7:5000/api/tasks/join`, 
+            await axios.post(`http://10.0.0.27:5000/api/tasks/join`, 
                 { task_staff_id: taskId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -79,7 +79,7 @@ function Tasks() {
         setActionLoading(taskId);
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`http://10.0.0.7:5000/api/tasks/leave/${taskId}`, {
+            await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             toast.current.show({ severity: 'warn', summary: 'ยกเลิก', detail: 'ยกเลิกการมีส่วนร่วมแล้ว', life: 2000 });
@@ -190,7 +190,7 @@ function Tasks() {
                         <div className="relative cursor-pointer group" onClick={() => navigate("/profile")}>
                             <div className="p-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-full shadow-sm group-hover:shadow-md group-hover:from-blue-400 group-hover:to-indigo-400 transition-all duration-300">
                                 <img
-                                    src={userData?.avatar_url ? `http://10.0.0.7:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+                                    src={userData?.avatar_url ? `http://10.0.0.27:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
                                     alt="Profile"
                                     style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff' }}
                                 />
