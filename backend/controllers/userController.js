@@ -1,12 +1,9 @@
-const joinPool = require('../helper/db'); // ใช้ตัวแปรนี้เป็นหลัก
+const joinPool = require('../helper/db'); // ใช้ตัวแปรนี้เป็นหลักในการเชื่อมต่อ DB
 const bcrypt = require('bcrypt');
 
-// --- 1. GET /api/users/me (ดึงข้อมูลโปรไฟล์) ---
+// --- 1. GET /api/users/me (ดึงข้อมูลโปรไฟล์ตัวเอง) ---
 exports.getProfile = async (req, res) => {
     try {
-        console.log("User ID from Token:", req.user?.id);
-        
-        // ใช้ joinPool และ destruct [rows] ออกมา
         const [rows] = await joinPool.query(
             'SELECT id, username, full_name, university_name, academic_year, faculty, role, avatar_url FROM users WHERE id = ?', 
             [req.user.id]
@@ -29,7 +26,32 @@ exports.getProfile = async (req, res) => {
     }
 };
 
-// --- 2. PUT /api/users/me (อัปเดตข้อมูลส่วนตัว) ---
+// --- 2. GET /api/users/all (ดึงข้อมูลผู้ใช้ทั้งหมด - สำหรับหน้า Admin) ---
+exports.getAllUsers = async (req, res) => {
+    try {
+        // แก้ไข: ลบ created_at ออกชั่วคราวเพราะ SQL ฟ้องว่าไม่มีคอลัมน์นี้
+        // และใช้ full_name AS name เพื่อให้ตรงกับฟิลด์ที่ Frontend เรียกใช้
+        const [users] = await joinPool.query(`
+            SELECT 
+                id, 
+                username, 
+                full_name AS name, 
+                role
+            FROM users
+        `);
+
+        res.status(200).json(users);
+    } catch (error) {
+        console.error("SQL ERROR DETAILS:", error.message); 
+        res.status(500).json({ 
+            success: false, 
+            message: "Database Error", 
+            detail: error.message 
+        });
+    }
+};
+
+// --- 3. PUT /api/users/me (อัปเดตข้อมูลส่วนตัว) ---
 exports.updateProfile = async (req, res) => {
     const { fullName, full_name, university_name, academic_year } = req.body;
     const finalName = fullName || full_name;
@@ -39,7 +61,6 @@ exports.updateProfile = async (req, res) => {
     }
 
     try {
-        // เปลี่ยนจาก pool เป็น joinPool
         await joinPool.query(
             'UPDATE users SET full_name = ?, university_name = ?, academic_year = ? WHERE id = ?',
             [finalName, university_name, academic_year, req.user.id]
@@ -51,7 +72,7 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
-// --- 3. PUT /api/users/me/password (เปลี่ยนรหัสผ่าน) ---
+// --- 4. PUT /api/users/me/password (เปลี่ยนรหัสผ่าน) ---
 exports.changePassword = async (req, res) => {
     const { currentPassword, newPassword, confirmNewPassword } = req.body;
 
@@ -66,7 +87,6 @@ exports.changePassword = async (req, res) => {
     }
 
     try {
-        // เปลี่ยนเป็น joinPool
         const [rows] = await joinPool.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
         if (rows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้" });
 
@@ -86,7 +106,7 @@ exports.changePassword = async (req, res) => {
     }
 };
 
-// --- 4. POST /api/users/upload-avatar (อัปโหลดรูป) ---
+// --- 5. POST /api/users/upload-avatar (อัปโหลดรูป) ---
 exports.uploadAvatar = async (req, res) => {
     try {
         if (!req.file) {
@@ -94,8 +114,6 @@ exports.uploadAvatar = async (req, res) => {
         }
 
         const imageUrl = `/uploads/${req.file.filename}`;
-        
-        // เปลี่ยนเป็น joinPool
         await joinPool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [imageUrl, req.user.id]);
 
         res.json({ 
@@ -109,7 +127,7 @@ exports.uploadAvatar = async (req, res) => {
     }
 };
 
-// --- 5. POST /api/tasks/contributions ---
+// --- 6. POST /api/users/contributions (บันทึกรายละเอียดการปฏิบัติงาน) ---
 exports.addTaskContribution = async (req, res) => {
     const { 
         task_staff_id, 
@@ -123,7 +141,6 @@ exports.addTaskContribution = async (req, res) => {
     }
 
     try {
-        // เปลี่ยนเป็น joinPool
         const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [req.user.id]);
         if (userRows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้" });
         
@@ -145,7 +162,6 @@ exports.addTaskContribution = async (req, res) => {
             creatorName  
         ];
 
-        // เปลี่ยนเป็น joinPool
         const [result] = await joinPool.query(sql, values);
 
         res.status(201).json({ 

@@ -27,7 +27,7 @@ const Profile = () => {
     const fetchProfile = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://10.0.0.7:5000/api/users/me', {
+            const res = await axios.get('http://10.0.0.27:5000/api/users/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = res.data;
@@ -65,7 +65,7 @@ const Profile = () => {
         setIsSaving(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.put('http://10.0.0.7:5000/api/users/me', {
+            await axios.put('http://10.0.0.27:5000/api/users/me', {
                 fullName,
                 academic_year: academicYear,
                 university_name: universityName
@@ -99,7 +99,7 @@ const Profile = () => {
         setIsSaving(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.put('http://10.0.0.7:5000/api/users/me/password', {
+            await axios.put('http://10.0.0.27:5000/api/users/me/password', {
                 currentPassword: passForm.current,
                 newPassword: passForm.new,
                 confirmNewPassword: passForm.confirm
@@ -136,7 +136,7 @@ const Profile = () => {
         setUploading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://10.0.0.7:5000/api/users/upload-avatar', formData, {
+            await axios.post('http://10.0.0.27:5000/api/users/upload-avatar', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${token}`
@@ -184,7 +184,7 @@ const Profile = () => {
                             <div style={{ position: 'relative', display: 'inline-block' }}>
                                 <div className="p-1" style={{ borderRadius: '50%', background: 'white', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
                                     <img
-                                        src={userData.avatar_url ? `http://10.0.0.7:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+                                        src={userData.avatar_url ? `http://10.0.0.27:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
                                         alt="Profile"
                                         style={{ width: '140px', height: '140px', borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff' }}
                                     />
