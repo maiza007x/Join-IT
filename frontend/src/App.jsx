@@ -8,6 +8,7 @@ import Members from "./pages/Members";
 import MyTasks from "./pages/MyTasks";
 import Navbar from "./components/Navbar";
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ConfirmDialog } from 'primereact/confirmdialog';
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
@@ -90,6 +91,8 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        {/* ConfirmDialog วางไว้ที่ root เดียว ครอบทุกหน้า ไม่ต้องวางซ้ำในแต่ละ component */}
+        <ConfirmDialog />
         <LayoutWrapper />
       </AuthProvider>
     </BrowserRouter>
