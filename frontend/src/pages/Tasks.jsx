@@ -11,17 +11,14 @@ import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
 
 function Tasks() {
-    
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [actionLoading, setActionLoading] = useState(null);
-    const navigate = useNavigate();
     const toast = useRef(null);
-    const [userData, setUserData] = useState(null);
 
-    // ✅ 1. ดึงข้อมูลงาน
+    // ✅ ดึงข้อมูลงาน
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
         try {
@@ -39,24 +36,8 @@ function Tasks() {
         }
     };
 
-    // ✅ 2. ดึงข้อมูลโปรไฟล์
-    const fetchProfile = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://10.0.0.27:5000/api/users/me', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.data && res.data.username) {
-                setUserData(res.data);
-            }
-        } catch (err) {
-            console.error("Fetch Profile Error:", err);
-        }
-    };
-
     useEffect(() => {
         fetchTasks();
-        fetchProfile();
     }, []);
 
     const handleJoin = async (taskId) => {
@@ -114,11 +95,6 @@ function Tasks() {
         });
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        navigate("/", { replace: true }); 
-    };
-
     const internTemplate = (rowData) => (
         <div className="flex flex-wrap gap-1">
             {rowData.interns && rowData.interns.length > 0 ? (
@@ -148,66 +124,12 @@ function Tasks() {
     };
 
     return (
-        <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 font-sans text-slate-700">
+        <div className="bg-[#f8fafc] min-h-screen font-sans text-slate-700">
             <Toast ref={toast} />
             <ConfirmDialog />
             
-            <div className="max-w-[1250px] mx-auto">
+            <div className="max-w-[1250px] mx-auto py-8 px-4">
                 
-                {/* 🏰 Header Luxury Style */}
-                <div className="flex justify-between items-center mb-8 bg-white p-5 rounded-[2rem] shadow-sm border border-white">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-gradient-to-tr from-blue-600 to-indigo-500 p-3 rounded-2xl shadow-xl shadow-blue-100">
-                            <i className="pi pi-briefcase text-white text-xl"></i>
-                        </div>
-                        <div>
-                            <h1 className="text-xl md:text-2xl font-black text-[#1e293b] tracking-tight leading-none">ระบบจัดการงานเจ้าหน้าที่</h1>
-                            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mt-1">Join-IT Operation Center</p>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                        {/* ✅ ปุ่มงานของฉัน - เพิ่มเข้ามาใหม่ */}
-                        <button onClick={() => navigate("/my-tasks")} 
-                                className="px-5 py-2.5 bg-[#1e293b] text-white rounded-2xl font-bold text-xs hover:bg-slate-700 transition-all shadow-lg shadow-slate-200 flex items-center group">
-                            <i className="pi pi-user-edit mr-2 group-hover:scale-110 transition-transform"></i>
-                            งานของฉัน
-                        </button>
-
-                        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
-
-                        {/* ✅ เพิ่มปุ่มตัวเลือก "จัดการสมาชิก" ข้างๆ โปรไฟล์ */}
-                        <div 
-                            className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-2.5 rounded-2xl transition-all duration-200 group mr-1"
-                            onClick={() => navigate("/members")}
-                        >
-                            <div className="bg-blue-50 p-2 rounded-xl group-hover:bg-blue-100 transition-colors">
-                                <i className="pi pi-users text-blue-600 text-base"></i>
-                            </div>
-                            <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">จัดการสมาชิก</span>
-                        </div>
-
-                        {/* รูปโปรไฟล์คลิกได้ หรูหรา */}
-                        <div className="relative cursor-pointer group" onClick={() => navigate("/profile")}>
-                            <div className="p-0.5 bg-gradient-to-tr from-blue-100 to-indigo-100 rounded-full shadow-sm group-hover:shadow-md group-hover:from-blue-400 group-hover:to-indigo-400 transition-all duration-300">
-                                <img
-                                    src={userData?.avatar_url ? `http://10.0.0.27:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
-                                    alt="Profile"
-                                    style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff' }}
-                                />
-                            </div>
-                            <div style={{ position: 'absolute', bottom: '1px', right: '1px', width: '10px', height: '10px', backgroundColor: '#2ecc71', borderRadius: '50%', border: '2px solid white' }}></div>
-                        </div>
-                        
-                        <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
-                        
-                        <button onClick={() => confirmDialog({ message: 'ต้องการออกจากระบบ?', header: 'ออกจากระบบ', icon: 'pi pi-power-off', accept: handleLogout })} 
-                                className="px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-xs hover:bg-red-50 hover:text-red-600 transition-colors">
-                            <i className="pi pi-sign-out mr-2"></i>ออกจากระบบ
-                        </button>
-                    </div>
-                </div>
-
                 {/* 🔍 Filter & Search Bar */}
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 mb-8">
                     <div className="flex flex-wrap gap-5 items-end">

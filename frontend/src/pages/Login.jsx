@@ -44,7 +44,7 @@ function Login() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-xl shadow-blue-200 mb-6 transform -rotate-6">
               <i className="pi pi-bolt text-white text-3xl"></i>
             </div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">Welcome Back</h1>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">JOIN</h1>
             <p className="text-slate-500 text-sm font-medium">เข้าสู่ระบบเพื่อจัดการงานของคุณ</p>
           </div>
 
