@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 // --- 1. GET /api/tasks/tasks_collab (ดึงงานหน้าหลัก - Tasks.jsx) ---
 router.get('/tasks_collab', auth, async (req, res) => {
     const { date, q } = req.query;
-    
+
     // ล็อควันที่ให้เป็นเวลาไทย (Asia/Bangkok) เพื่อให้ตรงกับหน้าเว็บ 2026-04-02
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
     const targetDate = date || today;
@@ -25,13 +25,14 @@ router.get('/tasks_collab', auth, async (req, res) => {
                 r.report,
                 r.time_report,
                 r.date_report,
+                r.username,
                 GROUP_CONCAT(t.created_by) as intern_names,
                 MAX(CASE WHEN t.intern_id = ? AND t.deleted_at IS NULL THEN 1 ELSE 0 END) as isContributedByMe
             FROM orderit.data_report r
             LEFT JOIN join_it.tasks t ON r.id = t.task_staff_id AND t.deleted_at IS NULL
             WHERE DATE(r.date_report) = ?
         `;
-        
+
         const params = [userId, targetDate];
 
         if (q) {
@@ -40,10 +41,10 @@ router.get('/tasks_collab', auth, async (req, res) => {
             params.push(search, search);
         }
 
-        sql += ` GROUP BY r.id ORDER BY r.id DESC`; 
+        sql += ` GROUP BY r.id ORDER BY r.id DESC`;
 
         const [rows] = await joinPool.query(sql, params);
-        
+
         // แปลงข้อมูลรูปแบบ interns ให้ Frontend ใช้งานได้
         const formattedTasks = rows.map(task => ({
             ...task,
@@ -61,7 +62,7 @@ router.get('/tasks_collab', auth, async (req, res) => {
 // --- 2. GET /api/tasks/my-tasks (ดึงงานของฉัน - MyTasks.jsx) ---
 router.get('/my-tasks', auth, async (req, res) => {
     try {
-        const userId = req.user.id; 
+        const userId = req.user.id;
         const sql = `
             SELECT 
                 t.id as contribution_id, 
