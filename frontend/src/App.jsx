@@ -6,7 +6,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
 import Members from "./pages/Members"; 
 import MyTasks from "./pages/MyTasks";
-
+import { AuthProvider } from './context/AuthContext';
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css"; // ✅ อย่าลืม import icons นะครับ
@@ -21,7 +21,8 @@ const ProtectedAdminRoute = ({ children }) => {
 };
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter> 
+    <AuthProvider>
       <Routes>
         {/* หน้าทั่วไป */}
         <Route path="/" element={<Login />} />
@@ -45,7 +46,7 @@ function App() {
 
         {/* ถ้าพิมพ์ URL มั่วๆ หรือพยายามเข้าหน้าอื่นโดยไม่ได้สิทธิ์ ให้ดีดกลับไปหน้า Login */}
         <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      </Routes></AuthProvider>
     </BrowserRouter>
   );
 }

@@ -28,9 +28,11 @@ const upload = multer({
 
 // --- 2. Routes ---
 
-// [NEW] ดึงข้อมูลผู้ใช้ทั้งหมดเพื่อแสดงในหน้าจัดการสมาชิก
-// แนะนำ: ควรมี Middleware ตรวจสอบว่าเป็น Admin หรือไม่ (ถ้ามี)
+// ดึงข้อมูลผู้ใช้ทั้งหมดเพื่อแสดงในหน้าจัดการสมาชิก
 router.get('/all', authMiddleware, userController.getAllUsers); 
+
+// [NEW] ลบสมาชิกรายบุคคล (รับ ID ผ่าน URL)
+router.delete('/:id', authMiddleware, userController.deleteUser);
 
 // ดูข้อมูลโปรไฟล์ตัวเอง
 router.get('/me', authMiddleware, userController.getProfile);
