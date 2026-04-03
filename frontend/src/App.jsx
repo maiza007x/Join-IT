@@ -4,75 +4,96 @@ import Tasks from "./pages/Tasks";
 import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
-import Members from "./pages/Members"; 
+import Members from "./pages/Members";
 import MyTasks from "./pages/MyTasks";
-import Navbar from "./components/Navbar"; 
-import { AuthProvider } from './context/AuthContext';
+import Navbar from "./components/Navbar";
+import { AuthProvider, useAuth } from './context/AuthContext';
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
-import "primeicons/primeicons.css"; // ✅ อย่าลืม import icons นะครับ
-const ProtectedAdminRoute = ({ children }) => {
-  const userRole = localStorage.getItem("userRole"); // ดึง role ที่เก็บไว้ตอนล็อกอิน
+import "primeicons/primeicons.css";
 
-  if (userRole !== "admin") {
-    alert("ขออภัย คุณไม่มีสิทธิ์เข้าถึงหน้านี้ เฉพาะผู้ดูแลระบบเท่านั้น");
-    return <Navigate to="/tasks" />; // ถ้าไม่ใช่แอดมิน ให้ดีดไปหน้าอื่นแทน เช่น /tasks
+// --- 1. Guard: ต้องล็อกอินก่อนถึงจะเข้าได้ ---
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) return null; // AuthContext จัดการ loading screen อยู่แล้ว
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
+
   return children;
 };
 
-// --- 2. Main Wrapper (ตัวคุม Navbar) ---
-const LayoutWrapper = () => {
-  const location = useLocation();
-  
-  // เช็คว่าหน้าปัจจุบันคือหน้า Login หรือหน้าทั่วไปที่ไม่อยากให้เห็นเมนูหรือไม่
-  const noNavbarPaths = ["/", "/login", "/register", "/forgot-password"];
-  const shouldShowNavbar = !noNavbarPaths.includes(location.pathname);
+// --- 2. Guard: เฉพาะ Admin เท่านั้น (ใช้ role จาก /me API ผ่าน AuthContext) ---
+const ProtectedAdminRoute = ({ children }) => {
+  const { user, isAdmin, loading } = useAuth();
 
-  return (
-    <>
-      {/* Navbar จะแสดงผลเสมอถ้าไม่ใช่หน้า Login */}
-      {shouldShowNavbar && <Navbar />}
+  if (loading) return null;
 
-      {/* กำหนดระยะห่าง (Padding) เฉพาะหน้าที่โชว์ Navbar */}
-      <div className={shouldShowNavbar ? "p-4" : ""}>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Login />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/register" element={<Register />} />
-          
-          {/* User Routes */}
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/my-tasks" element={<MyTasks />} />
-          <Route path="/profile" element={<Profile />} />
-          
-          {/* Admin Routes */}
-          <Route 
-            path="/members" 
-            element={
-              <ProtectedAdminRoute>
-                <Members />
-              </ProtectedAdminRoute>
-            } 
-          />
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-          {/* Fallback - ถ้าไม่เจอหน้าไหนเลยให้กลับไปหน้าแรก */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </>
-  );
+  if (!isAdmin) {
+    alert("ขออภัย คุณไม่มีสิทธิ์เข้าถึงหน้านี้ เฉพาะผู้ดูแลระบบเท่านั้น");
+    return <Navigate to="/tasks" replace />;
+  }
+
+  return children;
 };
 
-// --- 3. Root App ---
+// --- 3. Main Wrapper (ตัวคุม Navbar) ---
+const LayoutWrapper = () => {
+  const location = useLocation();
+
+  const noNavbarPaths = ["/", "/login", "/register", "/forgot-password"];
+  const shouldShowNavbar = !noNavbarPaths.includes(location.pathname);
+
+  return (
+    <>
+      {shouldShowNavbar && <Navbar />}
+
+      <div className={shouldShowNavbar ? "p-4" : ""}>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* User Routes (ต้องล็อกอินก่อน) */}
+          <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+          <Route path="/my-tasks" element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
+          {/* Admin Routes */}
+          <Route
+            path="/members"
+            element={
+              <ProtectedAdminRoute>
+                <Members />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+    </>
+  );
+};
+
+// --- 4. Root App ---
 function App() {
-  return (
-    <BrowserRouter>
-      <LayoutWrapper />
-    </BrowserRouter>
-  );
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <LayoutWrapper />
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
 export default App;
