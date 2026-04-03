@@ -7,19 +7,18 @@ import Register from "./pages/Register";
 import Members from "./pages/Members"; 
 import MyTasks from "./pages/MyTasks";
 import Navbar from "./components/Navbar"; 
-
+import { AuthProvider } from './context/AuthContext';
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
-import "primeicons/primeicons.css";
-
-// --- 1. Admin Guard ---
+import "primeicons/primeicons.css"; // ✅ อย่าลืม import icons นะครับ
 const ProtectedAdminRoute = ({ children }) => {
-  const userRole = localStorage.getItem("userRole");
-  if (userRole !== "admin") {
-    alert("ขออภัย เฉพาะผู้ดูแลระบบเท่านั้น");
-    return <Navigate to="/tasks" replace />;
-  }
-  return children;
+  const userRole = localStorage.getItem("userRole"); // ดึง role ที่เก็บไว้ตอนล็อกอิน
+
+  if (userRole !== "admin") {
+    alert("ขออภัย คุณไม่มีสิทธิ์เข้าถึงหน้านี้ เฉพาะผู้ดูแลระบบเท่านั้น");
+    return <Navigate to="/tasks" />; // ถ้าไม่ใช่แอดมิน ให้ดีดไปหน้าอื่นแทน เช่น /tasks
+  }
+  return children;
 };
 
 // --- 2. Main Wrapper (ตัวคุม Navbar) ---

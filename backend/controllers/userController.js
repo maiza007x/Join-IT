@@ -75,6 +75,7 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
+
 // --- 4. PUT /api/users/me/password (เปลี่ยนรหัสผ่าน) ---
 exports.changePassword = async (req, res) => {
     const { currentPassword, newPassword, confirmNewPassword } = req.body;
@@ -181,5 +182,41 @@ exports.addTaskContribution = async (req, res) => {
     } catch (err) {
         console.error("Add Task Contribution Error:", err);
         res.status(500).json({ success: false, message: "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง" });
+    }
+};
+
+
+//เทส
+
+//จบเทส
+
+// 3. ฟังก์ชันลบยูสเซอร์ (ล็อกสิทธิ์เฉพาะ admin)
+exports.deleteUser = async (req, res) => {
+    try {
+        const userIdToDelete = req.params.id;
+        console.log("👉 ข้อมูล req.user ที่แกะมาจาก Token:", req.user);
+        console.log("👉 Role ที่ระบบเห็น:", req.user?.role);
+        const currentUserRole = req.user.role; // ข้อมูลบทบาทที่แกะมาจาก Token ตอน Login
+
+        // 🔒 ล็อกสิทธิ์ขั้นสุด: ถ้าไม่ใช่แอดมิน ห้ามลบเด็ดขาด!
+        if (currentUserRole !== 'admin') {
+            return res.status(403).json({ message: "คุณไม่มีสิทธิ์ลบผู้ใช้งานระบบ" });
+        }
+
+        // ป้องกันแอดมินเผลอกดลบตัวเอง
+        if (parseInt(userIdToDelete) === req.user.id) {
+            return res.status(400).json({ message: "คุณไม่สามารถลบตัวเองได้นะ" });
+        }
+
+        const [result] = await joinPool.query("DELETE FROM users WHERE id = ?", [userIdToDelete]);
+
+        if (result.affectedRows > 0) {
+            return res.json({ status: "success", message: "ลบผู้ใช้สำเร็จ" });
+        } else {
+            return res.status(404).json({ message: "ไม่พบผู้ใช้งานนี้ในระบบ" });
+        }
+    } catch (error) {
+        console.error("🔴 [Error] Failed to delete user:", error);
+        return res.status(500).json({ message: "เกิดข้อผิดพลาดในการลบข้อมูล" });
     }
 };
