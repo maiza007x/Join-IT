@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import API from "../services/api";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { InputText } from "primereact/inputtext";
 import { Password } from "primereact/password";
 import { Button } from "primereact/button";
@@ -12,6 +13,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const toast = useRef(null);
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -21,7 +23,8 @@ function Login() {
     setLoading(true);
     try {
       const res = await API.post("/auth/login", { username, password });
-      localStorage.setItem("token", res.data.token);
+      // เรียก login() จาก AuthContext เพื่ออัพเดต user state ทันที
+      login(res.data.data, res.data.token);
       navigate("/tasks");
     } catch (err) {
       toast.current.show({ severity: 'error', summary: 'Login Failed', detail: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง', life: 3000 });

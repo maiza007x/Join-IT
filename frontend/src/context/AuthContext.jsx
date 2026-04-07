@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
                 const response = await axios.get("http://localhost:5000/api/users/me", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                setUser(response.data); // เอาข้อมูลมาเก็บไว้ใน State
+                setUser(response.data.data); // unwrap: { status, data: user } → user
             } catch (error) {
                 console.error("Error fetching getMe:", error);
                 // ถ้า Token หมดอายุ หรือมีปัญหา ให้เคลียร์ค่าทิ้ง
