@@ -19,7 +19,8 @@ exports.getProfile = async (req, res) => {
             fullName: user.full_name 
         };
 
-        res.json(responseData);
+        // ✅ แก้ไข: ห่อข้อมูลด้วย 'data' ตามมาตรฐาน API อื่นๆ
+        res.json({ success: true, data: responseData });
     } catch (err) {
         console.error("Get Profile Error:", err);
         res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดที่ฐานข้อมูล" });

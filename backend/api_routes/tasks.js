@@ -63,7 +63,9 @@ router.get('/tasks_collab', auth, async (req, res) => {
 router.get('/my-tasks', auth, async (req, res) => {
     try {
         const userId = req.user.id;
-        const sql = `
+        const { date, q } = req.query;
+
+        let sql = `
             SELECT 
                 t.id as contribution_id, 
                 t.task_staff_id,
@@ -71,14 +73,29 @@ router.get('/my-tasks', auth, async (req, res) => {
                 t.learning_outcome,
                 t.mentor_feedback,
                 DATE_FORMAT(r.date_report, '%Y-%m-%d') as date_report,
+                r.time_report,
                 r.deviceName, 
                 r.report
             FROM join_it.tasks t
             LEFT JOIN orderit.data_report r ON t.task_staff_id = r.id
             WHERE t.intern_id = ? AND t.deleted_at IS NULL
-            ORDER BY t.created_at DESC
         `;
-        const [rows] = await joinPool.query(sql, [userId]);
+        const params = [userId];
+
+        if (date) {
+            sql += ` AND DATE(r.date_report) = ?`;
+            params.push(date);
+        }
+
+        if (q) {
+            sql += ` AND (r.report LIKE ? OR r.deviceName LIKE ?)`;
+            const search = `%${q}%`;
+            params.push(search, search);
+        }
+
+        sql += ` ORDER BY t.created_at DESC`;
+
+        const [rows] = await joinPool.query(sql, params);
         res.json({ success: true, tasks: rows });
     } catch (err) {
         res.status(500).json({ success: false, message: "ดึงข้อมูลงานของฉันล้มเหลว" });
