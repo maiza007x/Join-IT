@@ -5,7 +5,7 @@ import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from 'primereact/tag';
-import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { confirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
 import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
@@ -126,7 +126,6 @@ function Tasks() {
     return (
         <div className="bg-[#f8fafc] min-h-screen font-sans text-slate-700">
             <Toast ref={toast} />
-            <ConfirmDialog />
             
             <div className="max-w-[1250px] mx-auto py-8 px-4">
                 
