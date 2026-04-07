@@ -7,9 +7,6 @@ if (!process.env.CONNECTSQL || !process.env.USERSQL) {
 }
 
 const commonConfig = {
-  host: process.env.CONNECTSQL,
-  user: process.env.USERSQL,
-  password: process.env.PASSWORDSQL || "", // ใช้จาก .env ถ้าไม่มีค่อยเป็นค่าว่าง
   port: Number(process.env.PORTSQL) || 3306, // เผื่อกรณีใช้ Port อื่น
   waitForConnections: true,
   connectionLimit: 10,
@@ -27,11 +24,17 @@ let orderPool;
 try {
   joinPool = mysql.createPool({
     ...commonConfig,
+    host: process.env.CONNECTSQL,
+    user: process.env.USERSQL,
+    password: process.env.PASSWORDSQL || "", // ใช้จาก .env ถ้าไม่มีค่อยเป็นค่าว่าง
     database: process.env.DBSQL,
   });
 
   orderPool = mysql.createPool({
     ...commonConfig,
+    host: process.env.CONNECTMAIN,
+    user: process.env.USERMAIN,
+    password: process.env.PASSWORDMAIN || "", // ใช้จาก .env ถ้าไม่มีค่อยเป็นค่าว่าง
     database: process.env.DBSQL_ORDER,
   });
 } catch (setupError) {
