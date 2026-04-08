@@ -144,128 +144,133 @@ const Profile = () => {
     if (!userData) return <div className="text-center mt-5 text-danger">ไม่พบข้อมูลผู้ใช้</div>;
 
     return (
-        <div style={{ backgroundColor: '#f4f7fa', minHeight: '100vh', padding: '40px 20px', fontFamily: "'Kanit', sans-serif" }}>
+        <div className="bg-[#f0f9ff] min-h-screen p-4 md:p-8 font-sans font-kanit">
             <Toast ref={toast} />
 
             <div className="mx-auto" style={{ maxWidth: '850px' }}>
 
                 {/* Header Section: Title & Back Button */}
-                <div className="flex justify-between items-center mb-4 px-2">
-                    <h2 className="m-0" style={{ color: '#1e293b', fontWeight: '800', fontSize: '1.75rem' }}>
-                        การตั้งค่าบัญชี
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-6 px-1.5 mt-2">
+                    <h2 className="m-0 text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
+                        ตั้งค่าโปรไฟล์ส่วนตัว
                     </h2>
                     <button
                         onClick={() => navigate('/tasks')}
-                        className="flex items-center gap-2 px-4 py-2 bg-white text-gray-600 hover:text-blue-600 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 font-semibold text-sm"
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-xl shadow-sm transition-all duration-200 font-bold text-sm w-full md:w-auto overflow-hidden self-start md:self-auto"
                     >
-                        <i className="pi pi-arrow-left" style={{ fontSize: '0.8rem' }}></i>
-                        <span>ย้อนกลับไปหน้างาน</span>
+                        <i className="pi pi-arrow-left text-xs"></i>
+                        <span>ยกเลิก (ไปที่รายการงาน)</span>
                     </button>
                 </div>
 
-                <div className="card shadow-lg border-0" style={{ borderRadius: '24px', overflow: 'hidden', backgroundColor: '#fff' }}>
-                    <div style={{ height: '160px', background: 'linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%)', position: 'relative' }}>
-                        <div style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.1, backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                <div className="card shadow-md border-0 bg-white" style={{ borderRadius: '2rem', overflow: 'hidden' }}>
+                    <div style={{ height: '140px', background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)', position: 'relative' }}>
+                        <div style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.15, backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '15px 15px' }}></div>
                     </div>
 
-                    <div style={{ padding: '0 40px 40px 40px', marginTop: '-75px', position: 'relative' }}>
-                        <div className="text-center mb-5">
+                    <div className="px-5 md:px-10 pb-10" style={{ marginTop: '-65px', position: 'relative' }}>
+                        <div className="text-center mb-6">
                             <div style={{ position: 'relative', display: 'inline-block' }}>
-                                <div className="p-1" style={{ borderRadius: '50%', background: 'white', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+                                <div className="p-1 rounded-full bg-white shadow-lg shadow-blue-900/10">
                                     <img
                                         src={getImageUrl(userData.avatar_url)}
                                         alt="Profile"
-                                        style={{ width: '140px', height: '140px', borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff' }}
+                                        style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '4px solid #f8fafc' }}
                                     />
                                 </div>
-                                <div style={{ position: 'absolute', bottom: '15px', right: '10px', width: '22px', height: '22px', backgroundColor: '#2ecc71', borderRadius: '50%', border: '4px solid white shadow-sm' }}></div>
+                                <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '18px', height: '18px', backgroundColor: '#22c55e', borderRadius: '50%', border: '3px solid white shadow-sm' }}></div>
 
-                                <label htmlFor="avatar-upload" style={{ position: 'absolute', top: '10px', right: '-5px', backgroundColor: '#1e293b', color: 'white', borderRadius: '50%', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '3px solid white', transition: 'all 0.3s ease', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }} className="upload-btn">
-                                    <i className={uploading ? "pi pi-spin pi-spinner" : "pi pi-camera"} style={{ fontSize: '14px' }}></i>
+                                <label htmlFor="avatar-upload" className="upload-btn absolute -top-1 md:top-2 -right-1 md:-right-2 bg-slate-800 text-white rounded-full flex items-center justify-center cursor-pointer border-4 border-white transition-all shadow-md w-9 h-9 md:w-10 md:h-10">
+                                    <i className={uploading ? "pi pi-spin pi-spinner" : "pi pi-camera"} style={{ fontSize: '13px' }}></i>
                                     <input id="avatar-upload" type="file" hidden accept="image/*" onChange={handleFileChange} disabled={uploading} />
                                 </label>
                             </div>
-                            <h3 className="mt-3 mb-1 fw-bold text-dark">{userData.fullName || userData.username}</h3>
-                            <span className="badge" style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '8px 20px', borderRadius: '12px', fontWeight: '600', fontSize: '0.85rem' }}>{userData.role?.toUpperCase()}</span>
+                            <h3 className="mt-3 mb-1 font-black text-slate-800 text-xl tracking-tight">{userData.fullName || userData.username}</h3>
+                            <span className="badge bg-blue-50 text-blue-600 px-4 py-1.5 rounded-xl font-bold text-xs uppercase tracking-wider">{userData.role || 'USER'}</span>
                         </div>
 
-                        <div className="flex justify-between items-center mb-6 px-2">
-                            <div>
-                                <h5 className="m-0 font-bold text-gray-800 text-lg">ข้อมูลส่วนตัว</h5>
+                        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+                            <div className="border-l-4 border-blue-500 pl-3">
+                                <h5 className="m-0 font-bold text-slate-800 tracking-tight">ข้อมูลส่วนบุคคล (Bio)</h5>
+                                <p className="text-[10px] uppercase text-slate-400 font-bold mt-0.5 tracking-widest hidden md:block">Personal Information Edit</p>
                             </div>
-                            <div>
+                            <div className="self-end md:self-auto w-full md:w-auto">
                                 {isEditing ? (
-                                    <div className="flex gap-2">
-                                        <button className="px-4 py-2 bg-blue-600 text-white rounded-xl shadow-md font-semibold hover:bg-blue-700 transition-all text-sm" onClick={handleUpdateProfile} disabled={isSaving}>
+                                    <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
+                                        <button className="flex-1 md:flex-none px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-md shadow-blue-200 font-bold hover:bg-blue-700 transition-all text-xs" onClick={handleUpdateProfile} disabled={isSaving}>
                                             {isSaving ? <i className="pi pi-spin pi-spinner mr-2"></i> : null} บันทึก
                                         </button>
-                                        <button className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl border border-gray-200 hover:bg-gray-200 transition-all text-sm" onClick={() => setIsEditing(false)} disabled={isSaving}>ยกเลิก</button>
+                                        <button className="flex-1 md:flex-none px-6 py-2.5 bg-slate-100 text-slate-600 rounded-xl border-slate-200 hover:bg-slate-200 transition-all font-bold text-xs" onClick={() => setIsEditing(false)} disabled={isSaving}>ยกเลิก</button>
                                     </div>
                                 ) : (
-                                    <button className="px-4 py-2 bg-amber-500 text-white rounded-xl shadow-md font-semibold hover:bg-amber-600 transition-all text-sm" onClick={() => setIsEditing(true)}>
-                                        <i className="pi pi-user-edit mr-2"></i>แก้ไขโปรไฟล์
+                                    <button className="w-full md:w-auto px-6 py-2.5 bg-yellow-500 text-white rounded-xl shadow-md shadow-yellow-200 font-bold hover:bg-yellow-600 transition-all text-xs group" onClick={() => setIsEditing(true)}>
+                                        <i className="pi pi-user-edit mr-2 group-hover:scale-110 transition-transform"></i>เข้าสู่โหมดแก้ไข
                                     </button>
                                 )}
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8 mb-8 px-2">
-                            <div className="flex flex-col space-y-2 text-left">
-                                <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                    <i className="pi pi-user text-blue-400"></i> ชื่อ - สกุล
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-8 bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-100">
+                            <div className="flex flex-col space-y-1 text-left">
+                                <label className="text-blue-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                                    <i className="pi pi-user"></i> ชื่อและนามสกุลเต็ม
                                 </label>
                                 {!isEditing ? (
-                                    <span className="text-gray-800 font-semibold text-lg">{fullName || "ไม่ได้ระบุ"}</span>
+                                    <span className="text-slate-700 font-bold text-lg bg-white p-3 rounded-xl border border-white h-full">{fullName || <span className="text-slate-400 italic font-normal">ยังไม่ได้ระบุชื่อจริง</span>}</span>
                                 ) : (
-                                    <input className="w-full p-2.5 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition-all shadow-sm bg-blue-50/30" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                                    <input className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm bg-white font-bold text-slate-700 text-sm" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="เช่น สมหมาย ใจดี" />
                                 )}
                             </div>
 
-                            <div className="flex flex-col space-y-2 text-left">
-                                <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                    <i className="pi pi-map-marker text-red-400"></i> มหาวิทยาลัย
+                            <div className="flex flex-col space-y-1 text-left">
+                                <label className="text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                                    <i className="pi pi-building"></i> สถานศึกษา / มหาวิทยาลัย
                                 </label>
                                 {!isEditing ? (
-                                    <span className="text-gray-800 font-semibold text-lg">{universityName || "ไม่ได้ระบุ"}</span>
+                                    <span className="text-slate-700 font-bold text-lg bg-white p-3 rounded-xl border border-white h-full">{universityName || <span className="text-slate-400 italic font-normal">ยังไม่ได้ระบุสถานศึกษา</span>}</span>
                                 ) : (
-                                    <input className="w-full p-2.5 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition-all shadow-sm bg-blue-50/30" value={universityName} onChange={(e) => setUniversityName(e.target.value)} />
+                                    <input className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm bg-white font-bold text-slate-700 text-sm" value={universityName} onChange={(e) => setUniversityName(e.target.value)} placeholder="ระบุมหาวิทยาลัยของคุณ" />
                                 )}
                             </div>
 
-                            <div className="flex flex-col space-y-2 text-left">
-                                <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                    <i className="pi pi-calendar text-green-400"></i> ปีการศึกษา
+                            <div className="flex flex-col space-y-1 text-left">
+                                <label className="text-green-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                                    <i className="pi pi-calendar"></i> ระดับชั้นปีการศึกษา
                                 </label>
                                 {!isEditing ? (
-                                    <span className="text-gray-800 font-semibold text-lg">{academicYear || "ไม่ได้ระบุ"}</span>
+                                    <span className="text-slate-700 font-bold text-lg bg-white p-3 rounded-xl border border-white h-full">{academicYear || <span className="text-slate-400 italic font-normal">ไม่ได้ระบุ</span>}</span>
                                 ) : (
-                                    <input className="w-full p-2.5 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition-all shadow-sm bg-blue-50/30" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} />
+                                    <input className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm bg-white font-bold text-slate-700 text-sm" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="เช่น ปี 4, ชั้นประกาศนียบัตรวิชาชีพ ฯลฯ" />
                                 )}
                             </div>
 
-                            <div className="flex flex-col space-y-2 text-left">
-                                <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                    <i className="pi pi-at text-cyan-400"></i> ชื่อผู้ใช้งาน
+                            <div className="flex flex-col space-y-1 text-left">
+                                <label className="text-indigo-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                                    <i className="pi pi-at"></i> ชื่อผู้ใช้ในระบบ (USERNAME)
                                 </label>
-                                <div className="flex items-center">
-                                    <span className="text-blue-600 font-bold bg-blue-50 px-3 py-1 rounded-lg">@{userData?.username}</span>
+                                <div className="flex items-center h-full">
+                                    <span className="text-slate-500 font-bold bg-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 flex-1 flex items-center gap-2 cursor-not-allowed text-sm">
+                                        <i className="pi pi-lock text-[10px] text-slate-400"></i> {userData?.username}
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
-                        <h5 className="mb-4 font-bold text-gray-800 px-2 text-lg">ความปลอดภัย</h5>
-                        <div className="p-4 border border-gray-100 rounded-2xl flex justify-between items-center bg-gray-50/50 hover:bg-white transition-all shadow-sm mx-2">
+                        <div className="border-l-4 border-amber-500 pl-3 mb-4 mt-6">
+                            <h5 className="m-0 font-bold text-slate-800 tracking-tight">การรักษาความปลอดภัยระบบ</h5>
+                        </div>
+                        <div className="p-4 border border-blue-100 rounded-2xl flex flex-col md:flex-row justify-between md:items-center bg-blue-50/30 hover:bg-blue-50/80 transition-all shadow-sm mx-1 gap-4">
                             <div className="flex items-center gap-4">
-                                <div className="bg-amber-100 p-3 rounded-xl">
-                                    <i className="pi pi-shield text-amber-500" style={{ fontSize: '1.5rem' }}></i>
+                                <div className="bg-amber-100 p-3 rounded-2xl shadow-sm border border-amber-200">
+                                    <i className="pi pi-key text-amber-600 text-xl"></i>
                                 </div>
-                                <div>
-                                    <p className="m-0 font-bold text-gray-800">รหัสผ่านบัญชี</p>
-                                    <p className="m-0 text-gray-500 text-sm">เปลี่ยนรหัสผ่านเพื่อความปลอดภัย</p>
+                                <div className="text-left">
+                                    <p className="m-0 font-black text-slate-800 text-sm">รหัสผ่านบัญชีผู้ใช้</p>
+                                    <p className="m-0 text-slate-500 text-xs mt-0.5">ป้องกันบัญชีของคุณด้วยการอัปเดตรหัสผ่าน</p>
                                 </div>
                             </div>
-                            <button className="px-5 py-2 text-gray-600 font-bold border border-gray-300 rounded-xl hover:bg-white hover:shadow-md transition-all text-sm" onClick={() => setDisplayBasic(true)}>
-                                เปลี่ยนรหัสผ่าน
+                            <button className="w-full md:w-auto px-5 py-2.5 bg-white text-slate-600 font-bold border border-slate-200 rounded-xl hover:text-amber-600 hover:border-amber-300 shadow-sm transition-all text-xs" onClick={() => setDisplayBasic(true)}>
+                                จัดการแก้ไขรหัสผ่าน
                             </button>
                         </div>
                     </div>
