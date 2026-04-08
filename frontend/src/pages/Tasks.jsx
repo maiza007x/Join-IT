@@ -201,6 +201,8 @@ function Tasks() {
                             loading={loading}
                             paginator
                             rows={10}
+                            scrollable
+                            scrollDirection="horizontal"
                             stripedRows
                             sortField="id"
                             sortOrder={-1} 
