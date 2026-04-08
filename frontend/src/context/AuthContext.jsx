@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -22,10 +22,10 @@ export const AuthProvider = ({ children }) => {
 
             try {
                 // ยิงไปถามหลังบ้านเพื่อขอข้อมูลปัจจุบัน
-                const response = await axios.get("http://localhost:5000/api/users/me", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setUser(response.data.data); // unwrap: { status, data: user } → user
+                const response = await api.get("/users/me");
+                // เปลี่ยนจากการแกะชั้นเดียว/สองชั้น ให้รองรับทั้งแบบมีและไม่มี wrapper "data"
+                const userData = response.data.data || response.data;
+                setUser(userData); 
             } catch (error) {
                 console.error("Error fetching getMe:", error);
                 // ถ้า Token หมดอายุ หรือมีปัญหา ให้เคลียร์ค่าทิ้ง

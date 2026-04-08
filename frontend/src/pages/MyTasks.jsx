@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import API from '../services/api'; 
+import API from '../services/api';
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
@@ -8,13 +8,19 @@ import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Toast } from 'primereact/toast';
 import { Tag } from 'primereact/tag';
+import { Calendar } from 'primereact/calendar';
+import { InputText } from 'primereact/inputtext';
+import { Tooltip } from 'primereact/tooltip'; // เพิ่ม Tooltip
 
 function MyTasks() {
     const [tasks, setTasks] = useState([]);
     const [selectedTask, setSelectedTask] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(false);
-    
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedDate, setSelectedDate] = useState(null);
+
     const [formData, setFormData] = useState({
         contribution_detail: '',
         learning_outcome: '',
@@ -24,28 +30,62 @@ function MyTasks() {
     const navigate = useNavigate();
     const toast = useRef(null);
 
-    const fetchMyTasks = async () => {
+    const fetchMyTasks = useCallback(async () => {
         setLoading(true);
+        setTasks([]);
         try {
-            const res = await API.get('/tasks/my-tasks'); 
+            let formattedDate = '';
+            if (selectedDate) {
+                const offset = selectedDate.getTimezoneOffset();
+                const adjustedDate = new Date(selectedDate.getTime() - (offset * 60 * 1000));
+                formattedDate = adjustedDate.toISOString().split('T')[0];
+            }
+
+            const res = await API.get('/tasks/my-tasks', {
+                params: { date: formattedDate, q: searchQuery }
+            });
             setTasks(res.data.tasks || []);
         } catch (err) {
             toast.current.show({ severity: 'error', summary: 'Error', detail: 'โหลดข้อมูลไม่สำเร็จ' });
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedDate, searchQuery]);
 
-    useEffect(() => { fetchMyTasks(); }, []);
+    useEffect(() => {
+        fetchMyTasks();
+    }, []);
 
-    // กรองข้อมูลแยก 2 ตาราง
     const pendingTasks = tasks.filter(t => !t.contribution_detail);
     const completedTasks = tasks.filter(t => t.contribution_detail);
+
+    const timeTemplate = (rowData) => {
+        if (!rowData.time_report) return "-";
+        return <span className="font-bold text-blue-600">{rowData.time_report.substring(0, 5)} น.</span>;
+    };
+
+    // ✅ ฟังก์ชันแสดงสรุปเนื้อหา พร้อม Ellipsis และ Tooltip
+    const summaryTemplate = (rowData) => {
+        const detail = rowData.contribution_detail || "ยังไม่ได้บันทึกรายละเอียด";
+        const tooltipId = `summary-${rowData.contribution_id}`;
+        
+        return (
+            <>
+                <Tooltip target={`.${tooltipId}`} content={detail} position="top" />
+                <div 
+                    className={`${tooltipId} text-xs text-slate-500 cursor-help line-clamp-2 leading-relaxed`}
+                    style={{ maxWidth: '250px' }}
+                >
+                    {detail}
+                </div>
+            </>
+        );
+    };
 
     const openDetails = (task) => {
         setSelectedTask(task);
         setFormData({
-            contribution_detail: task.contribution_detail || "", 
+            contribution_detail: task.contribution_detail || "",
             learning_outcome: task.learning_outcome || "",
             mentor_feedback: task.mentor_feedback || ""
         });
@@ -57,85 +97,136 @@ function MyTasks() {
             toast.current.show({ severity: 'warn', summary: 'คำเตือน', detail: 'กรุณากรอกรายละเอียดสิ่งที่ได้ทำ' });
             return;
         }
+        setLoading(true);
         try {
             await API.put(`/tasks/contribution/${selectedTask.contribution_id}`, formData);
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'บันทึกข้อมูลเรียบร้อยแล้ว' });
             setShowModal(false);
-            fetchMyTasks(); 
+            fetchMyTasks();
         } catch (err) {
             toast.current.show({ severity: 'error', summary: 'Error', detail: 'บันทึกไม่สำเร็จ' });
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <div className="bg-[#f0f9ff] min-h-screen p-4 md:p-8 font-sans text-slate-700">
             <Toast ref={toast} />
-            
-            <div className="max-w-[1250px] mx-auto flex flex-col gap-8">
-                {/* Header โทนฟ้าขาว */}
-                <div className="flex justify-between items-center bg-white p-5 rounded-[2rem] shadow-sm border border-blue-100">
+
+            <div className="max-w-[1250px] mx-auto flex flex-col gap-6">
+
+                {/* Header & Filter Section */}
+                <div className="flex flex-wrap justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-sm border border-blue-100 gap-4">
                     <div className="flex items-center gap-4">
-                        <button 
-                            onClick={() => navigate("/tasks")} 
-                            className="w-10 h-10 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-all border border-blue-100"
+                        <button
+                            onClick={() => navigate("/tasks")}
+                            className="w-12 h-12 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-2xl transition-all border border-blue-100 shadow-sm"
                         >
-                            <i className="pi pi-arrow-left font-bold"></i>
+                            <i className="pi pi-arrow-left font-bold text-lg"></i>
                         </button>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-black text-blue-900 leading-none">งานของฉัน</h1>
-                            <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mt-1">My Contribution Records</p>
+                            <h1 className="text-2xl font-black text-blue-900 leading-none">งานของฉัน</h1>
+                            <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mt-1">Management & Logs</p>
                         </div>
                     </div>
-                    <Tag value={`${completedTasks.length} รายการที่บันทึกแล้ว`} className="px-4 py-2 bg-blue-500 text-white rounded-full font-bold border-none" />
+
+                    <div className="flex flex-wrap gap-3 items-center">
+                        <Calendar
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.value)}
+                            placeholder="กรองตามวันที่"
+                            dateFormat="yy-mm-dd"
+                            showIcon
+                            className="custom-blue-calendar w-44"
+                            showButtonBar
+                        />
+                        <div className="relative">
+                            <i className="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-blue-300"></i>
+                            <InputText
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && fetchMyTasks()}
+                                placeholder="ค้นหาชื่องาน..."
+                                className="pl-10 rounded-xl border-blue-50 bg-blue-50/30 text-sm py-2"
+                            />
+                        </div>
+                        <Button
+                            icon="pi pi-filter"
+                            onClick={fetchMyTasks}
+                            className="bg-blue-600 border-none rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100"
+                            loading={loading}
+                        />
+                    </div>
                 </div>
 
-                {/* --- ตารางบน: งานที่รอการบันทึก (โทนสีฟ้าสดใส) --- */}
+                {/* ตารางงานที่รอ (Pending) */}
                 <div className="bg-white rounded-[2.5rem] shadow-md shadow-blue-100/50 border border-white overflow-hidden">
-                    <div className="p-6 bg-gradient-to-r from-blue-600 to-blue-400 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <i className="pi pi-clock text-white text-xl"></i>
-                            <h3 className="m-0 font-bold text-white tracking-tight">รายการงานที่รอการบันทึก ({pendingTasks.length})</h3>
+                    <div className="p-6 bg-gradient-to-r from-blue-600 to-blue-500 flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-white">
+                            <i className="pi pi-clock text-xl"></i>
+                            <h3 className="m-0 font-bold tracking-tight text-lg">รอยืนยันรายละเอียด ({pendingTasks.length})</h3>
                         </div>
                     </div>
                     <div className="p-4">
-                        <DataTable value={pendingTasks} loading={loading} rows={5} emptyMessage="ไม่มีงานค้างในขณะนี้" className="p-datatable-sm custom-blue-table">
-                            <Column field="date_report" header="วันที่" style={{ width: '10rem' }} className="font-bold text-blue-400" />
-                            <Column field="deviceName" header="อุปกรณ์" style={{ width: '15rem' }} className="font-bold text-slate-700" />
-                            <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600" />
+                        <DataTable value={pendingTasks} loading={loading} rows={10} sortMode="multiple" removableSort emptyMessage="ไม่พบรายการงาน" className="p-datatable-sm custom-blue-table">
+                            <Column field="time_report" header="เวลา" body={timeTemplate} style={{ width: '7rem' }} sortable />
+                            <Column field="date_report" header="วันที่" style={{ width: '9rem' }} className="text-slate-400" sortable />
+                            <Column field="deviceName" header="อุปกรณ์" style={{ width: '15rem' }} className="font-bold text-slate-700" sortable />
+                            <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600" sortable />
                             <Column header="จัดการ" body={(row) => (
-                                <Button 
-                                    label="บันทึกงาน" 
-                                    icon="pi pi-pencil" 
-                                    rounded 
-                                    className="px-4 py-2 text-[11px] font-bold bg-blue-600 border-none hover:bg-blue-700 shadow-md shadow-blue-100" 
-                                    onClick={() => openDetails(row)} 
-                                />
-                            )} style={{ textAlign: 'center', width: '10rem' }} />
+                            <Button
+                                label="บันทึก" // ตัดคำว่า "งาน" ออกเพื่อประหยัดพื้นที่
+                                icon="pi pi-pencil"
+                                rounded
+                                // ปรับ padding (py-1 px-2) และลดขนาดตัวอักษร
+                                className="py-1 px-3 text-[10px] font-bold bg-blue-600 border-none hover:bg-blue-700 shadow-md shadow-blue-100"
+                                style={{ height: '32px' }} // คุมความสูงให้คงที่
+                                onClick={() => openDetails(row)}
+                            />
+                        )} style={{ textAlign: 'center', width: '7rem' }} />
                         </DataTable>
                     </div>
                 </div>
 
-                {/* --- ตารางล่าง: งานที่บันทึกเรียบร้อยแล้ว (โทนสีขาว-ฟ้าอ่อน) --- */}
+                {/* ตารางประวัติ (Completed) พร้อมคอลัมน์สรุป */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-blue-50 overflow-hidden">
-                    <div className="p-6 bg-blue-50 flex items-center gap-3 border-bottom border-blue-100">
+                    <div className="p-6 bg-blue-50 flex items-center gap-3 border-b border-blue-100">
                         <i className="pi pi-check-circle text-blue-500 text-xl"></i>
-                        <h3 className="m-0 font-bold text-blue-900 tracking-tight">ประวัติการบันทึกงานที่เสร็จสมบูรณ์ ({completedTasks.length})</h3>
+                        <h3 className="m-0 font-bold text-blue-900 tracking-tight">ประวัติงานที่สำเร็จ ({completedTasks.length})</h3>
                     </div>
                     <div className="p-4">
-                        <DataTable value={completedTasks} loading={loading} paginator rows={5} emptyMessage="ยังไม่มีประวัติ" className="p-datatable-sm custom-blue-table">
-                            <Column field="date_report" header="วันที่" style={{ width: '10rem' }} className="text-slate-400" />
-                            <Column field="deviceName" header="อุปกรณ์" style={{ width: '15rem' }} className="text-slate-700" />
-                            <Column field="report" header="รายละเอียดปัญหา" className="text-slate-500" />
-                            <Column header="สถานะ" body={() => (
-                                <Tag value="บันทึกเสร็จสิ้น" severity="success" className="bg-green-50 text-green-600 border-green-100 font-bold" />
-                            )} style={{ width: '10rem', textAlign: 'center' }} />
+                        <DataTable 
+                            value={completedTasks} 
+                            loading={loading} 
+                            paginator 
+                            rows={5} 
+                            sortMode="multiple" 
+                            removableSort 
+                            emptyMessage="ไม่พบประวัติงาน" 
+                            className="p-datatable-sm custom-blue-table"
+                        >
+                            <Column field="date_report" header="วันที่" style={{ width: '9rem' }} className="text-slate-400" sortable />
+                            <Column field="deviceName" header="อุปกรณ์" style={{ width: '13rem' }} className="text-slate-700 font-bold" sortable />
+                            
+                            {/* [ ] เพิ่มคอลัมน์สรุป (Summary) ซ่อนบนมือถือ */}
+                            <Column 
+                                field="contribution_detail" 
+                                header="สรุปการช่วยงาน" 
+                                body={summaryTemplate} 
+                                className="hidden md:table-cell" 
+                                style={{ width: '20rem' }} 
+                                sortable 
+                            />
+
+                            <Column field="report" header="ปัญหาที่แจ้ง" className="text-slate-500 italic text-xs" style={{ width: '12rem' }} sortable />
+                            <Column header="สถานะ" body={() => <Tag value="สำเร็จ" className="bg-green-100 text-green-600 font-bold px-3 py-1" rounded />} style={{ width: '7rem', textAlign: 'center' }} />
                             <Column header="แก้ไข" body={(row) => (
-                                <Button 
-                                    icon="pi pi-refresh" 
-                                    rounded 
-                                    className="p-button-text p-button-info" 
-                                    onClick={() => openDetails(row)} 
-                                    title="แก้ไขข้อมูล"
+                                <Button
+                                    icon="pi pi-file-edit"
+                                    rounded
+                                    className="p-button-text p-button-info"
+                                    onClick={() => openDetails(row)}
                                 />
                             )} style={{ textAlign: 'center', width: '5rem' }} />
                         </DataTable>
@@ -143,76 +234,45 @@ function MyTasks() {
                 </div>
             </div>
 
-            {/* Modal บันทึกงาน */}
-            <Dialog 
-                header={
-                    <div className="flex items-center gap-2 text-blue-700">
-                        <i className="pi pi-form text-xl"></i>
-                        <span className="font-black">รายละเอียดการทำงาน</span>
-                    </div>
-                } 
-                visible={showModal} 
-                style={{ width: '95vw', maxWidth: '550px' }} 
+            {/* Modal รายละเอียดงาน */}
+            <Dialog
+                header={<div className="flex items-center gap-2 text-blue-700"><i className="pi pi-file-edit text-xl"></i><span className="font-black">รายละเอียดงาน</span></div>}
+                visible={showModal}
+                style={{ width: '95vw', maxWidth: '550px' }}
                 onHide={() => setShowModal(false)}
                 className="custom-blue-dialog"
-                footer={
-                    <div className="flex gap-2 justify-end p-3">
-                        <Button label="ปิด" icon="pi pi-times" onClick={() => setShowModal(false)} className="p-button-text p-button-secondary font-bold" />
-                        <Button label="บันทึกข้อมูล" icon="pi pi-save" onClick={handleSaveNote} className="bg-blue-600 border-none font-bold px-6 rounded-xl" />
-                    </div>
-                }
+                footer={<div className="flex gap-2 justify-end p-4"><Button label="ยกเลิก" icon="pi pi-times" onClick={() => setShowModal(false)} className="p-button-text p-button-secondary" /><Button label="บันทึกข้อมูล" icon="pi pi-save" onClick={handleSaveNote} loading={loading} className="bg-blue-600 border-none px-6 rounded-xl shadow-lg shadow-blue-100" /></div>}
             >
                 {selectedTask && (
-                    <div className="flex flex-col gap-5 py-2">
-                        <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
-                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">ปัญหาที่ได้รับมอบหมาย</p>
-                            <p className="text-blue-900 font-medium">{selectedTask.report}</p>
+                    <div className="flex flex-col gap-5 py-4">
+                        <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
+                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">หัวข้อปัญหา</p>
+                            <p className="text-blue-900 font-bold text-lg">{selectedTask.deviceName}</p>
+                            <p className="text-slate-500 text-sm mt-1">{selectedTask.report}</p>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <label className="text-[11px] font-bold text-blue-600 ml-1">รายละเอียดสิ่งที่ได้ทำ *</label>
-                            <InputTextarea 
-                                value={formData.contribution_detail} 
-                                onChange={(e) => setFormData({...formData, contribution_detail: e.target.value})} 
-                                rows={4} 
-                                className="w-full rounded-2xl border-blue-100 focus:border-blue-400 p-4" 
-                                placeholder="อธิบายขั้นตอนการแก้ไขงานของคุณ..."
-                            />
+                            <label className="text-[11px] font-bold text-blue-600 ml-1">ขั้นตอนการดำเนินงานและการแก้ไข *</label>
+                            <InputTextarea value={formData.contribution_detail} onChange={(e) => setFormData({ ...formData, contribution_detail: e.target.value })} rows={5} className="w-full rounded-2xl border-blue-100 p-4 shadow-inner" placeholder="อธิบายงานที่ทำ..." />
                         </div>
                         <div className="flex flex-col gap-2">
-                            <label className="text-[11px] font-bold text-slate-500 ml-1">ความรู้ที่ได้รับ (ถ้ามี)</label>
-                            <InputTextarea 
-                                value={formData.learning_outcome} 
-                                onChange={(e) => setFormData({...formData, learning_outcome: e.target.value})} 
-                                rows={2} 
-                                className="w-full rounded-2xl border-blue-50 p-4" 
-                                placeholder="เทคนิคใหม่ๆ หรือสิ่งที่ได้เรียนรู้จากงานนี้"
-                            />
+                            <label className="text-[11px] font-bold text-slate-500 ml-1">สิ่งที่ได้เรียนรู้จากงานนี้</label>
+                            <InputTextarea value={formData.learning_outcome} onChange={(e) => setFormData({ ...formData, learning_outcome: e.target.value })} rows={2} className="w-full rounded-2xl border-blue-50 p-4 shadow-inner" placeholder="เทคนิคหรือความรู้เพิ่มเติม..." />
                         </div>
                     </div>
                 )}
             </Dialog>
 
-            <style dangerouslySetInnerHTML={{ __html: `
-                .custom-blue-table .p-datatable-thead > tr > th {
-                    background-color: #f8fafc !important;
-                    color: #64748b !important;
-                    font-size: 11px !important;
-                    text-transform: uppercase !important;
-                    padding: 1.2rem 1rem !important;
-                    border-bottom: 2px solid #eff6ff !important;
-                }
-                .p-datatable-tbody > tr > td {
-                    border-bottom: 1px solid #eff6ff !important;
-                    padding: 1.2rem 1rem !important;
-                }
-                .custom-blue-dialog .p-dialog-header {
-                    border-radius: 2rem 2rem 0 0 !important;
-                    border-bottom: 1px solid #eff6ff !important;
-                }
-                .custom-blue-dialog .p-dialog-footer {
-                    border-radius: 0 0 2rem 2rem !important;
-                    border-top: 1px solid #eff6ff !important;
-                }
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                .custom-blue-table .p-datatable-thead > tr > th { background-color: #f8fafc !important; color: #94a3b8 !important; font-size: 11px !important; text-transform: uppercase !important; padding: 1.2rem 1rem !important; border-bottom: 2px solid #eff6ff !important; transition: all 0.2s; }
+                .custom-blue-table .p-datatable-thead > tr > th:hover { background-color: #f1f5f9 !important; color: #2563eb !important; }
+                .p-datatable-tbody > tr > td { border-bottom: 1px solid #f1f5f9 !important; padding: 1.2rem 1rem !important; }
+                .custom-blue-calendar input { border-radius: 0.75rem !important; border: 1px solid #eff6ff !important; padding: 0.5rem 0.75rem !important; font-size: 13px !important; }
+                .p-paginator { background: transparent !important; border: none !important; padding: 1rem !important; }
+                
+                /* Tooltip & Ellipsis */
+                .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+                .p-tooltip .p-tooltip-text { background: #1e293b !important; font-size: 11px !important; border-radius: 8px !important; padding: 10px !important; max-width: 250px; }
             `}} />
         </div>
     );

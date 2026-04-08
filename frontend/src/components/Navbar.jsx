@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { confirmDialog } from 'primereact/confirmdialog';
 import { useAuth } from '../context/AuthContext';
+import { getImageUrl } from '../services/api';
 
 const Navbar = () => {
     const navigate = useNavigate();
@@ -73,7 +74,7 @@ const Navbar = () => {
                              onClick={() => navigate("/profile")}>
                             <div className="relative ml-1">
                                 <img
-                                    src={user?.avatar_url ? `http://172.16.39.6:5000${user.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+                                    src={getImageUrl(user?.avatar_url)}
                                     alt="Profile"
                                     className="rounded-full object-cover border-2 border-white w-9 h-9 shadow-sm"
                                 />

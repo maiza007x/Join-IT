@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -22,13 +22,9 @@ function Members() {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem("token"); 
-            
-            // 🚀 ยิงหา Node.js ที่รันอยู่ที่พอร์ต 5000 ตามที่คุณตั้งไว้ใน server.js
-            const response = await axios.get("http://localhost:5000/api/users/all", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            
+            // 🚀 ยิงหา Node.js โดยใช้ api service ที่ตั้งค่า baseURL ไว้แล้ว
+            const response = await api.get("/users/all");
+
             setUsers(response.data);
         } catch (error) {
             console.error("Error fetching users:", error);
@@ -51,10 +47,7 @@ function Members() {
 
         if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${username}" ?`)) {
             try {
-                const token = localStorage.getItem("token");
-                const response = await axios.delete(`http://localhost:5000/api/users/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const response = await api.delete(`/users/${id}`);
 
                 if (response.data.status === "success") {
                     alert("ลบผู้ใช้สำเร็จ!");
@@ -71,7 +64,7 @@ function Members() {
     return (
         <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 font-sans text-slate-700">
             <div className="max-w-[1250px] mx-auto">
-                
+
                 {/* 🏰 Header Luxury */}
                 <div className="flex justify-between items-center mb-8 bg-white p-5 rounded-[2rem] shadow-sm border border-white">
                     <div className="flex items-center gap-4">
@@ -83,12 +76,12 @@ function Members() {
                             <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mt-1">User Management</p>
                         </div>
                     </div>
-                    
-                    <Button 
-                        label="เพิ่มผู้ใช้" 
-                        icon="pi pi-user-plus" 
+
+                    <Button
+                        label="เพิ่มผู้ใช้"
+                        icon="pi pi-user-plus"
                         disabled={!isAdmin}
-                        className={`rounded-2xl px-6 border-none font-bold h-[48px] shadow-lg shadow-blue-100 transition-all ${isAdmin ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300 cursor-not-allowed'}`} 
+                        className={`rounded-2xl px-6 border-none font-bold h-[48px] shadow-lg shadow-blue-100 transition-all ${isAdmin ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300 cursor-not-allowed'}`}
                     />
                 </div>
 
@@ -108,31 +101,31 @@ function Members() {
                     </div>
 
                     <div className="p-4">
-                        <DataTable 
-                            value={users} 
-                            paginator 
-                            rows={10} 
+                        <DataTable
+                            value={users}
+                            paginator
+                            rows={10}
                             loading={loading}
-                            className="p-datatable-sm custom-luxury-table" 
+                            className="p-datatable-sm custom-luxury-table"
                             rowHover
                             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
                             currentPageReportTemplate="1-10 of {totalRecords}"
                         >
-                            <Column field="id" header="#" style={{width: '3rem'}} bodyStyle={{fontWeight: 'bold', color: '#cbd5e1'}} />
+                            <Column field="id" header="#" style={{ width: '3rem' }} bodyStyle={{ fontWeight: 'bold', color: '#cbd5e1' }} />
                             <Column field="username" header="Username ↑↓" sortable />
                             <Column field="full_name" header="ชื่อ ↑↓" sortable />
                             <Column field="role" header="บทบาท ↑↓" body={(row) => (
                                 <Tag value={row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'}`} />
                             )} />
                             <Column field="updated_at" header="วันที่อัปเดตล่าสุด ↑↓" />
-                            
+
                             <Column header="จัดการ" body={(row) => (
                                 <div className="flex gap-2">
                                     <Button icon="pi pi-cog" rounded className="p-button-info p-button-sm bg-blue-500 border-none" />
-                                    <Button 
-                                        icon="pi pi-trash" 
-                                        rounded 
-                                        className={`p-button-danger p-button-sm border-none ${isAdmin ? 'bg-red-500' : 'bg-slate-300 cursor-not-allowed'}`} 
+                                    <Button
+                                        icon="pi pi-trash"
+                                        rounded
+                                        className={`p-button-danger p-button-sm border-none ${isAdmin ? 'bg-red-500' : 'bg-slate-300 cursor-not-allowed'}`}
                                         onClick={() => handleDeleteUser(row.id, row.username)}
                                     />
                                 </div>
@@ -143,7 +136,8 @@ function Members() {
 
             </div>
 
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-luxury-table .p-datatable-thead > tr > th {
                     background-color: #fafafa !important;
                     color: #94a3b8 !important;

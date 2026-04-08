@@ -7,17 +7,12 @@ const auth = require('../middleware/auth');
 router.get('/tasks_collab', auth, async (req, res) => {
     const { date, q } = req.query;
 
-    // ล็อควันที่ให้เป็นเวลาไทย (Asia/Bangkok) เพื่อให้ตรงกับหน้าเว็บ 2026-04-02
+    // ล็อควันที่ให้เป็นเวลาไทย (Asia/Bangkok)
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
     const targetDate = date || today;
     const userId = req.user.id;
 
     try {
-        /**
-         * 💡 จุดสำคัญ: 
-         * 1. ใช้ DATE(r.date_report) เพื่อให้เทียบแค่วันที่ ไม่เอาเวลามาเกี่ยว
-         * 2. ใช้ ORDER BY r.id DESC เพื่อให้งานใหม่ล่าสุด (เช่น ID 10765) ขึ้นก่อน
-         */
         let sql = `
             SELECT 
                 r.id as id,
@@ -26,10 +21,12 @@ router.get('/tasks_collab', auth, async (req, res) => {
                 r.time_report,
                 r.date_report,
                 r.username,
-                GROUP_CONCAT(t.created_by) as intern_names,
+                /* ดึงชื่อเต็มจากตาราง users โดยใช้ DISTINCT เพื่อป้องกันชื่อซ้ำ และใช้ separator ที่ปลอดภัย */
+                GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN t.intern_id = ? AND t.deleted_at IS NULL THEN 1 ELSE 0 END) as isContributedByMe
             FROM orderit.data_report r
             LEFT JOIN join_it.tasks t ON r.id = t.task_staff_id AND t.deleted_at IS NULL
+            LEFT JOIN join_it.users u ON t.intern_id = u.id
             WHERE DATE(r.date_report) = ?
         `;
 
@@ -45,10 +42,10 @@ router.get('/tasks_collab', auth, async (req, res) => {
 
         const [rows] = await joinPool.query(sql, params);
 
-        // แปลงข้อมูลรูปแบบ interns ให้ Frontend ใช้งานได้
         const formattedTasks = rows.map(task => ({
             ...task,
-            interns: task.intern_names ? [...new Set(task.intern_names.split(','))] : [],
+            // แปลง String ของชื่อที่คั่นด้วย || ให้เป็น Array
+            interns: task.intern_names ? task.intern_names.split('||') : [],
             isContributedByMe: !!task.isContributedByMe
         }));
 
@@ -98,11 +95,12 @@ router.get('/my-tasks', auth, async (req, res) => {
         const [rows] = await joinPool.query(sql, params);
         res.json({ success: true, tasks: rows });
     } catch (err) {
+        console.error("❌ My Tasks Error:", err.message);
         res.status(500).json({ success: false, message: "ดึงข้อมูลงานของฉันล้มเหลว" });
     }
 });
 
-// --- 3. PUT /api/tasks/contribution/:id (บันทึกข้อมูล 3 ฟิลด์ใหม่) ---
+// --- 3. PUT /api/tasks/contribution/:id (อัปเดตข้อมูลรายละเอียดงาน) ---
 router.put('/contribution/:id', auth, async (req, res) => {
     const contributionId = req.params.id;
     const { contribution_detail, learning_outcome, mentor_feedback } = req.body;
@@ -129,7 +127,10 @@ router.post('/join', auth, async (req, res) => {
     const { task_staff_id } = req.body;
     const intern_id = req.user.id;
     try {
+        // ดึงชื่อผู้ใช้มาเก็บใน created_by (เพื่อเก็บ Snapshot ชื่อ ณ ตอนบันทึก)
         const [userRows] = await joinPool.query('SELECT full_name FROM join_it.users WHERE id = ?', [intern_id]);
+        if (userRows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+        
         const creatorName = userRows[0].full_name;
 
         await joinPool.query(
@@ -140,11 +141,12 @@ router.post('/join', auth, async (req, res) => {
         );
         res.status(201).json({ success: true, message: 'เข้าร่วมเรียบร้อย' });
     } catch (err) {
+        console.error("❌ Join Task Error:", err.message);
         res.status(500).json({ success: false, message: "บันทึกข้อมูลล้มเหลว" });
     }
 });
 
-// --- 5. DELETE /api/tasks/leave/:id (ยกเลิกการเข้าร่วม) ---
+// --- 5. DELETE /api/tasks/leave/:id (ยกเลิกการเข้าร่วม - Soft Delete) ---
 router.delete('/leave/:id', auth, async (req, res) => {
     const task_staff_id = req.params.id;
     const intern_id = req.user.id;
@@ -155,7 +157,7 @@ router.delete('/leave/:id', auth, async (req, res) => {
         );
         res.json({ success: true, message: "ยกเลิกเรียบร้อย" });
     } catch (err) {
-        res.status(500).json({ message: "ล้มเหลว" });
+        res.status(500).json({ success: false, message: "ล้มเหลว" });
     }
 });
 

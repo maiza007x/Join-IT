@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api, { getImageUrl } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { Dialog } from 'primereact/dialog';
 import { Password } from 'primereact/password';
@@ -26,11 +26,8 @@ const Profile = () => {
 
     const fetchProfile = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://10.0.0.27:5000/api/users/me', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = res.data;
+            const res = await api.get('/users/me');
+            const data = res.data.data || res.data;
             if (data && data.username) {
                 setUserData(data);
                 setFullName(data.fullName || "");
@@ -64,13 +61,10 @@ const Profile = () => {
 
         setIsSaving(true);
         try {
-            const token = localStorage.getItem('token');
-            await axios.put('http://10.0.0.27:5000/api/users/me', {
+            await api.put('/users/me', {
                 fullName,
                 academic_year: academicYear,
                 university_name: universityName
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'บันทึกข้อมูลเรียบร้อย', life: 3000 });
             setIsEditing(false);
@@ -98,13 +92,10 @@ const Profile = () => {
 
         setIsSaving(true);
         try {
-            const token = localStorage.getItem('token');
-            await axios.put('http://10.0.0.27:5000/api/users/me/password', {
+            await api.put('/users/me/password', {
                 currentPassword: passForm.current,
                 newPassword: passForm.new,
                 confirmNewPassword: passForm.confirm
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
 
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'เปลี่ยนรหัสผ่านเรียบร้อย ระบบกำลังนำคุณไปเข้าสู่ระบบใหม่...', life: 2000 });
@@ -135,11 +126,9 @@ const Profile = () => {
         formData.append('avatar', file);
         setUploading(true);
         try {
-            const token = localStorage.getItem('token');
-            await axios.post('http://10.0.0.27:5000/api/users/upload-avatar', formData, {
+            await api.post('/users/upload-avatar', formData, {
                 headers: {
-                    'Content-Type': 'multipart/form-data',
-                    Authorization: `Bearer ${token}`
+                    'Content-Type': 'multipart/form-data'
                 }
             });
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'อัปโหลดรูปโปรไฟล์เรียบร้อย', life: 3000 });
@@ -159,14 +148,14 @@ const Profile = () => {
             <Toast ref={toast} />
 
             <div className="mx-auto" style={{ maxWidth: '850px' }}>
-                
+
                 {/* Header Section: Title & Back Button */}
                 <div className="flex justify-between items-center mb-4 px-2">
                     <h2 className="m-0" style={{ color: '#1e293b', fontWeight: '800', fontSize: '1.75rem' }}>
                         การตั้งค่าบัญชี
                     </h2>
-                    <button 
-                        onClick={() => navigate('/tasks')} 
+                    <button
+                        onClick={() => navigate('/tasks')}
                         className="flex items-center gap-2 px-4 py-2 bg-white text-gray-600 hover:text-blue-600 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 font-semibold text-sm"
                     >
                         <i className="pi pi-arrow-left" style={{ fontSize: '0.8rem' }}></i>
@@ -184,7 +173,7 @@ const Profile = () => {
                             <div style={{ position: 'relative', display: 'inline-block' }}>
                                 <div className="p-1" style={{ borderRadius: '50%', background: 'white', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
                                     <img
-                                        src={userData.avatar_url ? `http://10.0.0.27:5000${userData.avatar_url}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+                                        src={getImageUrl(userData.avatar_url)}
                                         alt="Profile"
                                         style={{ width: '140px', height: '140px', borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff' }}
                                     />

@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from 'axios';
+import api from '../services/api';
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -18,19 +17,17 @@ function Tasks() {
     const [actionLoading, setActionLoading] = useState(null);
     const toast = useRef(null);
 
-    // ✅ ดึงข้อมูลงาน
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
             const formattedDate = date instanceof Date ? date.toLocaleDateString('en-CA') : '';
-            const response = await axios.get(`http://10.0.0.27:5000/api/tasks/tasks_collab`, {
-                params: { date: formattedDate, q: query },
-                headers: { Authorization: `Bearer ${token}` }
+            const response = await api.get(`/tasks/tasks_collab`, {
+                params: { date: formattedDate, q: query }
             });
             setTasks(response.data.tasks || []);
         } catch (err) {
-            toast.current?.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'โหลดข้อมูลงานล้มเหลว' });
+            console.error("Error fetching tasks:", err);
+            toast.current?.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'โหลดข้อมูลงานล้มหลว' });
         } finally {
             setLoading(false);
         }
@@ -43,13 +40,9 @@ function Tasks() {
     const handleJoin = async (taskId) => {
         setActionLoading(taskId);
         try {
-            const token = localStorage.getItem('token');
-            await axios.post(`http://10.0.0.27:5000/api/tasks/join`, 
-                { task_staff_id: taskId },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            await api.post(`/tasks/join`, { task_staff_id: taskId });
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'เข้าร่วมงานเรียบร้อย', life: 2000 });
-            fetchTasks(); 
+            fetchTasks();
         } catch (err) {
             toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถเข้าร่วมงานได้' });
         } finally {
@@ -60,11 +53,8 @@ function Tasks() {
     const handleLeave = async (taskId) => {
         setActionLoading(taskId);
         try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`http://10.0.0.27:5000/api/tasks/leave/${taskId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            toast.current.show({ severity: 'warn', summary: 'ยกเลิก', detail: 'ยกเลิกการมีส่วนร่วมแล้ว', life: 2000 });
+            await api.delete(`/tasks/leave/${taskId}`);
+            toast.current.show({ severity: 'warn', summary: 'ยกเลิก', detail: 'ยกเลิกการผูกงานแล้ว', life: 2000 });
             fetchTasks();
         } catch (err) {
             toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถยกเลิกได้' });
@@ -75,7 +65,7 @@ function Tasks() {
 
     const confirmJoin = (taskId) => {
         confirmDialog({
-            message: 'ต้องการมีส่วนร่วมกับงานนี้ใช่หรือไม่?',
+            message: 'ต้องการผูกงานนี้ใช่หรือไม่?',
             header: 'ยืนยันการเข้าร่วม',
             icon: 'pi pi-user-plus',
             acceptClassName: 'p-button-info rounded-xl px-4',
@@ -86,7 +76,7 @@ function Tasks() {
 
     const confirmLeave = (taskId) => {
         confirmDialog({
-            message: 'คุณต้องการยกเลิกการมีส่วนร่วมจากงานนี้ใช่หรือไม่?',
+            message: 'คุณต้องการยกเลิกการผูกงานนี้ใช่หรือไม่?',
             header: 'ยืนยันการยกเลิก',
             icon: 'pi pi-exclamation-circle',
             acceptClassName: 'p-button-danger rounded-xl px-4',
@@ -95,11 +85,16 @@ function Tasks() {
         });
     };
 
+    const timeTemplate = (rowData) => {
+        if (!rowData.time_report) return "-";
+        return <span className="font-black text-slate-700">{rowData.time_report.substring(0, 5)} น.</span>;
+    };
+
     const internTemplate = (rowData) => (
         <div className="flex flex-wrap gap-1">
             {rowData.interns && rowData.interns.length > 0 ? (
                 rowData.interns.map((name, index) => (
-                    <Tag key={index} value={name} rounded className="px-2 text-[10px] bg-blue-50 text-blue-600 border-none font-bold" />
+                    <Tag key={index} value={name} rounded className="px-2.5 py-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 font-bold" />
                 ))
             ) : (
                 <span className="text-slate-300 text-[10px] italic">ยังไม่มีคนช่วย</span>
@@ -112,128 +107,196 @@ function Tasks() {
         const isLoading = actionLoading === rowData.id;
         return (
             <Button
-                label={isJoined ? "ยกเลิก" : "มีส่วนร่วม"}
+                label={isJoined ? "ยกเลิก" : "ผูกงาน"}
                 icon={isJoined ? "pi pi-times" : "pi pi-plus"}
                 rounded
                 severity={isJoined ? "danger" : "info"}
                 loading={isLoading}
-                className={`px-4 py-2 text-[10px] font-bold border-none transition-all ${isJoined ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-100' : 'bg-[#1e293b] hover:bg-slate-700 shadow-lg shadow-slate-200'}`}
+                className={`px-3 py-1.5 text-[10px] font-bold border-none transition-all ${isJoined ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-100' : 'bg-slate-900 hover:bg-slate-700 shadow-lg shadow-slate-200'}`}
                 onClick={() => isJoined ? confirmLeave(rowData.id) : confirmJoin(rowData.id)}
             />
         );
     };
 
+    const myContributedTasks = tasks.filter(t => t.isContributedByMe).length;
+
     return (
         <div className="bg-[#f8fafc] min-h-screen font-sans text-slate-700">
             <Toast ref={toast} />
-            
-            <div className="max-w-[1250px] mx-auto py-8 px-4">
-                
+
+            <div className="max-w-[1250px] mx-auto py-8 px-4 flex flex-col gap-6">
+
                 {/* 🔍 Filter & Search Bar */}
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 mb-8">
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50">
                     <div className="flex flex-wrap gap-5 items-end">
                         <div className="flex flex-col gap-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ค้นหาตามวันที่</span>
-                            <Calendar value={selectedDate} onChange={(e) => setSelectedDate(e.value)} dateFormat="yy-mm-dd" showIcon className="w-full md:w-52 custom-calendar" />
+                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest ml-1">คัดกรองวันที่</span>
+                            <Calendar value={selectedDate} onChange={(e) => setSelectedDate(e.value)} dateFormat="yy-mm-dd" showIcon className="w-full md:w-56 custom-calendar shadow-inner" />
                         </div>
                         <div className="flex flex-col gap-2 flex-grow">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">คำค้นหา (ปัญหา, อุปกรณ์, แผนก)</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ค้นหางาน (ปัญหา, อุปกรณ์, แผนก)</span>
                             <div className="relative w-full">
                                 <i className="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 text-sm" />
-                                <InputText 
-                                    value={searchQuery} 
-                                    onChange={(e) => setSearchQuery(e.target.value)} 
-                                    placeholder="       พิมพ์เพื่อค้นหา..." 
-                                    className="w-full rounded-2xl border-slate-100 bg-slate-50/50 pl-11 py-3 focus:ring-2 focus:ring-blue-100 transition-all text-sm" 
+                                <InputText
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="      พิมพ์สิ่งที่ต้องการค้นหา..."
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50/50 pl-11 py-3 focus:ring-2 focus:ring-blue-100 transition-all text-sm shadow-inner"
                                 />
                             </div>
                         </div>
-                        <Button label="ค้นหาข้อมูล" icon="pi pi-search" className="rounded-2xl px-8 bg-blue-600 border-none font-bold h-[48px] shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all" onClick={() => fetchTasks()} loading={loading} />
+                        <Button label="ค้นหา" icon="pi pi-filter" className="rounded-2xl px-8 bg-blue-600 border-none font-bold h-[48px] shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all" onClick={() => fetchTasks()} loading={loading} />
+                    </div>
+                </div>
+
+                {/* 📊 Dashboard Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
+                    <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-blue-500">
+                        <i className="pi pi-briefcase text-3xl text-blue-500 bg-blue-50 p-4 rounded-3xl" />
+                        <div>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">งานทั้งหมดในระบบ</span>
+                            <h2 className="text-3xl font-black text-blue-950 mt-1">{tasks.length} <span className="text-sm font-medium text-slate-400">รายการ</span></h2>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-green-500">
+                        <i className="pi pi-users text-3xl text-green-500 bg-green-50 p-4 rounded-3xl" />
+                        <div>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">คุณเข้าร่วม</span>
+                            <h2 className="text-3xl font-black text-green-950 mt-1">{myContributedTasks} <span className="text-sm font-medium text-slate-400">รายการ</span></h2>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-orange-400">
+                        <i className="pi pi-user text-3xl text-orange-400 bg-orange-50 p-4 rounded-3xl" />
+                        <div>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">ยังไม่มีคนช่วย</span>
+                            <h2 className="text-3xl font-black text-orange-950 mt-1">{tasks.filter(t => !t.interns || t.interns.length === 0).length} <span className="text-sm font-medium text-slate-400">รายการ</span></h2>
+                        </div>
                     </div>
                 </div>
 
                 {/* Main Data Table */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden">
-                    <div className="p-7 flex items-center justify-between bg-slate-900">
+                    <div className="p-7 flex items-center justify-between bg-slate-900 border-b border-slate-700">
                         <div className="flex items-center gap-4">
                             <div className="w-1.5 h-10 bg-blue-500 rounded-full"></div>
                             <div>
-                                <h3 className="m-0 font-bold text-white text-xl tracking-tight">งานวันนี้</h3>
-                                <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold mt-1">Real-time data synchronization</p>
+                                <h3 className="m-0 font-black text-white text-xl tracking-tight">รายการภารกิจวันนี้</h3>
+                                <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold mt-1">Update: {new Date().toLocaleTimeString()} น.</p>
                             </div>
                         </div>
-                        <div className="bg-white/10 px-5 py-2 rounded-2xl text-white font-black text-sm border border-white/5 backdrop-blur-sm">
-                            {tasks.length} รายการพบแล้ว
+                        <div className="flex gap-2">
+                            <Button
+                                icon="pi pi-refresh"
+                                className="p-button-rounded p-button-text text-white hover:bg-white/10"
+                                tooltip="รีเฟรชงานล่าสุด"
+                                onClick={() => fetchTasks()}
+                                loading={loading}
+                            />
                         </div>
                     </div>
 
                     <div className="p-4">
-                        <DataTable 
-                            value={tasks} 
+                        <DataTable
+                            value={tasks}
                             loading={loading}
-                            paginator 
-                            rows={10} 
-                            emptyMessage="ไม่พบรายการงานที่ตรงตามเงื่อนไข" 
+                            paginator
+                            rows={10}
+                            stripedRows
+                            sortField="id"
+                            sortOrder={-1} 
+                            removableSort // ✅ กดหัวตารางซ้ำเพื่อเลิก Sort ได้
+                            emptyMessage="ไม่พบรายการงานที่ตรงตามเงื่อนไข"
                             className="p-datatable-sm custom-luxury-table"
                             rowHover
                             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
                             currentPageReportTemplate="{first}-{last} of {totalRecords}"
                         >
-                            <Column field="id" header="#" headerStyle={{width: '4rem'}} bodyStyle={{fontWeight: 'bold', color: '#cbd5e1'}} />
-                            <Column field="time_report" header="เวลา" style={{ width: '7rem' }} className="font-medium text-slate-500" />
-                            <Column header="อุปกรณ์ / แผนก" body={(row) => (
+                            <Column field="id" header="#" headerStyle={{ width: '4rem' }} bodyStyle={{ fontWeight: 'black', color: '#cbd5e1', fontSize: '13px' }} sortable />
+                            <Column field="time_report" header="เวลาแจ้ง" body={timeTemplate} style={{ width: '8rem' }} sortable />
+                            <Column field="deviceName" header="อุปกรณ์ / แผนก" body={(row) => (
                                 <div className="py-1">
-                                    <div className="font-bold text-slate-700 text-base">{row.deviceName}</div>
+                                    <div className="font-bold text-slate-800 text-base">{row.deviceName}</div>
                                     <div className="flex items-center gap-1.5 mt-0.5">
                                         <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
-                                        <span className="text-[11px] text-slate-400 font-bold uppercase">{row.department}</span>
+                                        <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{row.department}</span>
                                     </div>
                                 </div>
-                            )} />
-                            <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600 leading-relaxed" style={{ maxWidth: '25rem' }} />
-                            <Column field="username" header="เจ้าหน้าที่" body={(row) => <span className="text-slate-500 font-semibold italic">@{row.username}</span>} />
-                            <Column header="ผู้มีส่วนร่วม" body={internTemplate} style={{ width: '13rem' }} />
-                            <Column header="จัดการ" body={actionTemplate} style={{ textAlign: 'center', width: '9rem' }} />
+                            )} style={{ width: '18rem' }} sortable />
+                            <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600 leading-relaxed" sortable />
+                            <Column field="username" header="ผู้แจ้ง" body={(row) => <span className="text-slate-500 font-semibold italic">@{row.username}</span>} style={{ width: '9rem' }} sortable />
+                            <Column header="ผู้ช่วยเหลือ" body={internTemplate} style={{ width: '14rem' }} />
+                            <Column header="จัดการ" body={actionTemplate} style={{ textAlign: 'center', width: '13rem' }} />
                         </DataTable>
                     </div>
                 </div>
             </div>
 
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                /* Sort Icon Styling */
+                .p-sortable-column-icon {
+                    font-size: 10px !important;
+                    margin-left: 0.5rem !important;
+                    color: #94a3b8 !important;
+                }
+                .p-highlight .p-sortable-column-icon {
+                    color: #2563eb !important;
+                }
+
+                /* DataTable Head Styling */
                 .custom-luxury-table .p-datatable-thead > tr > th {
                     background-color: #fafafa !important;
                     color: #94a3b8 !important;
                     font-size: 11px !important;
                     text-transform: uppercase !important;
                     letter-spacing: 0.15em !important;
-                    border-bottom: 2px solid #f8fafc !important;
+                    border-bottom: 2px solid #f1f5f9 !important;
                     padding: 1.5rem 1rem !important;
+                    transition: all 0.2s;
                 }
+                .custom-luxury-table .p-datatable-thead > tr > th:hover {
+                    background-color: #f1f5f9 !important;
+                    color: #475569 !important;
+                }
+                /* DataTable Body Styling */
                 .p-datatable-tbody > tr > td {
                     border-bottom: 1px solid #f1f5f9 !important;
-                    padding: 1.5rem 1rem !important;
+                    padding: 1.25rem 1rem !important;
                 }
+                /* Row Hover Effect */
                 .p-datatable-tbody > tr:hover {
                     background-color: #fcfdfe !important;
                 }
+                /* Striped Rows */
+                .p-datatable-striped .p-datatable-tbody > tr:nth-child(even) {
+                    background-color: #f8fafc !important;
+                }
+                /* Calendar Input styling */
                 .custom-calendar input {
                     border-radius: 1.25rem !important;
-                    border: 1px solid #f1f5f9 !important;
-                    background: #f8fafc !important;
+                    border: 1px solid #eff6ff !important;
+                    background: #fcfdfe !important;
                     padding: 0.75rem 1rem !important;
                     font-weight: 600;
                     color: #475569;
+                    width: 100%;
                 }
+                /* Paginator styling */
                 .p-paginator {
                     border: none !important;
-                    padding: 2rem !important;
+                    padding: 1.5rem !important;
                     background: transparent !important;
+                    border-top: 1px solid #f1f5f9 !important;
                 }
                 .p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
                     background: #2563eb !important;
                     color: white !important;
                     border-radius: 12px !important;
                     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+                }
+                .p-paginator .p-paginator-current {
+                    color: #94a3b8 !important;
+                    font-size: 12px !important;
                 }
             `}} />
         </div>
