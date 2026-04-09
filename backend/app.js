@@ -42,6 +42,7 @@ app.use("/api/users", userRoutes);
 // ⚠️ สำคัญมาก: ถ้าใช้ /api/tasks ตรงนี้ 
 // ในไฟล์ taskRoutes.js ห้ามเขียน path ซ้ำซ้อน
 app.use("/api/tasks", taskRoutes); 
+app.use("/api/settings", require("./api_routes/settings"));
 
 // ✅ 4. Error Handler
 app.use((err, req, res, next) => {

@@ -6,12 +6,30 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { ProgressSpinner } from 'primereact/progressspinner';
+import { Dialog } from 'primereact/dialog';
+import { InputText } from 'primereact/inputtext';
+import { Dropdown } from 'primereact/dropdown';
 import { useAuth } from '../context/AuthContext';
 function Members() {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-
+    
+    // Add User State
+    const [displayAddDialog, setDisplayAddDialog] = useState(false);
+    const [newUserName, setNewUserName] = useState('');
+    const [newUserRole, setNewUserRole] = useState('user');
+    
+    // Role Dialog State
+    const [displayRoleDialog, setDisplayRoleDialog] = useState(false);
+    const [selectedUserForRole, setSelectedUserForRole] = useState(null);
+    const [newRole, setNewRole] = useState('user');
+    
+    const roleOptions = [
+        { label: 'แอดมินหลัก (admin)', value: 'admin' },
+        { label: 'แอดมินรอง (sub_admin)', value: 'sub_admin' },
+        { label: 'ผู้ใช้ทั่วไป (user)', value: 'user' }
+    ];
     const { isAdmin } = useAuth();
 
     useEffect(() => {
@@ -61,6 +79,54 @@ function Members() {
         }
     };
 
+    // 3. ฟังก์ชันเพิ่มผู้ใช้
+    const handleAddUser = async () => {
+        if (!newUserName.trim()) {
+            alert("กรุณากรอกชื่อผู้ใช้");
+            return;
+        }
+        try {
+            await api.post("/users/add", { full_name: newUserName, role: newUserRole });
+            alert("เพิ่มผู้ใช้สำเร็จ สุ่ม Username และ Password เรียบร้อยแล้ว");
+            setDisplayAddDialog(false);
+            setNewUserName('');
+            setNewUserRole('user');
+            fetchUsers();
+        } catch (error) {
+            console.error("เกิดข้อผิดพลาดในการเพิ่มผู้ใช้:", error);
+            alert(error.response?.data?.message || "เกิดข้อผิดพลาดในการเพิ่มผู้ใช้");
+        }
+    };
+
+    // 4. ฟังก์ชันเปลี่ยนบทบาท
+    const handleUpdateRole = async () => {
+        if (!selectedUserForRole) return;
+        try {
+            await api.put(`/users/${selectedUserForRole.id}/role`, { role: newRole });
+            alert("เปลี่ยนบทบาทสำเร็จ");
+            setDisplayRoleDialog(false);
+            fetchUsers();
+        } catch (error) {
+            console.error("เกิดข้อผิดพลาดในการเปลี่ยนบทบาท:", error);
+            alert(error.response?.data?.message || "เกิดข้อผิดพลาดในการเปลี่ยนบทบาท");
+        }
+    };
+
+    // 5. ฟังก์ชันรีเซ็ตรหัสผ่าน
+    const handleResetPassword = async (id, username) => {
+        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตรหัสผ่านของ "${username}" ?\nรหัสผ่านจะถูกตั้งให้เหมือนกับ username`)) {
+            try {
+                await api.put(`/users/${id}/reset-password`);
+                alert(`รีเซ็ตรหัสผ่านสำเร็จ รหัสผ่านใหม่ของคนนี้คือ: ${username}`);
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน:", error);
+                alert(error.response?.data?.message || "เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน");
+            }
+        }
+    };
+
+
+
     return (
         <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 font-sans text-slate-700">
             <div className="max-w-[1250px] mx-auto">
@@ -80,6 +146,7 @@ function Members() {
                     <Button
                         label="เพิ่มผู้ใช้"
                         icon="pi pi-user-plus"
+                        onClick={() => setDisplayAddDialog(true)}
                         disabled={!isAdmin}
                         className={`rounded-2xl px-6 border-none font-bold h-[48px] shadow-lg shadow-blue-100 transition-all ${isAdmin ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300 cursor-not-allowed'}`}
                     />
@@ -113,28 +180,87 @@ function Members() {
                         >
                             <Column field="id" header="#" style={{ width: '3rem' }} bodyStyle={{ fontWeight: 'bold', color: '#cbd5e1' }} />
                             <Column field="username" header="Username ↑↓" sortable />
-                            <Column field="full_name" header="ชื่อ ↑↓" sortable />
-                            <Column field="role" header="บทบาท ↑↓" body={(row) => (
-                                <Tag value={row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'}`} />
+                            <Column field="full_name" header="ชื่อและรูปโปรไฟล์" sortable body={(row) => (
+                                <div className="flex items-center gap-3">
+                                    {row.avatar_url ? (
+                                        <img src={`http://localhost:5000${row.avatar_url}`} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs">
+                                            {row.full_name ? row.full_name.charAt(0).toUpperCase() : '?'}
+                                        </div>
+                                    )}
+                                    <span className="font-semibold">{row.full_name || 'ไม่ได้ระบุชื่อ'}</span>
+                                </div>
                             )} />
-                            <Column field="updated_at" header="วันที่อัปเดตล่าสุด ↑↓" />
+                            <Column field="role" header="บทบาท ↑↓" body={(row) => (
+                                <Tag value={row.role === 'sub_admin' ? 'แอดมินรอง' : row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : row.role === 'sub_admin' ? 'bg-indigo-500 text-white' : 'bg-blue-500 text-white'}`} />
+                            )} />
+                            <Column field="updated_at" header="วันที่อัปเดตล่าสุด ↑↓" body={(row) => {
+                                if (!row.updated_at) return '-';
+                                const d = new Date(row.updated_at);
+                                return `${d.toLocaleDateString('th-TH')} ${d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})}`;
+                            }} />
 
                             <Column header="จัดการ" body={(row) => (
                                 <div className="flex gap-2">
-                                    <Button icon="pi pi-cog" rounded className="p-button-info p-button-sm bg-blue-500 border-none" />
+                                    <Button 
+                                        icon="pi pi-key" 
+                                        rounded 
+                                        className="p-button-warning p-button-sm border-none bg-orange-400" 
+                                        onClick={() => handleResetPassword(row.id, row.username)}
+                                        tooltip="รีเซ็ตรหัสผ่าน" tooltipOptions={{ position: 'top' }}
+                                    />
+                                    <Button 
+                                        icon="pi pi-cog" 
+                                        rounded 
+                                        className="p-button-info p-button-sm bg-blue-500 border-none" 
+                                        onClick={() => {
+                                            setSelectedUserForRole(row);
+                                            setNewRole(row.role);
+                                            setDisplayRoleDialog(true);
+                                        }}
+                                        tooltip="ตั้งค่าบทบาท" tooltipOptions={{ position: 'top' }}
+                                    />
                                     <Button
                                         icon="pi pi-trash"
                                         rounded
                                         className={`p-button-danger p-button-sm border-none ${isAdmin ? 'bg-red-500' : 'bg-slate-300 cursor-not-allowed'}`}
                                         onClick={() => handleDeleteUser(row.id, row.username)}
+                                        tooltip="ลบผู้ใช้" tooltipOptions={{ position: 'top' }}
                                     />
                                 </div>
-                            )} style={{ width: '8rem' }} />
+                            )} style={{ width: '12rem' }} />
                         </DataTable>
                     </div>
                 </div>
 
             </div>
+
+            {/* Dialog เพิ่มผู้ใช้ */}
+            <Dialog header="เพิ่มผู้ใช้ระบบ" visible={displayAddDialog} style={{ width: '400px' }} onHide={() => setDisplayAddDialog(false)}>
+                <div className="flex flex-col gap-4 mt-2">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">ชื่อ - นามสกุล</label>
+                        <InputText value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="ระบุชื่อผู้ใช้งาน" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">บทบาท (Role)</label>
+                        <Dropdown value={newUserRole} options={roleOptions} onChange={(e) => setNewUserRole(e.value)} placeholder="เลือกบทบาท" className="w-full" />
+                    </div>
+                    <Button label="ยืนยันการเพิ่มผู้ใช้" onClick={handleAddUser} className="mt-4 bg-blue-600 border-none hover:bg-blue-700" />
+                </div>
+            </Dialog>
+
+            {/* Dialog เปลี่ยนบทบาท */}
+            <Dialog header={`เปลี่ยนบทบาท: ${selectedUserForRole?.username || ''}`} visible={displayRoleDialog} style={{ width: '400px' }} onHide={() => setDisplayRoleDialog(false)}>
+                <div className="flex flex-col gap-4 mt-2">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">เลือกบทบาทใหม่</label>
+                        <Dropdown value={newRole} options={roleOptions} onChange={(e) => setNewRole(e.value)} placeholder="เลือกบทบาท" className="w-full" />
+                    </div>
+                    <Button label="บันทึกการตั้งค่า" onClick={handleUpdateRole} className="mt-4 bg-blue-600 border-none hover:bg-blue-700" />
+                </div>
+            </Dialog>
 
             <style dangerouslySetInnerHTML={{
                 __html: `

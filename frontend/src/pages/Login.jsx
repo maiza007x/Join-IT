@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import API from "../services/api";
+import { useState, useRef, useEffect } from "react";
+import API, { getImageUrl } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { InputText } from "primereact/inputtext";
@@ -14,6 +14,18 @@ function Login() {
   const navigate = useNavigate();
   const toast = useRef(null);
   const { login } = useAuth();
+  
+  const [siteLogo, setSiteLogo] = useState(null);
+
+  useEffect(() => {
+    API.get('/settings')
+      .then(res => {
+        if (res.data?.data?.siteLogo) {
+          setSiteLogo(res.data.data.siteLogo);
+        }
+      })
+      .catch(err => console.error("Could not load site logo:", err));
+  }, []);
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -44,9 +56,15 @@ function Login() {
         <div className="bg-white/70 backdrop-blur-2xl border border-white/50 rounded-[32px] p-8 md:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
           
           <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-xl shadow-blue-200 mb-6 transform -rotate-6">
-              <i className="pi pi-bolt text-white text-3xl"></i>
-            </div>
+            {siteLogo ? (
+              <div className="inline-flex items-center justify-center w-24 h-24 mb-6 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-4 border-white bg-white/50 backdrop-blur-sm overflow-hidden">
+                <img src={getImageUrl(siteLogo)} alt="Site Logo" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-xl shadow-blue-200 mb-6 transform -rotate-6">
+                <i className="pi pi-bolt text-white text-3xl"></i>
+              </div>
+            )}
             <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">JOIN</h1>
             <p className="text-slate-500 text-sm font-medium">เข้าสู่ระบบเพื่อจัดการงานของคุณ</p>
           </div>
@@ -102,12 +120,6 @@ function Login() {
               loading={loading}
               className="w-full py-4 bg-slate-900 border-none rounded-2xl text-white font-bold text-sm shadow-xl shadow-slate-200 hover:bg-slate-800 hover:-translate-y-0.5 active:scale-95 transition-all"
             />
-            <button
-              onClick={() => navigate("/register")}
-              className="w-full py-4 bg-white border border-slate-200 rounded-2xl text-slate-700 font-bold text-sm hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all mt-3"
-            >
-              สมัครสมาชิก
-            </button>
           </div>
 
           <div className="mt-10 text-center">

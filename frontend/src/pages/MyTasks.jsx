@@ -174,7 +174,8 @@ function MyTasks() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && fetchMyTasks()}
                                 placeholder="ค้นหาชื่องาน..."
-                                className="pl-10 rounded-xl border-blue-50 bg-blue-50/30 text-sm py-2"
+                                style={{ paddingLeft: '2.5rem' }}
+                                className="rounded-xl border-blue-50 bg-blue-50/30 text-sm py-2"
                             />
                         </div>
                         <Button

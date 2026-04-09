@@ -34,6 +34,15 @@ router.get('/all', authMiddleware, userController.getAllUsers);
 // [NEW] ลบสมาชิกรายบุคคล (รับ ID ผ่าน URL)
 router.delete('/:id', authMiddleware, userController.deleteUser);
 
+// [NEW] แอดมินเพิ่มผู้ใช้
+router.post('/add', authMiddleware, userController.addUser);
+
+// [NEW] ปรับบทบาทของผู้ใชั
+router.put('/:id/role', authMiddleware, userController.updateUserRole);
+
+// [NEW] รีเซ็ตรหัสผ่านของผู้ใช้
+router.put('/:id/reset-password', authMiddleware, userController.resetPassword);
+
 // ดูข้อมูลโปรไฟล์ตัวเอง
 router.get('/me', authMiddleware, userController.getProfile);
 

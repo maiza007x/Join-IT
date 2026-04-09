@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 exports.getProfile = async (req, res) => {
     try {
         const [rows] = await joinPool.query(
-            'SELECT id, username, full_name, university_name, academic_year, faculty, role, avatar_url FROM users WHERE id = ?', 
+            'SELECT id, username, full_name, university_name, academic_year, faculty, role, avatar_url FROM users WHERE id = ?',
             [req.user.id]
         );
 
@@ -16,7 +16,7 @@ exports.getProfile = async (req, res) => {
         const user = rows[0];
         const responseData = {
             ...user,
-            fullName: user.full_name 
+            fullName: user.full_name
         };
 
         // ✅ แก้ไข: ห่อข้อมูลด้วย 'data' ตามมาตรฐาน API อื่นๆ
@@ -37,7 +37,9 @@ exports.getAllUsers = async (req, res) => {
             SELECT 
                 id, 
                 username, 
-                full_name AS name, 
+                full_name,
+                avatar_url,
+                updated_at,
                 role
             FROM users 
         `);
@@ -46,11 +48,11 @@ exports.getAllUsers = async (req, res) => {
 
         res.status(200).json(users);
     } catch (error) {
-        console.error("❌ SQL ERROR:", error.message); 
-        res.status(500).json({ 
-            success: false, 
-            message: "Database Error", 
-            detail: error.message 
+        console.error("❌ SQL ERROR:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Database Error",
+            detail: error.message
         });
     }
 };
@@ -121,10 +123,10 @@ exports.uploadAvatar = async (req, res) => {
         const imageUrl = `/uploads/${req.file.filename}`;
         await joinPool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [imageUrl, req.user.id]);
 
-        res.json({ 
-            success: true, 
-            message: "อัปโหลดรูปโปรไฟล์สำเร็จ", 
-            avatar_url: imageUrl 
+        res.json({
+            success: true,
+            message: "อัปโหลดรูปโปรไฟล์สำเร็จ",
+            avatar_url: imageUrl
         });
     } catch (err) {
         console.error("Upload Error:", err);
@@ -134,8 +136,8 @@ exports.uploadAvatar = async (req, res) => {
 
 // --- 6. POST /api/users/contributions (บันทึกรายละเอียดการปฏิบัติงานพร้อม 3 ฟิลด์ใหม่) ---
 exports.addTaskContribution = async (req, res) => {
-    const { 
-        task_staff_id, 
+    const {
+        task_staff_id,
         contribution_detail, // ได้ทำอะไรในงานนี้
         learning_outcome,    // สิ่งที่ได้เรียนรู้
         mentor_feedback      // คำแนะนำ (ถ้ามี)
@@ -153,7 +155,7 @@ exports.addTaskContribution = async (req, res) => {
         // ดึงชื่อผู้บันทึกมาเก็บไว้ใน created_by / updated_by
         const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [req.user.id]);
         if (userRows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้" });
-        
+
         const creatorName = userRows[0].full_name || userRows[0].username;
 
         const sql = `
@@ -163,21 +165,21 @@ exports.addTaskContribution = async (req, res) => {
         `;
 
         const values = [
-            task_staff_id, 
-            req.user.id, 
-            contribution_detail, 
-            learning_outcome || null, 
-            mentor_feedback || null, 
-            creatorName, 
-            creatorName  
+            task_staff_id,
+            req.user.id,
+            contribution_detail,
+            learning_outcome || null,
+            mentor_feedback || null,
+            creatorName,
+            creatorName
         ];
 
         const [result] = await joinPool.query(sql, values);
 
-        res.status(201).json({ 
-            success: true, 
+        res.status(201).json({
+            success: true,
             message: "บันทึกข้อมูลสำเร็จแล้ว",
-            contributionId: result.insertId 
+            contributionId: result.insertId
         });
 
     } catch (err) {
@@ -219,5 +221,131 @@ exports.deleteUser = async (req, res) => {
     } catch (error) {
         console.error("🔴 [Error] Failed to delete user:", error);
         return res.status(500).json({ message: "เกิดข้อผิดพลาดในการลบข้อมูล" });
+    }
+};
+
+// 4. แอดมินเพิ่มผู้ใช้
+exports.addUser = async (req, res) => {
+    try {
+        const currentUserRole = req.user.role;
+        // ป้องกันสิทธิ์: admin หรือ sub_admin เท่านั้น
+        if (currentUserRole !== 'admin' && currentUserRole !== 'sub_admin') {
+            return res.status(403).json({ message: "คุณไม่มีสิทธิ์เพิ่มผู้ใช้งาน" });
+        }
+
+        const { full_name, role } = req.body;
+        
+        if (!full_name || !role) {
+            return res.status(400).json({ message: "กรุณากรอกชื่อและบทบาทให้ครบถ้วน" });
+        }
+
+        // หาเลขล่าสุดต่อจาก user...
+        // ดึง username ที่ขึ้นต้นด้วย user แล้วดึงเลขออกมา
+        const [rows] = await joinPool.query(`
+            SELECT username FROM users 
+            WHERE username REGEXP '^user[0-9]+$' 
+            ORDER BY CAST(SUBSTRING(username, 5) AS UNSIGNED) DESC 
+            LIMIT 1
+        `);
+
+        let nextNum = 1;
+        if (rows.length > 0) {
+            const lastUsername = rows[0].username;
+            const lastNum = parseInt(lastUsername.substring(4), 10);
+            if (!isNaN(lastNum)) {
+                nextNum = lastNum + 1;
+            }
+        }
+        
+        const username = `user${nextNum}`;
+        const plainPassword = username; // username = password เริ่มต้น
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(plainPassword, salt);
+
+        const sql = `INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)`;
+        const [result] = await joinPool.query(sql, [username, hashedPassword, full_name, role]);
+
+        res.status(201).json({ 
+            success: true, 
+            message: "เพิ่มผู้ใช้งานสำเร็จ", 
+            data: { id: result.insertId, username, full_name, role } 
+        });
+
+    } catch (error) {
+        console.error("Add User Error:", error);
+        res.status(500).json({ message: "เกิดข้อผิดพลาดในการเพิ่มผู้ใช้งาน" });
+    }
+};
+
+// 5. เปลี่ยนบทบาทผู้ใช้
+exports.updateUserRole = async (req, res) => {
+    try {
+        const targetUserId = req.params.id;
+        const { role } = req.body; // 'admin', 'sub_admin', 'user'
+        const currentUserRole = req.user.role;
+
+        if (currentUserRole !== 'admin' && currentUserRole !== 'sub_admin') {
+            return res.status(403).json({ message: "คุณไม่มีสิทธิ์ในการแก้ไขการตั้งค่านี้" });
+        }
+
+        // ดึงข้อมูลผู้ใช้เป้าหมายก่อน
+        const [targetUserRows] = await joinPool.query("SELECT role FROM users WHERE id = ?", [targetUserId]);
+        if (targetUserRows.length === 0) {
+            return res.status(404).json({ message: "ไม่พบผู้ใช้งานเป้าหมาย" });
+        }
+
+        const targetUserCurrentRole = targetUserRows[0].role;
+
+        // ถ้าระบบอนุญาตให้ sub_admin จัดการได้ แต่ห้ามแก้ไข admin ให้เป็นค่าอื่น
+        if (currentUserRole === 'sub_admin' && targetUserCurrentRole === 'admin') {
+            return res.status(403).json({ message: "แอดมินรอง ไม่สามารถแก้ไขสิทธิ์ของแอดมินหลักได้" });
+        }
+        
+        // ถ้า sub_admin จะตั้งคนอื่นเป็น admin? ปกติ sub_admin ไม่น่าจะตั้งคนเป็น admin ได้
+        if (currentUserRole === 'sub_admin' && role === 'admin') {
+            return res.status(403).json({ message: "แอดมินรอง ไม่สามารถตั้งค่าผู้อื่นเป็นแอดมินหลักได้" });
+        }
+
+        await joinPool.query("UPDATE users SET role = ? WHERE id = ?", [role, targetUserId]);
+        
+        res.json({ success: true, message: "เปลี่ยนบทบาทสำเร็จ" });
+    } catch (error) {
+        console.error("Update Role Error:", error);
+        res.status(500).json({ message: "เกิดข้อผิดพลาดในการเปลี่ยนบทบาท" });
+    }
+};
+
+// 6. รีเซ็ตรหัสผ่าน (กลับไปเป็นค่าเดียวกับ username)
+exports.resetPassword = async (req, res) => {
+    try {
+        const targetUserId = req.params.id;
+        const currentUserRole = req.user.role;
+
+        if (currentUserRole !== 'admin' && currentUserRole !== 'sub_admin') {
+            return res.status(403).json({ message: "คุณไม่มีสิทธิ์รีเซ็ตรหัสผ่าน" });
+        }
+
+        // ดึงข้อมูล username เพื่อใช้เป็นรหัสผ่าน
+        const [userRows] = await joinPool.query("SELECT username, role FROM users WHERE id = ?", [targetUserId]);
+        if (userRows.length === 0) {
+            return res.status(404).json({ message: "ไม่พบผู้ใช้งานระบบ" });
+        }
+
+        const targetUsername = userRows[0].username;
+        const targetRole = userRows[0].role;
+
+        if (currentUserRole === 'sub_admin' && targetRole === 'admin') {
+            return res.status(403).json({ message: "แอดมินรอง ไม่สามารถรีเซ็ตรหัสผ่านของแอดมินหลักได้" });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(targetUsername, salt);
+
+        await joinPool.query("UPDATE users SET password = ? WHERE id = ?", [hashedPassword, targetUserId]);
+        
+        res.json({ success: true, message: "รีเซ็ตรหัสผ่านเป็น " + targetUsername + " เรียบร้อยแล้ว" });
+    } catch (error) {
+        console.error("Reset Password Error:", error);
+        res.status(500).json({ message: "เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน" });
     }
 };

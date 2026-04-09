@@ -5,6 +5,8 @@ import { Dialog } from 'primereact/dialog';
 import { Password } from 'primereact/password';
 import { Toast } from 'primereact/toast';
 import { Divider } from 'primereact/divider';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../utils/cropImage';
 
 const Profile = () => {
     const navigate = useNavigate();
@@ -22,6 +24,14 @@ const Profile = () => {
     const [passForm, setPassForm] = useState({ current: "", new: "", confirm: "" });
     const [passError, setPassError] = useState("");
 
+    const [siteLogo, setSiteLogo] = useState(null);
+
+    // --- Cropper States ---
+    const [cropDialogParams, setCropDialogParams] = useState({ visible: false, src: null });
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
     const toast = useRef(null);
 
     const fetchProfile = async () => {
@@ -34,6 +44,16 @@ const Profile = () => {
                 setAcademicYear(data.academic_year || "");
                 setUniversityName(data.university_name || "");
             }
+
+            // ถ้าเป็นผู้ดูแลระบบ ให้พยายามดึงโลโก้ปัจจุบันมาแสดง
+            if (data && (data.role === 'admin' || data.role === 'sub_admin')) {
+                api.get('/settings').then(setRes => {
+                    if (setRes.data?.data?.siteLogo) {
+                        setSiteLogo(setRes.data.data.siteLogo);
+                    }
+                }).catch(err => console.error(err));
+            }
+
         } catch (err) {
             console.error("Fetch Error:", err);
             toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'โหลดข้อมูลล้มเหลว' });
@@ -135,6 +155,53 @@ const Profile = () => {
             fetchProfile();
         } catch (err) {
             toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'อัปโหลดรูปภาพล้มเหลว' });
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const onCropComplete = (croppedArea, croppedAreaPixels) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    };
+
+    const handleUploadLogo = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.current.show({ severity: 'warn', summary: 'ไฟล์ใหญ่ไป', detail: 'ไฟล์รูปภาพต้องไม่เกิน 5MB' });
+            return;
+        }
+
+        const src = URL.createObjectURL(file);
+        setCropDialogParams({ visible: true, src });
+        
+        // เราเคลียร์ค่า input file ให้เลือกไฟล์เดิมซ้ำได้ในครั้งหน้า
+        e.target.value = '';
+    };
+
+    const handleConfirmCropLogo = async () => {
+        try {
+            setUploading(true);
+            const croppedImageBlob = await getCroppedImg(cropDialogParams.src, croppedAreaPixels);
+
+            const formData = new FormData();
+            formData.append('logo', croppedImageBlob, 'site-logo.png');
+
+            await api.post('/settings/upload-logo', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'อัปโหลดโลโก้เว็บไซต์เรียบร้อย' });
+            
+            // อัปเดตรูปโลโก้ใหม่ทันที
+            api.get('/settings').then(setRes => {
+                if (setRes.data?.data?.siteLogo) setSiteLogo(setRes.data.data.siteLogo);
+            });
+            
+            setCropDialogParams({ visible: false, src: null });
+        } catch (error) {
+            console.error("Upload Logo Error:", error);
+            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถอัปโหลดโลโก้ได้' });
         } finally {
             setUploading(false);
         }
@@ -273,6 +340,45 @@ const Profile = () => {
                                 จัดการแก้ไขรหัสผ่าน
                             </button>
                         </div>
+                        
+                        {/* ⚙️ การตั้งค่าระบบ (เฉพาะแอดมิน) */}
+                        {(userData.role === 'admin' || userData.role === 'sub_admin') && (
+                            <div className="mt-8">
+                                <div className="border-l-4 border-indigo-500 pl-3 mb-4">
+                                    <h5 className="m-0 font-bold text-slate-800 tracking-tight">การตั้งค่าระบบส่วนกลาง (Admin Only)</h5>
+                                </div>
+                                <div className="bg-gradient-to-r from-slate-900 to-indigo-900 rounded-[2rem] shadow-sm overflow-hidden p-6 flex flex-col md:flex-row items-center justify-between gap-6 border border-indigo-500/20 mx-1">
+                                    <div className="flex items-center gap-4 w-full md:w-auto">
+                                        <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/10 shadow-inner p-1 overflow-hidden">
+                                            {siteLogo ? (
+                                                <img src={getImageUrl(siteLogo)} alt="Site Logo" className="w-full h-full rounded-full object-cover" />
+                                            ) : (
+                                                <i className="pi pi-images text-2xl text-blue-300"></i>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h3 className="m-0 font-bold text-white text-base md:text-lg tracking-tight">โลโก้เว็บไซต์ (Login Page)</h3>
+                                            <p className="text-indigo-200 text-xs font-medium mt-1 leading-relaxed">อัปโหลดโลโก้เพื่อแสดงผลระดับสากล<br className="hidden md:block" /> โลโก้ใหม่จะแทนที่ดีไซน์เก่าอัตโนมัติ</p>
+                                        </div>
+                                    </div>
+                                    <div className="w-full md:w-auto text-right">
+                                        <input 
+                                            type="file" 
+                                            id="profile-upload-site-logo" 
+                                            accept="image/*" 
+                                            style={{ display: 'none' }} 
+                                            onChange={handleUploadLogo} 
+                                        />
+                                        <button 
+                                            className="w-full md:w-auto bg-indigo-500 hover:bg-indigo-600 text-white border-none rounded-xl text-xs md:text-sm font-bold px-6 py-3.5 shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center gap-2"
+                                            onClick={() => document.getElementById('profile-upload-site-logo').click()}
+                                        >
+                                            <i className="pi pi-upload"></i> อัปโหลดโลโก้ใหม่
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -334,6 +440,64 @@ const Profile = () => {
                         {isSaving ? <i className="pi pi-spin pi-spinner mr-2"></i> : null} ยืนยันการเปลี่ยนรหัสผ่าน
                     </button>
                     <p className="text-center mt-4 text-gray-400" style={{ fontSize: '0.75rem' }}>คุณจะถูกขอให้เข้าสู่ระบบใหม่อีกครั้งหลังจากเปลี่ยนสำเร็จ</p>
+                </div>
+            </Dialog>
+
+            {/* Dialog สำหรับ Crop รูปภาพ */}
+            <Dialog 
+                header={<div className="font-bold px-2 flex items-center gap-2">✂️ <span>จัดตำแหน่งรูปภาพ</span></div>}
+                visible={cropDialogParams.visible}
+                style={{ width: '95%', maxWidth: '480px' }}
+                onHide={() => setCropDialogParams({ visible: false, src: null })}
+                blockScroll={true}
+                className="luxury-dialog"
+            >
+                <div className="p-fluid">
+                    <div className="relative w-full h-[300px] bg-slate-900 rounded-2xl overflow-hidden mb-4 rounded-b-none">
+                        {cropDialogParams.src && (
+                            <Cropper
+                                image={cropDialogParams.src}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1}
+                                cropShape="round"
+                                showGrid={false}
+                                onCropChange={setCrop}
+                                onCropComplete={onCropComplete}
+                                onZoomChange={setZoom}
+                            />
+                        )}
+                    </div>
+                    <div className="px-4 pb-4">
+                        <label className="text-xs font-bold text-slate-500 mb-2 block text-center">เลื่อนซูมรูปภาพ</label>
+                        <input
+                            type="range"
+                            value={zoom}
+                            min={1}
+                            max={3}
+                            step={0.1}
+                            aria-labelledby="Zoom"
+                            onChange={(e) => setZoom(e.target.value)}
+                            className="w-full mb-4 accent-indigo-500 h-1 bg-slate-200 rounded-lg appearance-none"
+                        />
+                        <div className="flex gap-2">
+                            <button
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all text-sm"
+                                onClick={() => setCropDialogParams({ visible: false, src: null })}
+                                disabled={uploading}
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm shadow-md"
+                                onClick={handleConfirmCropLogo}
+                                disabled={uploading}
+                            >
+                                {uploading ? <i className="pi pi-spin pi-spinner mr-2"></i> : null}
+                                บันทึกรูปภาพ
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </Dialog>
 
