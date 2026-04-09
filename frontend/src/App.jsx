@@ -6,6 +6,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
 import Members from "./pages/Members";
 import MyTasks from "./pages/MyTasks";
+import Dashboard from "./pages/Dashboard";
 import Navbar from "./components/Navbar";
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ConfirmDialog } from 'primereact/confirmdialog';
@@ -66,6 +67,7 @@ const LayoutWrapper = () => {
           {/* User Routes (ต้องล็อกอินก่อน) */}
           <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
           <Route path="/my-tasks" element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
           {/* Admin Routes */}

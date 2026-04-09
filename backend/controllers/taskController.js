@@ -157,3 +157,67 @@ exports.leaveTask = async (req, res) => {
         res.status(500).json({ success: false, message: "ล้มเหลว" });
     }
 };
+
+// --- 6. ดึงข้อมูลสถิติสำหรับ Analytics Dashboard ---
+exports.getAnalyticsStats = async (req, res) => {
+    try {
+        const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+
+        // Q1: ยอดการรับงานรายคน (Bar Chart)
+        const [personRows] = await joinPool.query(`
+            SELECT username as name, COUNT(*) as count 
+            FROM orderit.data_report 
+            WHERE DATE(date_report) = ? 
+            GROUP BY username
+        `, [today]);
+
+        // Q2: แนวโน้มงานรายชั่วโมง (Line Chart)
+        const [hourRows] = await joinPool.query(`
+            SELECT HOUR(time_report) as hour, COUNT(*) as count 
+            FROM orderit.data_report 
+            WHERE DATE(date_report) = ? 
+            GROUP BY HOUR(time_report) 
+            ORDER BY hour
+        `, [today]);
+
+        // Q3: สรุปความพึงพอใจ (Horizontal Bar)
+        const [ratingRows] = await joinPool.query(`
+            SELECT 
+                AVG(service_speed) as speed, 
+                AVG(problem_satisfaction) as problem, 
+                AVG(service_satisfaction) as service 
+            FROM orderit.rating
+        `);
+
+        // Q4: SLA % (Pie Chart) - คำนวณจากเวลาแจ้ง vs เวลาปิด (SLA 30 นาที)
+        const [slaRows] = await joinPool.query(`
+            SELECT 
+                SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, time_report, close_date) <= 30 THEN 1 ELSE 0 END) as within_sla,
+                SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, time_report, close_date) > 30 THEN 1 ELSE 0 END) as over_sla
+            FROM orderit.data_report 
+            WHERE DATE(date_report) = ? AND close_date IS NOT NULL
+        `, [today]);
+
+        // Q5: ประเภทปัญหาที่พบ (Pie Chart)
+        const [categoryRows] = await joinPool.query(`
+            SELECT problem as category, COUNT(*) as count 
+            FROM orderit.data_report 
+            WHERE DATE(date_report) = ? AND problem IS NOT NULL 
+            GROUP BY problem
+        `, [today]);
+
+        res.json({
+            success: true,
+            data: {
+                personStats: personRows,
+                hourStats: hourRows,
+                ratingStats: ratingRows[0] || { speed: 0, problem: 0, service: 0 },
+                slaStats: slaRows[0] || { within_sla: 0, over_sla: 0 },
+                categoryStats: categoryRows
+            }
+        });
+    } catch (err) {
+        console.error("❌ Analytics Stats Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลสถิติล้มเหลว" });
+    }
+};

@@ -18,4 +18,7 @@ router.post('/join', auth, taskController.joinTask);
 // --- 5. DELETE /api/tasks/leave/:id (ยกเลิกการเข้าร่วม - Soft Delete) ---
 router.delete('/leave/:id', auth, taskController.leaveTask);
 
+// --- 6. GET /api/tasks/analytics-stats (ข้อมูลสถิติกราฟ Dashboard) ---
+router.get('/analytics-stats', auth, taskController.getAnalyticsStats);
+
 module.exports = router;

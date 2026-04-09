@@ -58,6 +58,9 @@ const Navbar = () => {
                 {/* --- ฝั่งขวา: กลุ่มปุ่มเมนู --- */}
                 <div className="flex items-center gap-2 md:gap-3 shrink-0">
 
+                    {/* ปุ่มแดชบอร์ด */}
+                    <PrimaryBtn icon="pi-th-large" label="แดชบอร์ด" path="/dashboard" />
+
                     {/* ปุ่มงานวันนี้ */}
                     <PrimaryBtn icon="pi-list" label="งานวันนี้" path="/tasks" />
 
