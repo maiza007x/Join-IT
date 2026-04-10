@@ -14,7 +14,7 @@ function Login() {
   const navigate = useNavigate();
   const toast = useRef(null);
   const { login } = useAuth();
-  
+
   const [siteLogo, setSiteLogo] = useState(null);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ function Login() {
 
       <div className="z-10 w-full max-w-[420px] px-6">
         <div className="bg-white/70 backdrop-blur-2xl border border-white/50 rounded-[32px] p-8 md:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
-          
+
           <div className="text-center mb-10">
             {siteLogo ? (
               <div className="inline-flex items-center justify-center w-24 h-24 mb-6 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-4 border-white bg-white/50 backdrop-blur-sm overflow-hidden">
@@ -65,7 +65,7 @@ function Login() {
                 <i className="pi pi-bolt text-white text-3xl"></i>
               </div>
             )}
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">JOIN</h1>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">JOIN-IT</h1>
             <p className="text-slate-500 text-sm font-medium">เข้าสู่ระบบเพื่อจัดการงานของคุณ</p>
           </div>
 
@@ -79,7 +79,7 @@ function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="กรอกชื่อผู้ใช้งาน"
-                  style={{ paddingLeft: '2.75rem' }} 
+                  style={{ paddingLeft: '2.75rem' }}
                   className="w-full py-3.5 bg-white/50 border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
                 />
               </div>
@@ -96,7 +96,7 @@ function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   toggleMask
                   feedback={false}
-                  placeholder="••••••••"
+                  placeholder="กรอกรหัสผ่าน"
                   // ดันตัวหนังสือหลบทั้งแม่กุญแจ (ซ้าย) และลูกตา (ขวา)
                   inputStyle={{ paddingLeft: '2.5rem', paddingRight: '2.5rem', width: '100%' }}
                   inputClassName="py-3.5 bg-white/50 border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
@@ -106,7 +106,7 @@ function Login() {
             </div>
 
             <div className="text-right">
-              <button 
+              <button
                 onClick={() => navigate("/forgot-password")}
                 className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors bg-transparent border-none p-0 cursor-pointer outline-none"
               >
@@ -123,24 +123,25 @@ function Login() {
           </div>
 
           <div className="mt-10 text-center">
-             <p className="text-slate-400 text-xs font-medium">
-                ยังไม่มีบัญชี? 
-                <button 
-                  onClick={() => navigate("/contact-admin")}
-                  className="ml-1 text-blue-600 font-bold hover:underline bg-transparent border-none p-0 cursor-pointer"
-                >
-                  ติดต่อผู้ดูแล
-                </button>
-             </p>
+            <p className="text-slate-400 text-xs font-medium">
+              ยังไม่มีบัญชี?
+              <button
+                onClick={() => navigate("/contact-admin")}
+                className="ml-1 text-blue-600 font-bold hover:underline bg-transparent border-none p-0 cursor-pointer"
+              >
+                ติดต่อผู้ดูแล
+              </button>
+            </p>
           </div>
         </div>
-        
+
         <p className="text-center mt-8 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-semibold">
           Powered by Chinawat • 2026
         </p>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         /* 1. บังคับให้โครงสร้าง Password กว้างเต็มพื้นที่เสมอ */
         .custom-password, 
         .custom-password .p-password, 

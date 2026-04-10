@@ -197,7 +197,7 @@ function MyTasks() {
                     </div>
                     <div className="p-4">
                         <div className="hidden md:block">
-                            <DataTable value={pendingTasks} loading={loading} rows={10} scrollable scrollDirection="horizontal" emptyMessage="ไม่พบรายการงาน" className="p-datatable-sm custom-blue-table">
+                            <DataTable value={pendingTasks} loading={loading} rows={10} scrollable emptyMessage="ไม่พบรายการงาน" className="p-datatable-sm custom-blue-table">
                                 <Column field="time_report" header="เวลา" body={timeTemplate} style={{ width: '7rem' }} sortable />
                                 <Column field="date_report" header="วันที่" style={{ width: '9rem' }} className="text-slate-400" sortable />
                                 <Column field="deviceName" header="อุปกรณ์" style={{ width: '15rem' }} className="font-bold text-slate-700" sortable />
@@ -263,8 +263,7 @@ function MyTasks() {
                                 loading={loading}
                                 paginator
                                 rows={5}
-                                scrollable 
-                                scrollDirection="horizontal"
+                                scrollable
                                 emptyMessage="ไม่พบประวัติงาน"
                                 className="p-datatable-sm custom-blue-table"
                             >

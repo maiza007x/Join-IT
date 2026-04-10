@@ -7,8 +7,8 @@ import { PrimeReactProvider } from "primereact/api";
 createRoot(document.getElementById('root')).render(
   <PrimeReactProvider>
     <StrictMode>
-    <App />
-  </StrictMode>,
-    </PrimeReactProvider>
-  
+      <App />
+    </StrictMode>
+  </PrimeReactProvider>
+
 )
