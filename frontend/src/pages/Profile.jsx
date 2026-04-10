@@ -207,7 +207,7 @@ const Profile = () => {
         }
     };
 
-    if (loading) return <div className="text-center mt-5"><i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem', color: '#3498db' }}></i><p className="mt-2 text-muted">กำลังโหลดความหรูหรา...</p></div>;
+    if (loading) return <div className="text-center mt-5"><i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem', color: '#34a6dbff' }}></i><p className="mt-2 text-muted">กำลังโหลดความหรูหรา...</p></div>;
     if (!userData) return <div className="text-center mt-5 text-danger">ไม่พบข้อมูลผู้ใช้</div>;
 
     return (
@@ -232,7 +232,7 @@ const Profile = () => {
 
                 <div className="card shadow-md border-0 bg-white" style={{ borderRadius: '2rem', overflow: 'hidden' }}>
                     <div style={{ height: '140px', background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)', position: 'relative' }}>
-                        <div style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.15, backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '15px 15px' }}></div>
+                        <div style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.15, backgroundImage: 'radial-gradient(circle, #fde9e9ff 1px, transparent 1px)', backgroundSize: '15px 15px' }}></div>
                     </div>
 
                     <div className="px-5 md:px-10 pb-10" style={{ marginTop: '-65px', position: 'relative' }}>
@@ -433,7 +433,7 @@ const Profile = () => {
 
                     <button
                         className="w-full py-3.5 text-white font-bold shadow-lg hover:shadow-xl transition-all"
-                        style={{ borderRadius: '15px', background: 'linear-gradient(90deg, #3a7bd5 0%, #00d2ff 100%)', border: 'none' }}
+                        style={{ borderRadius: '15px', background: 'linear-gradient(90deg, #2d5fcaff 0%, #00d2ff 100%)', border: 'none' }}
                         onClick={handleSavePassword}
                         disabled={isSaving}
                     >

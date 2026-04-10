@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import api from '../services/api';
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
@@ -10,8 +11,13 @@ import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
 import socket from "../services/socket";
 
+import { useAuth } from "../context/AuthContext";
+
 function Tasks() {
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [tasks, setTasks] = useState([]);
+    const [internTasks, setInternTasks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -26,6 +32,7 @@ function Tasks() {
                 params: { date: formattedDate, q: query }
             });
             setTasks(response.data.tasks || []);
+            setInternTasks(response.data.internTasks || []);
         } catch (err) {
             console.error("Error fetching tasks:", err);
             toast.current?.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'โหลดข้อมูลงานล้มหลว' });
@@ -53,6 +60,12 @@ function Tasks() {
         try {
             await api.post(`/tasks/join`, { task_staff_id: taskId });
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'เข้าร่วมงานเรียบร้อย', life: 2000 });
+            
+            // Redirect to My Tasks (Staff Tab)
+            setTimeout(() => {
+                navigate('/my-tasks?tab=0');
+            }, 1000);
+
             fetchTasks();
         } catch (err) {
             toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถเข้าร่วมงานได้' });
@@ -96,6 +109,60 @@ function Tasks() {
         });
     };
 
+    const handleAcceptInternTask = async (taskId) => {
+        setActionLoading(`intern-${taskId}`);
+        try {
+            await api.put(`/tasks/accept-intern/${taskId}`);
+            toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'รับงานเรียบร้อย', life: 2000 });
+            
+            // Redirect to My Tasks (Intern Tab)
+            setTimeout(() => {
+                navigate('/my-tasks?tab=1');
+            }, 1000);
+            
+            fetchTasks();
+        } catch (err) {
+            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: err.response?.data?.message || 'ไม่สามารถรับงานได้' });
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleLeaveInternTask = async (taskId) => {
+        setActionLoading(`intern-${taskId}`);
+        try {
+            await api.put(`/tasks/leave-intern/${taskId}`);
+            toast.current.show({ severity: 'warn', summary: 'ยกเลิก', detail: 'ยกเลิกการรับงานแล้ว', life: 2000 });
+            fetchTasks();
+        } catch (err) {
+            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถยกเลิกได้' });
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const confirmAcceptIntern = (taskId) => {
+        confirmDialog({
+            message: 'ต้องการรับผิดชอบงานนี้ใช่หรือไม่?',
+            header: 'ยืนยันการรับงาน',
+            icon: 'pi pi-check-circle',
+            acceptClassName: 'p-button-info rounded-xl px-4',
+            rejectClassName: 'p-button-text rounded-xl px-4',
+            accept: () => handleAcceptInternTask(taskId)
+        });
+    };
+
+    const confirmLeaveIntern = (taskId) => {
+        confirmDialog({
+            message: 'คุณต้องการยกเลิกการรับงานนี้ใช่หรือไม่?',
+            header: 'ยืนยันการคืนงาน',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger rounded-xl px-4',
+            rejectClassName: 'p-button-text rounded-xl px-4',
+            accept: () => handleLeaveInternTask(taskId)
+        });
+    };
+
     const timeTemplate = (rowData) => {
         if (!rowData.time_report) return "-";
         return <span className="font-black text-slate-700">{rowData.time_report.substring(0, 5)} น.</span>;
@@ -128,6 +195,38 @@ function Tasks() {
             />
         );
     };
+
+    const internActionTemplate = (rowData) => {
+        const isTaker = rowData.username === user?.username;
+        const isTaken = !!rowData.username;
+        const isLoading = actionLoading === `intern-${rowData.id}`;
+
+        if (isTaken && !isTaker) {
+            return <Tag value="มีผู้รับแล้ว" severity="secondary" rounded className="px-3 py-1.5 text-[10px] bg-slate-100 text-slate-400 border-none font-bold" />;
+        }
+
+        return (
+            <Button
+                label={isTaker ? "รับงานแล้ว" : "รับงาน"}
+                icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
+                rounded
+                severity={isTaker ? "success" : "info"}
+                loading={isLoading}
+                className={`px-3 py-1.5 text-[10px] font-bold border-none transition-all ${isTaker ? 'bg-green-500 hover:bg-green-600 shadow-lg shadow-green-100' : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100'}`}
+                onClick={() => isTaker ? confirmLeaveIntern(rowData.id) : confirmAcceptIntern(rowData.id)}
+            />
+        );
+    };
+
+    const internTakerTemplate = (rowData) => (
+        <div className="flex flex-wrap gap-1">
+            {rowData.taker_name ? (
+                <Tag value={rowData.taker_name} rounded className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold" />
+            ) : (
+                <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
+            )}
+        </div>
+    );
 
     const myContributedTasks = tasks.filter(t => t.isContributedByMe).length;
 
@@ -289,6 +388,103 @@ function Tasks() {
                                     </div>
                                 )
                             }) : <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium pr-2">ไม่พบรายการงานที่ตรงตามเงื่อนไข</div>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Intern Tasks Data Table */}
+                <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden mt-2">
+                    <div className="p-7 flex items-center justify-between bg-white border-b border-slate-100">
+                        <div className="flex items-center gap-4">
+                            <div className="w-1.5 h-10 bg-orange-400 rounded-full"></div>
+                            <div>
+                                <h3 className="m-0 font-black text-slate-800 text-xl tracking-tight">รายการภารกิจมอบหมายพิเศษ (โดยนักศึกษา)</h3>
+                                <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold mt-1">งานส่งต่อและช่วยเหลือกันภายในทีม</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4">
+                        <div className="hidden md:block">
+                            <DataTable
+                                value={internTasks}
+                                loading={loading}
+                                paginator
+                                rows={10}
+                                stripedRows
+                                sortField="id"
+                                sortOrder={-1} 
+                                emptyMessage="ไม่พบรายการงานมอบหมายจากเพื่อน"
+                                className="p-datatable-sm custom-luxury-table"
+                                rowHover
+                                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
+                                currentPageReportTemplate="{first}-{last} of {totalRecords}"
+                            >
+                                <Column field="id" header="#" headerStyle={{ width: '4rem' }} bodyStyle={{ fontWeight: 'black', color: '#cbd5e1', fontSize: '13px' }} sortable />
+                                <Column field="time_report" header="เวลาแจ้ง" body={timeTemplate} style={{ width: '8rem' }} sortable />
+                                <Column field="deviceName" header="อุปกรณ์ / แผนก" body={(row) => (
+                                    <div className="py-1">
+                                        <div className="font-bold text-slate-800 text-base">{row.deviceName}</div>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
+                                            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{row.department_name}</span>
+                                        </div>
+                                    </div>
+                                )} style={{ width: '18rem' }} sortable />
+                                <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600 leading-relaxed" />
+                                <Column field="reporter" header="ผู้แจ้ง" body={(row) => <span className="text-slate-500 font-semibold italic">{row.reporter}</span>} style={{ width: '9rem' }} sortable />
+                                <Column header="ผู้รับงาน" body={internTakerTemplate} style={{ width: '14rem' }} />
+                                <Column header="จัดการ" body={internActionTemplate} style={{ textAlign: 'center', width: '13rem' }} />
+                            </DataTable>
+                        </div>
+
+                        {/* Mobile Cards (Intern Tasks) */}
+                        <div className="md:hidden flex flex-col gap-4">
+                            {internTasks.length > 0 ? internTasks.map((row, i) => {
+                                const isTaker = row.username === user?.username;
+                                const isTaken = !!row.username;
+                                const isLoading = actionLoading === `intern-${row.id}`;
+                                return (
+                                <div key={i} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex flex-col gap-3 relative border-t-4 border-t-orange-400">
+                                    <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                                        <div className="flex items-center gap-2">
+                                            <i className="pi pi-clock text-slate-400 text-xs"></i>
+                                            <span className="font-black text-slate-700 text-sm">{row.time_report ? row.time_report.substring(0, 5) + ' น.' : '-'}</span>
+                                        </div>
+                                        <span className="text-slate-500 font-semibold italic text-xs bg-slate-50 px-2 py-1 rounded-md">{row.reporter}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <h4 className="font-bold text-slate-800 text-base m-0 leading-tight">{row.deviceName}</h4>
+                                        <div className="flex items-center gap-1.5">
+                                            <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{row.department_name}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-slate-500 text-xs leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">{row.report}</p>
+                                    
+                                    <div className="flex flex-col gap-2">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">ผู้รับงาน</span>
+                                        {row.taker_name ? (
+                                            <Tag value={row.taker_name} rounded className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold self-start" />
+                                        ) : (
+                                            <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
+                                        )}
+                                    </div>
+
+                                    {(!isTaken || isTaker) && (
+                                        <Button
+                                            label={isTaker ? "รับงานแล้ว" : "รับงาน"}
+                                            icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
+                                            loading={isLoading}
+                                            className={`w-full h-10 p-button-sm border-none rounded-xl text-xs font-bold mt-2 shadow-md transition-all ${isTaker ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                            onClick={() => isTaker ? confirmLeaveIntern(row.id) : confirmAcceptIntern(row.id)}
+                                        />
+                                    )}
+                                    {isTaken && !isTaker && (
+                                        <div className="w-full text-center py-3 bg-slate-50 rounded-xl text-slate-400 text-[10px] font-bold border border-slate-100 border-dashed mt-2">มีคนรับงานแล้ว</div>
+                                    )}
+                                </div>
+                            )}) : <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium">ไม่มีงานมอบหมายพิเศษในวันนี้</div>}
                         </div>
                     </div>
                 </div>

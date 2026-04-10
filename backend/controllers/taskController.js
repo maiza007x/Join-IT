@@ -4,21 +4,15 @@ const joinPool = require('../helper/db');
 exports.getTasksCollab = async (req, res) => {
     const { date, q } = req.query;
 
-    // ล็อควันที่ให้เป็นเวลาไทย (Asia/Bangkok)
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
     const targetDate = date || today;
     const userId = req.user.id;
 
     try {
-        let sql = `
+        // ดึงงานหลัก (Staff Tasks)
+        let staffSql = `
             SELECT 
-                r.id as id,
-                r.deviceName,
-                r.report,
-                r.time_report,
-                r.date_report,
-                r.username,
-                /* ดึงชื่อเต็มจากตาราง users โดยใช้ DISTINCT เพื่อป้องกันชื่อซ้ำ และใช้ separator ที่ปลอดภัย */
+                r.id as id, r.deviceName, r.report, r.time_report, r.date_report, r.username,
                 GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN t.intern_id = ? AND t.deleted_at IS NULL THEN 1 ELSE 0 END) as isContributedByMe
             FROM orderit.data_report r
@@ -26,27 +20,46 @@ exports.getTasksCollab = async (req, res) => {
             LEFT JOIN join_it.users u ON t.intern_id = u.id
             WHERE DATE(r.date_report) = ?
         `;
-
-        const params = [userId, targetDate];
-
+        const staffParams = [userId, targetDate];
         if (q) {
-            sql += ` AND (r.report LIKE ? OR r.deviceName LIKE ?)`;
+            staffSql += ` AND (r.report LIKE ? OR r.deviceName LIKE ?)`;
             const search = `%${q}%`;
-            params.push(search, search);
+            staffParams.push(search, search);
         }
+        staffSql += ` GROUP BY r.id ORDER BY r.id DESC`;
+        const [staffRows] = await joinPool.query(staffSql, staffParams);
 
-        sql += ` GROUP BY r.id ORDER BY r.id DESC`;
+        // ดึงงานนักศึกษา (Intern Tasks)
+        let internSql = `
+            SELECT 
+                i.*, 
+                d.depart_name as department_name,
+                u.full_name as taker_name
+            FROM join_it.intern_tasks i
+            LEFT JOIN orderit.depart d ON i.department = d.depart_id
+            LEFT JOIN join_it.users u ON i.username = u.username
+            WHERE DATE(i.date_report) = ?
+        `;
+        const internParams = [targetDate];
+        if (q) {
+            internSql += ` AND (i.report LIKE ? OR i.deviceName LIKE ?)`;
+            const search = `%${q}%`;
+            internParams.push(search, search);
+        }
+        internSql += ` ORDER BY i.id DESC`;
+        const [internRows] = await joinPool.query(internSql, internParams);
 
-        const [rows] = await joinPool.query(sql, params);
-
-        const formattedTasks = rows.map(task => ({
+        const formattedStaffTasks = staffRows.map(task => ({
             ...task,
-            // แปลง String ของชื่อที่คั่นด้วย || ให้เป็น Array
             interns: task.intern_names ? task.intern_names.split('||') : [],
             isContributedByMe: !!task.isContributedByMe
         }));
 
-        res.json({ success: true, tasks: formattedTasks });
+        res.json({ 
+            success: true, 
+            tasks: formattedStaffTasks,
+            internTasks: internRows
+        });
     } catch (err) {
         console.error("❌ Tasks Collab Error:", err.message);
         res.status(500).json({ success: false, message: "โหลดข้อมูลงานล้มเหลว" });
@@ -57,9 +70,11 @@ exports.getTasksCollab = async (req, res) => {
 exports.getMyTasks = async (req, res) => {
     try {
         const userId = req.user.id;
+        const username = req.user.username;
         const { date, q } = req.query;
 
-        let sql = `
+        // ดึงงานหลัก (Staff Tasks) ที่เราเข้าร่วม
+        let staffSql = `
             SELECT 
                 t.id as contribution_id, 
                 t.task_staff_id,
@@ -69,28 +84,45 @@ exports.getMyTasks = async (req, res) => {
                 DATE_FORMAT(r.date_report, '%Y-%m-%d') as date_report,
                 r.time_report,
                 r.deviceName, 
-                r.report
+                r.report,
+                'staff' as type
             FROM join_it.tasks t
             LEFT JOIN orderit.data_report r ON t.task_staff_id = r.id
             WHERE t.intern_id = ? AND t.deleted_at IS NULL
         `;
-        const params = [userId];
+        const staffParams = [userId];
+        if (date) { staffSql += ` AND DATE(r.date_report) = ?`; staffParams.push(date); }
+        if (q) { staffSql += ` AND (r.report LIKE ? OR r.deviceName LIKE ?)`; const search = `%${q}%`; staffParams.push(search, search); }
+        staffSql += ` ORDER BY t.created_at DESC`;
+        const [staffRows] = await joinPool.query(staffSql, staffParams);
 
-        if (date) {
-            sql += ` AND DATE(r.date_report) = ?`;
-            params.push(date);
-        }
+        // ดึงงานนักศึกษา (Intern Tasks) ที่เรารับผิดชอบ
+        let internSql = `
+            SELECT 
+                i.id as intern_task_id,
+                i.id,
+                i.deviceName,
+                i.report,
+                DATE_FORMAT(i.date_report, '%Y-%m-%d') as date_report,
+                i.time_report,
+                i.contribution_detail,
+                i.learning_outcome,
+                i.status,
+                'intern' as type
+            FROM join_it.intern_tasks i
+            WHERE i.username = ?
+        `;
+        const internParams = [username];
+        if (date) { internSql += ` AND DATE(i.date_report) = ?`; internParams.push(date); }
+        if (q) { internSql += ` AND (i.report LIKE ? OR i.deviceName LIKE ?)`; const search = `%${q}%`; internParams.push(search, search); }
+        internSql += ` ORDER BY i.id DESC`;
+        const [internRows] = await joinPool.query(internSql, internParams);
 
-        if (q) {
-            sql += ` AND (r.report LIKE ? OR r.deviceName LIKE ?)`;
-            const search = `%${q}%`;
-            params.push(search, search);
-        }
-
-        sql += ` ORDER BY t.created_at DESC`;
-
-        const [rows] = await joinPool.query(sql, params);
-        res.json({ success: true, tasks: rows });
+        res.json({ 
+            success: true, 
+            tasks: staffRows,
+            internTasks: internRows
+        });
     } catch (err) {
         console.error("❌ My Tasks Error:", err.message);
         res.status(500).json({ success: false, message: "ดึงข้อมูลงานของฉันล้มเหลว" });
@@ -257,5 +289,155 @@ exports.getAnalyticsStats = async (req, res) => {
     } catch (err) {
         console.error("❌ Analytics Stats Error:", err.message);
         res.status(500).json({ success: false, message: "ดึงข้อมูลสถิติล้มเหลว" });
+    }
+};
+
+// --- 7. ดึงข้อมูลสำหรับตัวเลือกในฟอร์ม (แผนก และ อุปกรณ์) ---
+exports.getFormOptions = async (req, res) => {
+    try {
+        const [departs] = await joinPool.query('SELECT depart_id as value, depart_name as label FROM orderit.depart ORDER BY depart_name ASC');
+        const [devices] = await joinPool.query('SELECT device_id as value, device_name as label FROM orderit.device ORDER BY device_name ASC');
+
+        res.json({
+            success: true,
+            departs,
+            devices
+        });
+    } catch (err) {
+        console.error("❌ Form Options Error:", err.message);
+        res.status(500).json({ success: false, message: "โหลดข้อมูลตัวเลือกฟอร์มล้มเหลว" });
+    }
+};
+
+// --- 8. สร้างงานใหม่ลงใน intern_task ---
+exports.createInternTask = async (req, res) => {
+    const {
+        date_report,
+        time_report,
+        reporter,
+        department,
+        tel,
+        deviceName,
+        number_device,
+        ip_address,
+        report,
+        work_type,
+        priority
+    } = req.body;
+
+    const userId = req.user.id;
+    const username = req.user.username;
+    const fullName = req.user.full_name;
+
+    try {
+        // ใช้ joinPool เพื่อบันทึกลง join_it.intern_task
+        // Mapping ฟิลด์ตาม Schema ที่ผู้ใช้แจ้งมา
+        const sql = `
+            INSERT INTO join_it.intern_tasks (
+                date_report, time_report, reporter, department, 
+                tel, deviceName, number_device, ip_address, 
+                report, status, username, created_by, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?, NOW())
+        `;
+
+        // หมายเหตุ: work_type และ priority หากยังไม่มีฟิลด์ในตาราง 
+        // จะนำไปต่อท้ายใน report เพื่อไม่ให้ข้อมูลสูญหาย (หรือถ้าผู้ใช้เพิ่มฟิลด์แล้วค่อยมาแก้ SQL)
+        const combinedReport = `[${work_type || 'ทั่วไป'}] [ความเร่งด่วน: ${priority || 'ปกติ'}] ${report}`;
+
+        const params = [
+            date_report,
+            time_report,
+            reporter,
+            department,
+            tel,
+            deviceName,
+            number_device,
+            ip_address,
+            combinedReport,
+            fullName
+        ];
+
+        await joinPool.query(sql, params);
+
+        res.status(201).json({ success: true, message: "สร้างงานใหม่สำเร็จ" });
+    } catch (err) {
+        console.error("❌ Create Intern Task Error:", err.message);
+        res.status(500).json({ success: false, message: "บันทึกข้อมูลล้มเหลว" });
+    }
+};
+// --- 9. กดรับงาน (Intern Task) ---
+exports.acceptInternTask = async (req, res) => {
+    const taskId = req.params.id;
+    const username = req.user.username;
+    try {
+        const [result] = await joinPool.query(
+            'UPDATE join_it.intern_tasks SET username = ?, status = 2 WHERE id = ? AND username IS NULL',
+            [username, taskId]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(400).json({ success: false, message: "งานนี้มีคนรับไปแล้ว หรือไม่พบงาน" });
+        }
+        res.json({ success: true, message: "รับงานเรียบร้อย" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "ล้มเหลว" });
+    }
+};
+
+// --- 10. ยกเลิกการรับงาน (Intern Task) ---
+exports.leaveInternTask = async (req, res) => {
+    const taskId = req.params.id;
+    const username = req.user.username;
+    try {
+        const [result] = await joinPool.query(
+            'UPDATE join_it.intern_tasks SET username = NULL, status = 1 WHERE id = ? AND username = ?',
+            [taskId, username]
+        );
+        res.json({ success: true, message: "ยกเลิกการรับงานเรียบร้อย" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "ล้มเหลว" });
+    }
+};
+// --- 11. อัปเดตรายละเอียดงานนักศึกษา (Intern Task) ---
+exports.updateInternTaskDetails = async (req, res) => {
+    const taskId = req.params.id;
+    const { contribution_detail, learning_outcome } = req.body;
+    const username = req.user.username;
+
+    try {
+        await joinPool.query(
+            `UPDATE join_it.intern_tasks 
+             SET contribution_detail = ?, 
+                 learning_outcome = ?,
+                 updated_at = NOW() 
+             WHERE id = ? AND username = ?`,
+            [contribution_detail, learning_outcome, taskId, username]
+        );
+        res.json({ success: true, message: "บันทึกสำเร็จ" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "บันทึกล้มเหลว" });
+    }
+};
+
+// --- 12. ปิดงานนักศึกษา (Close Intern Task) ---
+exports.closeInternTask = async (req, res) => {
+    const taskId = req.params.id;
+    const { contribution_detail, learning_outcome } = req.body;
+    const username = req.user.username;
+
+    try {
+        await joinPool.query(
+            `UPDATE join_it.intern_tasks 
+             SET contribution_detail = ?, 
+                 learning_outcome = ?,
+                 status = 3,
+                 closed_date = CURDATE(),
+                 closed_time = CURTIME(),
+                 updated_at = NOW() 
+             WHERE id = ? AND username = ?`,
+            [contribution_detail, learning_outcome, taskId, username]
+        );
+        res.json({ success: true, message: "ปิดงานเรียบร้อยแล้ว" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "ปิดงานล้มเหลว" });
     }
 };

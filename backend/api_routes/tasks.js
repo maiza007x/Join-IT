@@ -21,4 +21,22 @@ router.delete('/leave/:id', auth, taskController.leaveTask);
 // --- 6. GET /api/tasks/analytics-stats (ข้อมูลสถิติกราฟ Dashboard) ---
 router.get('/analytics-stats', auth, taskController.getAnalyticsStats);
 
+// --- 7. GET /api/tasks/form-options (ดึงข้อมูลตัวเลือกสำหรับฟอร์มสร้างงาน) ---
+router.get('/form-options', auth, taskController.getFormOptions);
+
+// --- 8. POST /api/tasks/create-intern-task (สร้างงานใหม่โดยนักศึกษา) ---
+router.post('/create-intern-task', auth, taskController.createInternTask);
+
+// --- 9. PUT /api/tasks/accept-intern/:id (รับงานนักศึกษา) ---
+router.put('/accept-intern/:id', auth, taskController.acceptInternTask);
+
+// --- 10. PUT /api/tasks/leave-intern/:id (ยกเลิกการรับงานนักศึกษา) ---
+router.put('/leave-intern/:id', auth, taskController.leaveInternTask);
+
+// --- 11. PUT /api/tasks/intern-details/:id (อัปเดตรายละเอียดงานนักศึกษา) ---
+router.put('/intern-details/:id', auth, taskController.updateInternTaskDetails);
+
+// --- 12. PUT /api/tasks/close-intern/:id (ปิดงานนักศึกษา/เสร็จสิ้น) ---
+router.put('/close-intern/:id', auth, taskController.closeInternTask);
+
 module.exports = router;

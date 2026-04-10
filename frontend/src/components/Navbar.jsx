@@ -61,6 +61,18 @@ const Navbar = () => {
                     {/* ปุ่มแดชบอร์ด */}
                     <PrimaryBtn icon="pi-th-large" label="แดชบอร์ด" path="/dashboard" />
 
+                    {/* ปุ่มสร้างงาน */}
+                    <button
+                        onClick={() => navigate('/create-task')}
+                        className={`p-3 md:px-5 md:py-2.5 rounded-2xl font-bold  transition-all duration-300 flex items-center shadow-lg relative overflow-hidden
+                            ${location.pathname === '/create-task'
+                                ? 'bg-blue-500 text-white shadow-blue-100'
+                                : 'bg-slate-800 text-white hover:bg-slate-700 shadow-slate-100'}`}
+                    >
+                        <i className={`pi pi-plus-circle md:mr-2 text-base md:text-sm ${location.pathname === '/create-task' ? 'animate-spin-slow' : ''}`}></i>
+                        <span className="hidden md:inline text-xs">สร้างงาน</span>
+                    </button>
+
                     {/* ปุ่มงานวันนี้ */}
                     <PrimaryBtn icon="pi-list" label="งานวันนี้" path="/tasks" />
 
@@ -74,7 +86,7 @@ const Navbar = () => {
 
                     {/* โปรไฟล์ดึงจาก AuthContext */}
                     <div className="flex items-center gap-2 md:gap-3 bg-slate-50 p-1 md:pr-4 rounded-full border border-slate-100 cursor-pointer hover:bg-white transition-all shadow-sm"
-                         onClick={() => navigate("/profile")}>
+                        onClick={() => navigate("/profile")}>
                         <div className="relative ml-0.5 md:ml-1">
                             <img
                                 src={getImageUrl(user?.avatar_url)}
@@ -90,7 +102,7 @@ const Navbar = () => {
 
                     {/* ปุ่มออกจากระบบ */}
                     <button onClick={handleLogout}
-                            className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shadow-sm shrink-0">
+                        className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shadow-sm shrink-0">
                         <i className="pi pi-power-off text-sm font-bold"></i>
                     </button>
                 </div>

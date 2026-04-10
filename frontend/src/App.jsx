@@ -7,6 +7,7 @@ import Register from "./pages/Register";
 import Members from "./pages/Members";
 import MyTasks from "./pages/MyTasks";
 import Dashboard from "./pages/Dashboard";
+import CreateTask from "./pages/CreateTask";
 import Navbar from "./components/Navbar";
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ConfirmDialog } from 'primereact/confirmdialog';
@@ -107,6 +108,7 @@ const LayoutWrapper = () => {
           <Route path="/my-tasks" element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/create-task" element={<ProtectedRoute><CreateTask /></ProtectedRoute>} />
 
           {/* Admin Routes */}
           <Route
