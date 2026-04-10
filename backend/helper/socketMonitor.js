@@ -4,14 +4,14 @@ let lastId = null;
 let io = null;
 
 /**
- * ติดตามงานใหม่จากฐานข้อมูล orderit1.data_report
+ * ติดตามงานใหม่จากฐานข้อมูล orderit.data_report
  */
 async function startMonitoring(socketIoInstance) {
     io = socketIoInstance;
 
     try {
         // ครั้งแรก: หา ID ล่าสุดเก็บไว้ก่อน เพื่อไม่ให้แจ้งเตือนงานเก่า
-        const [rows] = await query("SELECT MAX(id) as maxId FROM orderit1.data_report", [], 'order');
+        const [rows] = await query("SELECT MAX(id) as maxId FROM orderit.data_report", [], 'order');
         lastId = rows[0]?.maxId || 0;
         console.log(`📡 [Monitor]: Started monitoring for new tasks. Current MAX ID: ${lastId}`);
     } catch (err) {
@@ -28,7 +28,7 @@ async function checkForNewTasks() {
     try {
         // เช็ครายการงานที่ใหม่กว่า lastId
         const [rows] = await query(
-            "SELECT id, deviceName, report, username, time_report FROM orderit1.data_report WHERE id > ? ORDER BY id ASC",
+            "SELECT id, deviceName, report, username, time_report FROM orderit.data_report WHERE id > ? ORDER BY id ASC",
             [lastId],
             'order'
         );

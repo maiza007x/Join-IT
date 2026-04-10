@@ -21,7 +21,7 @@ exports.getTasksCollab = async (req, res) => {
                 /* ดึงชื่อเต็มจากตาราง users โดยใช้ DISTINCT เพื่อป้องกันชื่อซ้ำ และใช้ separator ที่ปลอดภัย */
                 GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN t.intern_id = ? AND t.deleted_at IS NULL THEN 1 ELSE 0 END) as isContributedByMe
-            FROM orderit1.data_report r
+            FROM orderit.data_report r
             LEFT JOIN join_it.tasks t ON r.id = t.task_staff_id AND t.deleted_at IS NULL
             LEFT JOIN join_it.users u ON t.intern_id = u.id
             WHERE DATE(r.date_report) = ?
@@ -71,7 +71,7 @@ exports.getMyTasks = async (req, res) => {
                 r.deviceName, 
                 r.report
             FROM join_it.tasks t
-            LEFT JOIN orderit1.data_report r ON t.task_staff_id = r.id
+            LEFT JOIN orderit.data_report r ON t.task_staff_id = r.id
             WHERE t.intern_id = ? AND t.deleted_at IS NULL
         `;
         const params = [userId];
@@ -180,7 +180,7 @@ exports.getAnalyticsStats = async (req, res) => {
         const fetchPersonStats = async () => {
             const [rows] = await joinPool.query(`
                 SELECT username as name, COUNT(*) as count 
-                FROM orderit1.data_report r
+                FROM orderit.data_report r
                 WHERE ${dateFilter} 
                 GROUP BY username
             `);
@@ -190,7 +190,7 @@ exports.getAnalyticsStats = async (req, res) => {
         const fetchHourStats = async () => {
             const [rows] = await joinPool.query(`
                 SELECT HOUR(r.time_report) as hour, COUNT(*) as count 
-                FROM orderit1.data_report r
+                FROM orderit.data_report r
                 WHERE ${dateFilter} 
                 GROUP BY HOUR(r.time_report) 
                 ORDER BY hour
@@ -205,7 +205,7 @@ exports.getAnalyticsStats = async (req, res) => {
                     AVG(service_speed) as speed, 
                     AVG(problem_satisfaction) as problem, 
                     AVG(service_satisfaction) as service 
-                FROM orderit1.rating
+                FROM orderit.rating
                 WHERE ${dateFilter.replace('r.date_report', 'DATE(timestamp)')}
             `);
             return rows[0] || { speed: 0, problem: 0, service: 0 };
@@ -216,7 +216,7 @@ exports.getAnalyticsStats = async (req, res) => {
                 SELECT 
                     SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, r.time_report, r.close_date) <= 30 THEN 1 ELSE 0 END) as within_sla,
                     SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, r.time_report, r.close_date) > 30 THEN 1 ELSE 0 END) as over_sla
-                FROM orderit1.data_report r
+                FROM orderit.data_report r
                 WHERE ${dateFilter} AND r.close_date IS NOT NULL
             `);
             return rows[0] || { within_sla: 0, over_sla: 0 };
@@ -225,7 +225,7 @@ exports.getAnalyticsStats = async (req, res) => {
         const fetchCategoryStats = async () => {
             const [rows] = await joinPool.query(`
                 SELECT r.problem as category, COUNT(*) as count 
-                FROM orderit1.data_report r
+                FROM orderit.data_report r
                 WHERE ${dateFilter} AND r.problem IS NOT NULL 
                 GROUP BY r.problem
             `);
