@@ -175,7 +175,7 @@ const Profile = () => {
 
         const src = URL.createObjectURL(file);
         setCropDialogParams({ visible: true, src });
-        
+
         // เราเคลียร์ค่า input file ให้เลือกไฟล์เดิมซ้ำได้ในครั้งหน้า
         e.target.value = '';
     };
@@ -192,12 +192,12 @@ const Profile = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'อัปโหลดโลโก้เว็บไซต์เรียบร้อย' });
-            
+
             // อัปเดตรูปโลโก้ใหม่ทันที
             api.get('/settings').then(setRes => {
                 if (setRes.data?.data?.siteLogo) setSiteLogo(setRes.data.data.siteLogo);
             });
-            
+
             setCropDialogParams({ visible: false, src: null });
         } catch (error) {
             console.error("Upload Logo Error:", error);
@@ -340,7 +340,7 @@ const Profile = () => {
                                 จัดการแก้ไขรหัสผ่าน
                             </button>
                         </div>
-                        
+
                         {/* ⚙️ การตั้งค่าระบบ (เฉพาะแอดมิน) */}
                         {(userData.role === 'admin' || userData.role === 'sub_admin') && (
                             <div className="mt-8">
@@ -362,14 +362,14 @@ const Profile = () => {
                                         </div>
                                     </div>
                                     <div className="w-full md:w-auto text-right">
-                                        <input 
-                                            type="file" 
-                                            id="profile-upload-site-logo" 
-                                            accept="image/*" 
-                                            style={{ display: 'none' }} 
-                                            onChange={handleUploadLogo} 
+                                        <input
+                                            type="file"
+                                            id="profile-upload-site-logo"
+                                            accept="image/*"
+                                            style={{ display: 'none' }}
+                                            onChange={handleUploadLogo}
                                         />
-                                        <button 
+                                        <button
                                             className="w-full md:w-auto bg-indigo-500 hover:bg-indigo-600 text-white border-none rounded-xl text-xs md:text-sm font-bold px-6 py-3.5 shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center gap-2"
                                             onClick={() => document.getElementById('profile-upload-site-logo').click()}
                                         >
@@ -444,7 +444,7 @@ const Profile = () => {
             </Dialog>
 
             {/* Dialog สำหรับ Crop รูปภาพ */}
-            <Dialog 
+            <Dialog
                 header={<div className="font-bold px-2 flex items-center gap-2">✂️ <span>จัดตำแหน่งรูปภาพ</span></div>}
                 visible={cropDialogParams.visible}
                 style={{ width: '95%', maxWidth: '480px' }}

@@ -8,6 +8,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
 import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
+import socket from "../services/socket";
 
 function Tasks() {
     const [tasks, setTasks] = useState([]);
@@ -35,6 +36,16 @@ function Tasks() {
 
     useEffect(() => {
         fetchTasks();
+
+        // ฟัง Socket เพื่อรีเฟรชข้อมูลเมื่อมีงานใหม่
+        socket.on("new-task", () => {
+            console.log("🔄 [Tasks]: Refreshing task list due to new incoming task...");
+            fetchTasks();
+        });
+
+        return () => {
+            socket.off("new-task");
+        };
     }, []);
 
     const handleJoin = async (taskId) => {

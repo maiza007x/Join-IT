@@ -13,6 +13,10 @@ import { ConfirmDialog } from 'primereact/confirmdialog';
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
+import { Toast } from 'primereact/toast';
+import { useRef, useEffect } from "react";
+import socket from "./services/socket";
+import { useNavigate } from "react-router-dom";
 
 // --- 1. Guard: ต้องล็อกอินก่อนถึงจะเข้าได้ ---
 const ProtectedRoute = ({ children }) => {
@@ -48,12 +52,46 @@ const ProtectedAdminRoute = ({ children }) => {
 // --- 3. Main Wrapper (ตัวคุม Navbar) ---
 const LayoutWrapper = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const globalToast = useRef(null);
 
   const noNavbarPaths = ["/", "/login", "/register", "/forgot-password"];
   const shouldShowNavbar = !noNavbarPaths.includes(location.pathname);
 
+  // --- Real-time Notification Listener ---
+  useEffect(() => {
+    socket.on("new-task", (data) => {
+      globalToast.current?.show({
+        severity: 'info',
+        summary: '📥 มีงานใหม่ในระบบ!',
+        detail: (
+          <div className="flex flex-col gap-2">
+            <div className="font-bold text-slate-800">{data.deviceName}</div>
+            <div className="text-xs text-slate-500 line-clamp-1">{data.report}</div>
+            <button 
+              className="mt-2 bg-blue-600 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-blue-700 shadow-sm self-start"
+              onClick={() => navigate('/tasks')}
+            >
+              ดูรายการงาน
+            </button>
+          </div>
+        ),
+        life: 10000 // แสดงนิ่งๆ 10 วินาที
+      });
+
+      // ถ้าต้องการให้มีเสียงแจ้งเตือน สามารถเพิ่มตรงนี้ได้
+      // const audio = new Audio('/notification.mp3');
+      // audio.play();
+    });
+
+    return () => {
+      socket.off("new-task");
+    };
+  }, [navigate]);
+
   return (
     <>
+      <Toast ref={globalToast} position="top-right" />
       {shouldShowNavbar && <Navbar />}
 
       <div className={shouldShowNavbar ? "p-4" : ""}>

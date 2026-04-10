@@ -161,61 +161,99 @@ exports.leaveTask = async (req, res) => {
 // --- 6. ดึงข้อมูลสถิติสำหรับ Analytics Dashboard ---
 exports.getAnalyticsStats = async (req, res) => {
     try {
-        const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-
-        // Q1: ยอดการรับงานรายคน (Bar Chart)
-        const [personRows] = await joinPool.query(`
-            SELECT username as name, COUNT(*) as count 
-            FROM orderit.data_report 
-            WHERE DATE(date_report) = ? 
-            GROUP BY username
-        `, [today]);
-
-        // Q2: แนวโน้มงานรายชั่วโมง (Line Chart)
-        const [hourRows] = await joinPool.query(`
-            SELECT HOUR(time_report) as hour, COUNT(*) as count 
-            FROM orderit.data_report 
-            WHERE DATE(date_report) = ? 
-            GROUP BY HOUR(time_report) 
-            ORDER BY hour
-        `, [today]);
-
-        // Q3: สรุปความพึงพอใจ (Horizontal Bar)
-        const [ratingRows] = await joinPool.query(`
-            SELECT 
-                AVG(service_speed) as speed, 
-                AVG(problem_satisfaction) as problem, 
-                AVG(service_satisfaction) as service 
-            FROM orderit.rating
-        `);
-
-        // Q4: SLA % (Pie Chart) - คำนวณจากเวลาแจ้ง vs เวลาปิด (SLA 30 นาที)
-        const [slaRows] = await joinPool.query(`
-            SELECT 
-                SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, time_report, close_date) <= 30 THEN 1 ELSE 0 END) as within_sla,
-                SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, time_report, close_date) > 30 THEN 1 ELSE 0 END) as over_sla
-            FROM orderit.data_report 
-            WHERE DATE(date_report) = ? AND close_date IS NOT NULL
-        `, [today]);
-
-        // Q5: ประเภทปัญหาที่พบ (Pie Chart)
-        const [categoryRows] = await joinPool.query(`
-            SELECT problem as category, COUNT(*) as count 
-            FROM orderit.data_report 
-            WHERE DATE(date_report) = ? AND problem IS NOT NULL 
-            GROUP BY problem
-        `, [today]);
-
-        res.json({
-            success: true,
-            data: {
-                personStats: personRows,
-                hourStats: hourRows,
-                ratingStats: ratingRows[0] || { speed: 0, problem: 0, service: 0 },
-                slaStats: slaRows[0] || { within_sla: 0, over_sla: 0 },
-                categoryStats: categoryRows
+        const { range, type } = req.query; // range: today, week, month, year | type: person, hour, rating, sla, category
+        
+        // Helper สำหรับสร้าง SQL WHERE clause ตามช่วงเวลา
+        const getDateFilter = (r) => {
+            switch (r) {
+                case 'week': return 'YEARWEEK(r.date_report, 1) = YEARWEEK(CURDATE(), 1)';
+                case 'month': return 'MONTH(r.date_report) = MONTH(CURDATE()) AND YEAR(r.date_report) = YEAR(CURDATE())';
+                case 'year': return 'YEAR(r.date_report) = YEAR(CURDATE())';
+                case 'today':
+                default: return 'DATE(r.date_report) = CURDATE()';
             }
-        });
+        };
+
+        const dateFilter = getDateFilter(range);
+
+        // ฟังก์ชันย่อยสำหรับดึงแต่ละส่วน (รองรับการดึงเฉพาะส่วนเพื่อ Performance)
+        const fetchPersonStats = async () => {
+            const [rows] = await joinPool.query(`
+                SELECT username as name, COUNT(*) as count 
+                FROM orderit.data_report r
+                WHERE ${dateFilter} 
+                GROUP BY username
+            `);
+            return rows;
+        };
+
+        const fetchHourStats = async () => {
+            const [rows] = await joinPool.query(`
+                SELECT HOUR(r.time_report) as hour, COUNT(*) as count 
+                FROM orderit.data_report r
+                WHERE ${dateFilter} 
+                GROUP BY HOUR(r.time_report) 
+                ORDER BY hour
+            `);
+            return rows;
+        };
+
+        const fetchRatingStats = async () => {
+             // หมายเหตุ: ตาราง rating เป็น global หรืออาจต้องมีระบบกรองวันทีตาม timestamp
+            const [rows] = await joinPool.query(`
+                SELECT 
+                    AVG(service_speed) as speed, 
+                    AVG(problem_satisfaction) as problem, 
+                    AVG(service_satisfaction) as service 
+                FROM orderit.rating
+                WHERE ${dateFilter.replace('r.date_report', 'DATE(timestamp)')}
+            `);
+            return rows[0] || { speed: 0, problem: 0, service: 0 };
+        };
+
+        const fetchSLAStats = async () => {
+            const [rows] = await joinPool.query(`
+                SELECT 
+                    SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, r.time_report, r.close_date) <= 30 THEN 1 ELSE 0 END) as within_sla,
+                    SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, r.time_report, r.close_date) > 30 THEN 1 ELSE 0 END) as over_sla
+                FROM orderit.data_report r
+                WHERE ${dateFilter} AND r.close_date IS NOT NULL
+            `);
+            return rows[0] || { within_sla: 0, over_sla: 0 };
+        };
+
+        const fetchCategoryStats = async () => {
+            const [rows] = await joinPool.query(`
+                SELECT r.problem as category, COUNT(*) as count 
+                FROM orderit.data_report r
+                WHERE ${dateFilter} AND r.problem IS NOT NULL 
+                GROUP BY r.problem
+            `);
+            return rows;
+        };
+
+        // logic: ถ้าส่ง type มา จะคืนผลแค่ส่วนนั้น (เพื่ออัปเดตกราฟเดียว)
+        // ถ้าไม่ส่ง จะคืนทั้งหมด (โหลดครั้งแรก)
+        let responseData = {};
+        if (type) {
+            switch (type) {
+                case 'person': responseData.personStats = await fetchPersonStats(); break;
+                case 'hour': responseData.hourStats = await fetchHourStats(); break;
+                case 'rating': responseData.ratingStats = await fetchRatingStats(); break;
+                case 'sla': responseData.slaStats = await fetchSLAStats(); break;
+                case 'category': responseData.categoryStats = await fetchCategoryStats(); break;
+            }
+        } else {
+            responseData = {
+                personStats: await fetchPersonStats(),
+                hourStats: await fetchHourStats(),
+                ratingStats: await fetchRatingStats(),
+                slaStats: await fetchSLAStats(),
+                categoryStats: await fetchCategoryStats()
+            };
+        }
+
+        res.json({ success: true, data: responseData });
     } catch (err) {
         console.error("❌ Analytics Stats Error:", err.message);
         res.status(500).json({ success: false, message: "ดึงข้อมูลสถิติล้มเหลว" });

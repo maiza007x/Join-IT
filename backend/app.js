@@ -43,6 +43,7 @@ app.use("/api/users", userRoutes);
 // ในไฟล์ taskRoutes.js ห้ามเขียน path ซ้ำซ้อน
 app.use("/api/tasks", taskRoutes); 
 app.use("/api/settings", require("./api_routes/settings"));
+app.use("/api/webhooks", require("./api_routes/webhooks"));
 
 // ✅ 4. Error Handler
 app.use((err, req, res, next) => {
