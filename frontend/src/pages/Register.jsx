@@ -67,11 +67,11 @@ function Register() {
 
       <Toast ref={toast} />
 
-      <div className="z-10 w-full max-w-[420px] px-6">
-        <div className="bg-white/70 backdrop-blur-2xl border border-white/50 rounded-[32px] p-8 md:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
+      <div className="z-10 w-full max-w-105 px-6">
+        <div className="bg-white/70 backdrop-blur-2xl border border-white/50 rounded-4xl p-8 md:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
           
           <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-500 shadow-xl shadow-indigo-200 mb-6 transform rotate-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-tr from-indigo-600 to-purple-500 shadow-xl shadow-indigo-200 mb-6 transform rotate-6">
               <i className="pi pi-user-plus text-white text-3xl"></i>
             </div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">Create Account</h1>

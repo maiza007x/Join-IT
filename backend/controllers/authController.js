@@ -81,7 +81,7 @@ exports.register = async (req, res) => {
   let conn;
   try {
     // ดึง Connection จาก Pool
-    conn = await joinPool.getConnection();
+    conn = await db.getConnection();
 
     // เช็คว่ามี Username นี้ในระบบหรือยัง
     const [rows] = await conn.execute('SELECT * FROM users WHERE username = ?', [username]);
