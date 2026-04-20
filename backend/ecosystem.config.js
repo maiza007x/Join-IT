@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "med_backend",
+      name: "join-it_backend",
       script: "server.js",
       env: {
         NODE_ENV: "production",
