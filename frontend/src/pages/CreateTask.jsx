@@ -2,11 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { InputText } from "primereact/inputtext";
-import { InputTextarea } from "primereact/inputtextarea";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
-import { RadioButton } from "primereact/radiobutton";
 import { Toast } from "primereact/toast";
 import { Card } from "primereact/card";
 
@@ -25,11 +23,7 @@ const CreateTask = () => {
         tel: "",
         deviceName: null,
         number_device: "",
-        ip_address: "",
-        work_type: "อุบัติการณ์",
-        priority: "ปกติ",
-        report: "",
-        routine: "ไม่มี"
+        ip_address: ""
     });
 
     useEffect(() => {
@@ -75,18 +69,7 @@ const CreateTask = () => {
         }
     };
 
-    const priorities = [
-        { label: 'ปกติ', value: 'ปกติ' },
-        { label: 'ด่วน', value: 'ด่วน' },
-        { label: 'ด่วนที่สุด', value: 'ด่วนที่สุด' }
-    ];
 
-    const routines = [
-        { label: 'ไม่มี', value: 'ไม่มี' },
-        { label: 'ทุกวัน', value: 'ทุกวัน' },
-        { label: 'ทุกสัปดาห์', value: 'ทุกสัปดาห์' },
-        { label: 'ทุกเดือน', value: 'ทุกเดือน' }
-    ];
 
     return (
         <div className="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center font-sans text-slate-700">
@@ -198,58 +181,10 @@ const CreateTask = () => {
                             />
                         </div>
 
-                        {/* ประเภทงาน และ ความเร่งด่วน */}
-                        <div className="flex flex-col gap-3">
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest">ประเภทงาน (ไม่บังคับ)</label>
-                            <div className="flex gap-4 mt-2">
-                                <div className="flex align-items-center bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100 flex-1">
-                                    <RadioButton inputId="type1" name="work_type" value="อุบัติการณ์" onChange={(e) => setFormData({...formData, work_type: e.value})} checked={formData.work_type === 'อุบัติการณ์'} />
-                                    <label htmlFor="type1" className="ml-2 font-bold text-sm text-slate-600">อุบัติการณ์</label>
-                                </div>
-                                <div className="flex align-items-center bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100 flex-1">
-                                    <RadioButton inputId="type2" name="work_type" value="งานอื่นๆ" onChange={(e) => setFormData({...formData, work_type: e.value})} checked={formData.work_type === 'งานอื่นๆ'} />
-                                    <label htmlFor="type2" className="ml-2 font-bold text-sm text-slate-600">งานอื่นๆ</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex flex-col gap-3">
-                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest">ระดับความเร่งด่วน (ไม่บังคับ)</label>
-                            <Dropdown 
-                                value={formData.priority} 
-                                options={priorities} 
-                                onChange={(e) => setFormData({...formData, priority: e.value})} 
-                                placeholder="เลือก..." 
-                                className="w-full custom-dropdown"
-                            />
-                        </div>
+
                     </div>
 
-                    {/* อาการที่ได้รับแจ้ง */}
-                    <div className="flex flex-col gap-3 mt-8">
-                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">อาการที่ได้รับแจ้ง</label>
-                        <InputTextarea 
-                            value={formData.report} 
-                            onChange={(e) => setFormData({...formData, report: e.target.value})} 
-                            rows={4} 
-                            className="w-full custom-input" 
-                            placeholder="..."
-                            required
-                        />
-                    </div>
 
-                    {/* Routine */}
-                    <div className="flex flex-col gap-3 mt-8 max-w-xs">
-                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => {}}>
-                            <span className="text-xs font-black text-slate-800 uppercase tracking-widest">กำหนด Routine</span>
-                            <i className="pi pi-caret-down text-xs"></i>
-                        </div>
-                        <Dropdown 
-                            value={formData.routine} 
-                            options={routines} 
-                            onChange={(e) => setFormData({...formData, routine: e.value})} 
-                            className="w-full custom-dropdown mt-1"
-                        />
-                    </div>
 
                     {/* Submit Button */}
                     <div className="mt-12">
@@ -299,14 +234,6 @@ const CreateTask = () => {
                 }
                 .p-calendar .p-inputtext {
                     border-radius: 0.85rem !important;
-                }
-                .p-radiobutton .p-radiobutton-box {
-                    border-radius: 50%;
-                    border: 2px solid #cbd5e1;
-                }
-                .p-radiobutton .p-radiobutton-box.p-highlight {
-                    border-color: #3b82f6;
-                    background: #3b82f6;
                 }
             ` }} />
         </div>

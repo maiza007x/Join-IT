@@ -14,12 +14,18 @@ import { InputText } from 'primereact/inputtext';
 import { Tooltip } from 'primereact/tooltip';
 import * as XLSX from 'xlsx'; // ✅ เพิ่ม library สำหรับ Excel
 
+import { useAuth } from "../context/AuthContext";
+
 function MyTasks() {
+    const { user } = useAuth();
     const [tasks, setTasks] = useState([]);
     const [internTasks, setInternTasks] = useState([]);
     const [selectedTask, setSelectedTask] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(false);
+    
+    // ตั้งค่า Tab เริ่มต้นตามบทบาท (นักศึกษาเริ่มที่ Tab 1, เจ้าหน้าที่เริ่มที่ Tab 0)
+    // ตั้งค่า Tab เริ่มต้นเป็น 'งานที่รับผิดชอบ' (Tab 0)
     const [activeTab, setActiveTab] = useState(0);
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -75,10 +81,21 @@ function MyTasks() {
     const pendingInternTasks = internTasks.filter(t => Number(t.status) === 2);
     const completedInternTasks = internTasks.filter(t => Number(t.status) === 3);
 
-    // รวมประวัติงานทั้งหมด
-    const allCompletedTasks = [
-        ...completedTasks.map(t => ({ ...t, display_type: 'Staff' })),
-        ...completedInternTasks.map(t => ({ ...t, display_type: 'Intern', contribution_id: t.id }))
+    // รวมรายการงานที่กำลังทำ (Unified Active Tasks)
+    const allActiveTasks = [
+        ...pendingTasks.map(t => ({ ...t, display_type: 'Staff', type: 'staff', contribution_id: t.contribution_id })),
+        ...pendingInternTasks.map(t => ({ ...t, display_type: 'Intern', type: 'intern', contribution_id: t.id }))
+    ].sort((a, b) => {
+        // เรียงลำดับตามวันที่และเวลารอง (ล่าสุดขึ้นก่อน)
+        const dateA = new Date(`${a.date_report}T${a.time_report || '00:00:00'}`);
+        const dateB = new Date(`${b.date_report}T${b.time_report || '00:00:00'}`);
+        return dateB - dateA;
+    });
+
+    // รวมประวัติงานทั้งหมด (Unified History Tasks)
+    const allHistoryTasks = [
+        ...completedTasks.map(t => ({ ...t, display_type: 'Staff', type: 'staff', contribution_id: t.contribution_id })),
+        ...completedInternTasks.map(t => ({ ...t, display_type: 'Intern', type: 'intern', contribution_id: t.id }))
     ].sort((a, b) => new Date(b.date_report) - new Date(a.date_report));
 
     // ✅ ฟังก์ชัน Export ข้อมูลเป็น Excel
@@ -111,6 +128,15 @@ function MyTasks() {
     const timeTemplate = (rowData) => {
         if (!rowData.time_report) return "-";
         return <span className="font-bold text-blue-600">{rowData.time_report.substring(0, 5)} น.</span>;
+    };
+
+    const typeTemplate = (rowData) => {
+        const isStaff = rowData.type === 'staff';
+        return <Tag 
+            value={isStaff ? 'งานเจ้าหน้าที่' : 'งานนักศึกษา'} 
+            severity={isStaff ? 'info' : 'warning'} 
+            className="px-2 text-[10px] rounded-lg"
+        />;
     };
 
     const summaryTemplate = (rowData) => {
@@ -234,102 +260,120 @@ function MyTasks() {
                 {/* Tab Selection Section */}
                 <div className="bg-white p-2 rounded-3xl shadow-sm border border-blue-50">
                     <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)} className="custom-luxury-tabs">
-                        <TabPanel header={<span><i className="pi pi-building mr-2"></i>งานเจ้าหน้าที่ ({pendingTasks.length})</span>}>
-                            <div className="flex flex-col gap-6 pt-4">
-                                {/* Staff Pending Table */}
-                                <div className="bg-white rounded-[2rem] border border-blue-50 overflow-hidden shadow-sm">
-                                    <div className="p-5 bg-blue-600 flex items-center gap-3 text-white">
-                                        <i className="pi pi-clock"></i>
-                                        <h4 className="m-0 font-bold">รอยืนยันรายละเอียด ({pendingTasks.length})</h4>
+                        
+                        {/* Tab 1: งานที่รับผิดชอบ */}
+                        <TabPanel header={<span><i className="pi pi-clock mr-2"></i>งานที่รับผิดชอบ ({pendingInternTasks.length + pendingTasks.length})</span>}>
+                            <div className="flex flex-col gap-8 pt-4">
+                                
+                                {/* 🟠 Section A: งานมอบหมายพิเศษ (นักศึกษา) */}
+                                <div className="bg-white rounded-[2rem] border border-orange-100 overflow-hidden shadow-sm shadow-orange-100/50">
+                                    <div className="p-5 bg-orange-500 flex items-center justify-between text-white">
+                                        <div className="flex items-center gap-3">
+                                            <i className="pi pi-user-edit"></i>
+                                            <h4 className="m-0 font-bold">งานมอบหมายพิเศษ (สีส้ม) ({pendingInternTasks.length})</h4>
+                                        </div>
+                                        <Tag value="INTERN TASK" className="bg-white/20 text-white text-[9px] font-black" />
                                     </div>
                                     <div className="p-4">
                                         <div className="hidden md:block">
-                                            <DataTable value={pendingTasks} loading={loading} rows={10} scrollable emptyMessage="ไม่พบรายการงาน" className="p-datatable-sm custom-blue-table">
+                                            <DataTable value={pendingInternTasks} loading={loading} scrollable emptyMessage="ไม่มีงานมอบหมายพิเศษในขณะนี้" className="p-datatable-sm custom-orange-table">
                                                 <Column field="time_report" header="เวลา" body={timeTemplate} style={{ width: '7rem' }} sortable />
-                                                <Column field="date_report" header="วันที่" style={{ width: '9rem' }} className="text-slate-400" sortable />
-                                                <Column field="deviceName" header="อุปกรณ์" style={{ width: '15rem' }} className="font-bold text-slate-700" sortable />
-                                                <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600" sortable />
+                                                <Column field="date_report" header="วันที่" style={{ width: '9rem' }} sortable />
+                                                <Column field="deviceName" header="อุปกรณ์/ชื่องาน" className="font-bold text-slate-700" sortable />
+                                                <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600" />
                                                 <Column header="จัดการ" body={(row) => (
-                                                    <Button label="บันทึก" icon="pi pi-pencil" rounded className="py-1 px-3 text-[10px] font-bold bg-blue-600 border-none hover:bg-blue-700" onClick={() => openDetails({ ...row, type: 'staff' })} />
+                                                    <Button label="บันทึก" icon="pi pi-pencil" rounded className="py-1 px-3 text-[10px] font-bold bg-orange-500 border-none hover:bg-orange-600" onClick={() => openDetails({...row, type: 'intern'})} />
                                                 )} style={{ textAlign: 'center', width: '7rem' }} />
                                             </DataTable>
                                         </div>
-                                        {/* Mobile pending staff */}
+                                        {/* Mobile View - Intern */}
+                                        <div className="md:hidden flex flex-col gap-4">
+                                            {pendingInternTasks.map((task, i) => (
+                                                <div key={i} className="bg-white border border-orange-50 rounded-2xl p-4 shadow-sm flex flex-col gap-3 border-l-4 border-l-orange-500">
+                                                    <div className="flex justify-between items-center pb-1">
+                                                        <Tag value="งานนักศึกษา" severity="warning" className="px-2 text-[9px] rounded-lg" />
+                                                        <span className="text-slate-400 text-[10px]">{task.date_report}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-bold text-orange-600">{task.time_report?.substring(0, 5)} น.</span>
+                                                        <h4 className="font-bold text-slate-800 text-sm m-0">{task.deviceName}</h4>
+                                                    </div>
+                                                    <Button label="บันทึกข้อมูล" icon="pi pi-pencil" className="bg-orange-500 p-button-sm rounded-xl py-2" onClick={() => openDetails({...task, type: 'intern'})} />
+                                                </div>
+                                            ))}
+                                            {pendingInternTasks.length === 0 && <div className="text-center py-6 text-slate-300 text-[11px] italic">ไม่มีงานมอบหมายพิเศษ</div>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 🔵 Section B: งานร่วมกับเจ้าหน้าที่ */}
+                                <div className="bg-white rounded-[2rem] border border-blue-50 overflow-hidden shadow-sm shadow-blue-100/50">
+                                    <div className="p-5 bg-blue-600 flex items-center justify-between text-white">
+                                        <div className="flex items-center gap-3">
+                                            <i className="pi pi-users"></i>
+                                            <h4 className="m-0 font-bold">งานร่วมกับเจ้าหน้าที่ (สีฟ้า) ({pendingTasks.length})</h4>
+                                        </div>
+                                        <Tag value="STAFF TASK" className="bg-white/20 text-white text-[9px] font-black" />
+                                    </div>
+                                    <div className="p-4">
+                                        <div className="hidden md:block">
+                                            <DataTable value={pendingTasks} loading={loading} scrollable emptyMessage="ไม่มีงานร่วมกับเจ้าหน้าที่" className="p-datatable-sm custom-blue-table">
+                                                <Column field="time_report" header="เวลา" body={timeTemplate} style={{ width: '7rem' }} sortable />
+                                                <Column field="date_report" header="วันที่" style={{ width: '9rem' }} sortable />
+                                                <Column field="deviceName" header="อุปกรณ์/ชื่องาน" className="font-bold text-slate-700" sortable />
+                                                <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600" sortable />
+                                                <Column header="จัดการ" body={(row) => (
+                                                    <Button label="บันทึก" icon="pi pi-pencil" rounded className="py-1 px-3 text-[10px] font-bold bg-blue-600 border-none hover:bg-blue-700" onClick={() => openDetails({...row, type: 'staff'})} />
+                                                )} style={{ textAlign: 'center', width: '7rem' }} />
+                                            </DataTable>
+                                        </div>
+                                        {/* Mobile View - Staff */}
                                         <div className="md:hidden flex flex-col gap-4">
                                             {pendingTasks.map((task, i) => (
                                                 <div key={i} className="bg-white border border-blue-50 rounded-2xl p-4 shadow-sm flex flex-col gap-3 border-l-4 border-l-blue-500">
-                                                    <div className="flex justify-between items-center pb-2">
-                                                        <span className="font-bold text-blue-600">{task.time_report?.substring(0, 5)} น.</span>
-                                                        <span className="text-slate-400 text-xs">{task.date_report}</span>
+                                                    <div className="flex justify-between items-center pb-1">
+                                                        <Tag value="งานเจ้าหน้าที่" severity="info" className="px-2 text-[9px] rounded-lg" />
+                                                        <span className="text-slate-400 text-[10px]">{task.date_report}</span>
                                                     </div>
-                                                    <h4 className="font-bold text-slate-800 text-sm">{task.deviceName}</h4>
-                                                    <Button label="บันทึกข้อมูล" icon="pi pi-pencil" className="bg-blue-600 p-button-sm rounded-xl" onClick={() => openDetails({ ...task, type: 'staff' })} />
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-bold text-blue-600">{task.time_report?.substring(0, 5)} น.</span>
+                                                        <h4 className="font-bold text-slate-800 text-sm m-0">{task.deviceName}</h4>
+                                                    </div>
+                                                    <Button label="บันทึกข้อมูล" icon="pi pi-pencil" className="bg-blue-600 p-button-sm rounded-xl py-2" onClick={() => openDetails({...task, type: 'staff'})} />
                                                 </div>
                                             ))}
+                                            {pendingTasks.length === 0 && <div className="text-center py-6 text-slate-300 text-[11px] italic">ไม่มีงานร่วมกับเจ้าหน้าที่</div>}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Staff History Table */}
+                            </div>
+                        </TabPanel>
+
+                        {/* Tab 2: ประวัติงาน */}
+                        <TabPanel header={<span><i className="pi pi-history mr-2"></i>ประวัติงาน ({allHistoryTasks.length})</span>}>
+                            <div className="flex flex-col gap-6 pt-4">
                                 <div className="bg-white rounded-[2rem] border border-blue-50 overflow-hidden shadow-sm">
                                     <div className="p-5 bg-slate-50 border-b border-blue-100 flex items-center justify-between">
                                         <div className="flex items-center gap-3 text-blue-900">
-                                            <i className="pi pi-history"></i>
-                                            <h4 className="m-0 font-bold">ประวัติงานเจ้าหน้าที่ ({completedTasks.length})</h4>
-                                        </div>
-                                    </div>
-                                    <div className="p-4">
-                                        <DataTable value={completedTasks} loading={loading} paginator rows={5} className="p-datatable-sm custom-blue-table">
-                                            <Column field="date_report" header="วันที่" style={{ width: '9rem' }} sortable />
-                                            <Column field="deviceName" header="อุปกรณ์" className="font-bold" sortable />
-                                            <Column field="contribution_detail" header="สรุปผล" body={summaryTemplate} />
-                                            <Column header="แก้ไข" body={(row) => <Button icon="pi pi-file-edit" text rounded onClick={() => openDetails({ ...row, type: 'staff' })} />} style={{ width: '5rem' }} />
-                                        </DataTable>
-                                    </div>
-                                </div>
-                            </div>
-                        </TabPanel>
-
-                        <TabPanel header={<span><i className="pi pi-user mr-2"></i>งานนักศึกษา ({pendingInternTasks.length})</span>}>
-                            <div className="flex flex-col gap-6 pt-4">
-                                {/* Intern Pending Table */}
-                                <div className="bg-white rounded-[2rem] border border-white overflow-hidden shadow-md shadow-orange-100/30">
-                                    <div className="p-5 bg-orange-500 flex items-center gap-3 text-white">
-                                        <i className="pi pi-user-edit"></i>
-                                        <h4 className="m-0 font-bold">งานที่รับผิดชอบ ({pendingInternTasks.length})</h4>
-                                    </div>
-                                    <div className="p-4">
-                                        <DataTable value={pendingInternTasks} loading={loading} rows={10} scrollable emptyMessage="ไม่มีงานที่กำลังทำ" className="p-datatable-sm custom-orange-table">
-                                            <Column field="time_report" header="เวลา" body={timeTemplate} style={{ width: '7rem' }} sortable />
-                                            <Column field="date_report" header="วันที่" style={{ width: '9rem' }} sortable />
-                                            <Column field="deviceName" header="อุปกรณ์/ชื่องาน" className="font-bold text-slate-700" sortable />
-                                            <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600" />
-                                            <Column header="จัดการ" body={(row) => (
-                                                <Button label="บันทึก" icon="pi pi-pencil" rounded className="py-1 px-3 text-[10px] font-bold bg-orange-500 border-none hover:bg-orange-600" onClick={() => openDetails({ ...row, type: 'intern' })} />
-                                            )} style={{ textAlign: 'center', width: '7rem' }} />
-                                        </DataTable>
-                                    </div>
-                                </div>
-
-                                {/* Intern History Table */}
-                                <div className="bg-white rounded-[2rem] border border-orange-50 overflow-hidden shadow-sm">
-                                    <div className="p-5 bg-orange-50/50 border-b border-orange-100 flex items-center justify-between">
-                                        <div className="flex items-center gap-3 text-orange-900">
                                             <i className="pi pi-check-circle"></i>
-                                            <h4 className="m-0 font-bold">ประวัติงานนักศึกษาที่ปิดแล้ว ({completedInternTasks.length})</h4>
+                                            <h4 className="m-0 font-bold">รวมประวัติการทำงานทั้งหมด ({allHistoryTasks.length})</h4>
                                         </div>
+                                        <Button label="Export Excel" icon="pi pi-file-excel" className="p-button-sm p-button-success p-button-outlined rounded-xl" onClick={exportToExcel} />
                                     </div>
                                     <div className="p-4">
-                                        <DataTable value={completedInternTasks} loading={loading} paginator rows={5} className="p-datatable-sm custom-orange-table">
+                                        <DataTable value={allHistoryTasks} loading={loading} paginator rows={10} className="p-datatable-sm custom-blue-table">
+                                            <Column field="type" header="ประเภท" body={typeTemplate} style={{ width: '8rem' }} sortable />
                                             <Column field="date_report" header="วันที่" style={{ width: '9rem' }} sortable />
                                             <Column field="deviceName" header="อุปกรณ์/ชื่องาน" className="font-bold" sortable />
-                                            <Column field="contribution_detail" header="สรุปผล" body={summaryTemplate} />
-                                            <Column header="แก้ไข" body={(row) => <Button icon="pi pi-file-edit" text rounded onClick={() => openDetails({ ...row, type: 'intern' })} />} style={{ width: '5rem' }} />
+                                            <Column field="contribution_detail" header="สรุปผลการดำเนินงาน" body={summaryTemplate} />
+                                            <Column header="แก้ไข" body={(row) => <Button icon="pi pi-file-edit" text rounded onClick={() => openDetails(row)} />} style={{ width: '5rem' }} />
                                         </DataTable>
                                     </div>
                                 </div>
                             </div>
                         </TabPanel>
+
                     </TabView>
                 </div>
             </div>

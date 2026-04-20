@@ -115,9 +115,9 @@ function Tasks() {
             await api.put(`/tasks/accept-intern/${taskId}`);
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'รับงานเรียบร้อย', life: 2000 });
             
-            // Redirect to My Tasks (Intern Tab)
+            // Redirect to My Tasks (Active Tasks Tab)
             setTimeout(() => {
-                navigate('/my-tasks?tab=1');
+                navigate('/my-tasks?tab=0');
             }, 1000);
             
             fetchTasks();

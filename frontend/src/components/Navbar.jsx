@@ -77,7 +77,11 @@ const Navbar = () => {
                     <PrimaryBtn icon="pi-list" label="งานวันนี้" path="/tasks" />
 
                     {/* ปุ่มงานของฉัน */}
-                    <PrimaryBtn icon="pi-user-edit" label="งานของฉัน" path="/my-tasks" />
+                    <PrimaryBtn 
+                        icon="pi-user-edit" 
+                        label="งานของฉัน" 
+                        path={user?.role?.toLowerCase() === 'intern' ? "/my-tasks?tab=1" : "/my-tasks"} 
+                    />
 
                     {/* ปุ่มจัดการสมาชิก */}
                     <PrimaryBtn icon="pi-users" label="จัดการสมาชิก" path="/members" />
