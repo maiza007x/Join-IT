@@ -95,7 +95,7 @@ const LayoutWrapper = () => {
       <Toast ref={globalToast} position="top-right" />
       {shouldShowNavbar && <Navbar />}
 
-      <div className={shouldShowNavbar ? "p-4" : ""}>
+      <div>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Login />} />

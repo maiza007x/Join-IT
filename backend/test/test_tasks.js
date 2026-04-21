@@ -1,4 +1,4 @@
-const db = require('./helper/db');
+const db = require('../helper/db');
 
 async function runTest() {
     console.log("=== ป้อนข้อมูลจำลอง ===");

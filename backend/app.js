@@ -9,6 +9,8 @@ const bodyParser = require("body-parser");
 const authRoutes = require("./api_routes/auth");
 const userRoutes = require("./api_routes/user");
 const taskRoutes = require("./api_routes/tasks"); // รวมงานทั้งหมดไว้ที่นี่
+const settingRoutes = require("./api_routes/settings");
+const webhooksRoutes = require("./api_routes/webhooks");
 
 const app = express();
 
@@ -38,12 +40,9 @@ app.use('/uploads', (req, res, next) => {
 // ✅ 3. Routes Setup (จัดลำดับใหม่ให้ไม่งง)
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-
-// ⚠️ สำคัญมาก: ถ้าใช้ /api/tasks ตรงนี้ 
-// ในไฟล์ taskRoutes.js ห้ามเขียน path ซ้ำซ้อน
 app.use("/api/tasks", taskRoutes); 
-app.use("/api/settings", require("./api_routes/settings"));
-app.use("/api/webhooks", require("./api_routes/webhooks"));
+app.use("/api/settings", settingRoutes);
+app.use("/api/webhooks", webhooksRoutes);
 
 // ✅ 4. Error Handler
 app.use((err, req, res, next) => {

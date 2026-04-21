@@ -5,7 +5,7 @@ const app = require("./app");
 
 async function startServer() {
   try {
-// ตรวจสอบ Join-IT
+    // ตรวจสอบ Join-IT
     const conn1 = await joinPool.getConnection();
     console.log("🟢 [Database]: Join-IT connected.");
     conn1.release();
@@ -52,9 +52,9 @@ async function startServer() {
       console.log(`-------------------------------------------`);
     });
 
- } catch (err) {
+  } catch (err) {
     console.error("🔴 [Error]: Failed to start server:");
-    console.error(err); // <--- แก้ตรงนี้: เอา .message ออก เพื่อให้เห็น Error ทั้งก้อน (Stack Trace)
+    console.error(err);
     process.exit(1);
   }
 }

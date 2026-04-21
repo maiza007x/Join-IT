@@ -52,8 +52,8 @@ function Login() {
 
       <Toast ref={toast} />
 
-      <div className="z-10 w-full max-w-[420px] px-6">
-        <div className="bg-white/70 backdrop-blur-2xl border border-white/50 rounded-[32px] p-8 md:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
+      <div className="z-10 w-full max-w-105 px-6">
+        <div className="bg-white/70 backdrop-blur-2xl border border-white/50 rounded-4xl p-8 md:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
 
           <div className="text-center mb-10">
             {siteLogo ? (
@@ -61,7 +61,7 @@ function Login() {
                 <img src={getImageUrl(siteLogo)} alt="Site Logo" className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-xl shadow-blue-200 mb-6 transform -rotate-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-tr from-blue-600 to-indigo-500 shadow-xl shadow-blue-200 mb-6 transform -rotate-6">
                 <i className="pi pi-bolt text-white text-3xl"></i>
               </div>
             )}
@@ -105,14 +105,14 @@ function Login() {
               </div>
             </div>
 
-            <div className="text-right">
+            {/* <div className="text-right">
               <button
                 onClick={() => navigate("/forgot-password")}
                 className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors bg-transparent border-none p-0 cursor-pointer outline-none"
               >
                 ลืมรหัสผ่าน?
               </button>
-            </div>
+            </div> */}
 
             <Button
               label={loading ? "กำลังตรวจสอบ..." : "เข้าสู่ระบบ"}
@@ -124,7 +124,7 @@ function Login() {
 
           <div className="mt-10 text-center">
             <p className="text-slate-400 text-xs font-medium">
-              ยังไม่มีบัญชี?
+              ยังไม่มีบัญชี? หรือ ลืมรหัสผ่าน?
               <button
                 onClick={() => navigate("/contact-admin")}
                 className="ml-1 text-blue-600 font-bold hover:underline bg-transparent border-none p-0 cursor-pointer"
