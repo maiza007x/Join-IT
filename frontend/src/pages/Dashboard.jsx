@@ -219,11 +219,11 @@ const Dashboard = () => {
             
             <Toast ref={toast} />
 
-            <div className="max-w-[1440px] mx-auto px-4 md:px-10 relative z-10">
+            <div className="max-w-360 mx-auto px-4 md:px-10 relative z-10">
                 {/* Header Section */}
                 <div className="py-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-6">
-                        <div className="w-16 h-16 bg-blue-600 rounded-[1.5rem] shadow-[0_20px_40px_rgba(37,99,235,0.3)] flex items-center justify-center transform hover:rotate-6 transition-transform">
+                        <div className="w-16 h-16 bg-blue-600 rounded-3xl shadow-[0_20px_40px_rgba(37,99,235,0.3)] flex items-center justify-center transform hover:rotate-6 transition-transform">
                             <i className="pi pi-chart-line text-3xl text-white"></i>
                         </div>
                         <div>
@@ -256,7 +256,7 @@ const Dashboard = () => {
                         { label: 'ตามเกณฑ์ SLA', value: completedTasks, icon: 'pi-verified', color: 'emerald' }
                     ].map((stat, i) => (
                         <div key={i} className="premium-card p-1">
-                            <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-8 h-full border border-white transition-all group hover:bg-white">
+                            <div className="bg-white/80 backdrop-blur-md rounded-4xl p-8 h-full border border-white transition-all group hover:bg-white">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className={`p-4 bg-${stat.color}-50 rounded-2xl`}>
                                         <i className={`pi ${stat.icon} text-2xl text-${stat.color}-500 group-hover:scale-110 transition-transform`} />
@@ -289,7 +289,7 @@ const Dashboard = () => {
                                     className="minimal-dropdown"
                                 />
                             </div>
-                            <div className="flex-grow min-h-[250px]">
+                            <div className="grow min-h-62.5">
                                 <Chart type="bar" data={personChartData} options={chartOptions} />
                             </div>
                         </div>
@@ -309,7 +309,7 @@ const Dashboard = () => {
                                     className="minimal-dropdown"
                                 />
                             </div>
-                            <div className="flex-grow min-h-[250px]">
+                            <div className="grow min-h-62.5">
                                 <Chart type="line" data={hourChartData} options={chartOptions} />
                             </div>
                         </div>
@@ -329,7 +329,7 @@ const Dashboard = () => {
                                     className="minimal-dropdown"
                                 />
                             </div>
-                            <div className="flex-grow min-h-[250px]">
+                            <div className="grow min-h-62.5">
                                 <Chart type="bar" data={satisfactionChartData} options={{ ...chartOptions, indexAxis: 'y' }} />
                             </div>
                         </div>
@@ -349,7 +349,7 @@ const Dashboard = () => {
                                     className="minimal-dropdown"
                                 />
                             </div>
-                            <div className="flex-grow min-h-[250px] flex items-center justify-center">
+                            <div className="grow min-h-62.5 flex items-center justify-center">
                                 <Chart type="pie" data={slaChartData} options={pieOptions} />
                             </div>
                         </div>
@@ -369,7 +369,7 @@ const Dashboard = () => {
                                     className="minimal-dropdown"
                                 />
                             </div>
-                            <div className="flex-grow min-h-[480px] flex items-center justify-center relative">
+                            <div className="grow min-h-120 flex items-center justify-center relative">
                                 <Chart type="doughnut" data={categoryChartData} options={categoryPieOptions} />
                                 <div className="absolute top-1/2 left-[31%] -translate-y-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">หมวดหมู่ทั้งหมด</span>
@@ -398,7 +398,7 @@ const Dashboard = () => {
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {tasks.slice(0, 3).map((task, idx) => (
-                                    <div key={idx} className="group relative bg-slate-50/50 rounded-[2rem] p-8 border border-transparent hover:border-blue-200 hover:bg-white hover:shadow-2xl transition-all duration-500">
+                                    <div key={idx} className="group relative bg-slate-50/50 rounded-4xl p-8 border border-transparent hover:border-blue-200 hover:bg-white hover:shadow-2xl transition-all duration-500">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center group-hover:rotate-6 transition-transform">
                                                 <i className="pi pi-file-edit text-blue-500 text-xl" />
