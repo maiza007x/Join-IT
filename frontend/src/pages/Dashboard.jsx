@@ -17,11 +17,11 @@ const Dashboard = () => {
 
   // --- 🌟 Global Filters State ---
   const [globalFilter, setGlobalFilter] = useState({
-    year: "2566",
+    year: "2569",
     term: "1",
     university: "all",
     person: "all",
-    timeRange: "month",
+    timeRange: "week",
     customDates: null,
   });
 
@@ -78,10 +78,19 @@ const Dashboard = () => {
         }
 
         if (filterRes.data.success) {
+          const universities = filterRes.data.filters.universities;
           setGlobalOptions(prev => ({
             ...prev,
-            university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }, ...filterRes.data.filters.universities]
+            university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }, ...universities]
           }));
+
+          // Set default university to the first one available in the list
+          if (universities && universities.length > 0) {
+            setGlobalFilter(prev => ({
+              ...prev,
+              university: universities[0].value
+            }));
+          }
         }
       } catch (err) {
         console.error("Failed to fetch dashboard options", err);

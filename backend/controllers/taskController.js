@@ -314,10 +314,10 @@ exports.getWorkloadChartData = async (req, res) => {
 
         // Map groupingCategory to column name
         const categoryMap = {
-            workingList: 'r.work_type',
+            workingList: 'r.device',
             problemList: 'r.problem',
             device: 'r.device',
-            depart: 'r.department',
+            depart: 'd.depart_name',
             staff: 'r.username'
         };
 
@@ -345,6 +345,7 @@ exports.getWorkloadChartData = async (req, res) => {
             FROM join_it.tasks t
             JOIN join_it.users u ON t.intern_id = u.id
             JOIN orderit.data_report r ON t.task_staff_id = r.id
+            JOIN orderit.depart d ON r.department = d.depart_id
             WHERE t.deleted_at IS NULL
         `;
 
