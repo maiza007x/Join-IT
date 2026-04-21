@@ -26,12 +26,31 @@ const DashboardFilter = ({ filters, options, onChange, onApply, loading }) => {
         <div className="p-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">ปีการศึกษา</label>
-            <Dropdown
-              value={filters.year}
-              options={options.year}
-              onChange={(e) => onChange("year", e.value)}
-              className="w-full border-slate-200 shadow-none text-sm h-10 flex items-center bg-white hover:border-indigo-300 rounded-lg transition-colors"
-            />
+            <div className="flex gap-2">
+              <Calendar
+                value={filters.year && filters.year !== "all" ? (filters.year > 2400 ? new Date(filters.year - 543, 0, 1) : new Date(filters.year, 0, 1)) : null}
+                onChange={(e) => {
+                  if (e.value) {
+                    const year = e.value.getFullYear();
+                    const beYear = year < 2400 ? year + 543 : year;
+                    onChange("year", beYear.toString());
+                  }
+                }}
+                view="year"
+                dateFormat="yy"
+                placeholder="เลือกปี"
+                className="grow h-10"
+                inputClassName="text-sm border-slate-200 bg-white hover:border-indigo-300 focus:border-indigo-500 rounded-lg transition-colors"
+              />
+              {filters.year !== "all" && (
+                <button
+                  onClick={() => onChange("year", "all")}
+                  className="px-3 h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  ทั้งหมด
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">

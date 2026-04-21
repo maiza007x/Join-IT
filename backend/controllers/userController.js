@@ -28,8 +28,6 @@ exports.getProfile = async (req, res) => {
 };
 
 // --- 2. GET /api/users/all (ดึงข้อมูลผู้ใช้ทั้งหมด - สำหรับหน้า Admin) ---
-// ในไฟล์ controllers/userController.js
-// --- 2. GET /api/users/all (ดึงข้อมูลผู้ใช้ทั้งหมด - สำหรับหน้า Admin) ---
 exports.getAllUsers = async (req, res) => {
     try {
         // ใช้ Query ที่ปลอดภัยที่สุด (ถ้าตัวไหนไม่มีใน DB ให้ลบออกทีละตัวครับ)
@@ -54,6 +52,21 @@ exports.getAllUsers = async (req, res) => {
             message: "Database Error",
             detail: error.message
         });
+    }
+};
+
+// --- 2.1 GET /api/users/students (ดึงรายชื่อนักศึกษาสำหรับ Dropdown) ---
+exports.getStudentList = async (req, res) => {
+    try {
+        const [students] = await joinPool.query(`
+            SELECT id as value, full_name as label 
+            FROM users 
+            ORDER BY full_name ASC
+        `);
+        res.json({ success: true, data: students });
+    } catch (err) {
+        console.error("Get Student List Error:", err);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลรายชื่อล้มเหลว" });
     }
 };
 
@@ -234,7 +247,7 @@ exports.addUser = async (req, res) => {
         }
 
         const { full_name, role } = req.body;
-        
+
         if (!full_name || !role) {
             return res.status(400).json({ message: "กรุณากรอกชื่อและบทบาทให้ครบถ้วน" });
         }
@@ -256,7 +269,7 @@ exports.addUser = async (req, res) => {
                 nextNum = lastNum + 1;
             }
         }
-        
+
         const username = `user${nextNum}`;
         const plainPassword = username; // username = password เริ่มต้น
         const salt = await bcrypt.genSalt(10);
@@ -265,10 +278,10 @@ exports.addUser = async (req, res) => {
         const sql = `INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)`;
         const [result] = await joinPool.query(sql, [username, hashedPassword, full_name, role]);
 
-        res.status(201).json({ 
-            success: true, 
-            message: "เพิ่มผู้ใช้งานสำเร็จ", 
-            data: { id: result.insertId, username, full_name, role } 
+        res.status(201).json({
+            success: true,
+            message: "เพิ่มผู้ใช้งานสำเร็จ",
+            data: { id: result.insertId, username, full_name, role }
         });
 
     } catch (error) {
@@ -300,14 +313,14 @@ exports.updateUserRole = async (req, res) => {
         if (currentUserRole === 'sub_admin' && targetUserCurrentRole === 'admin') {
             return res.status(403).json({ message: "แอดมินรอง ไม่สามารถแก้ไขสิทธิ์ของแอดมินหลักได้" });
         }
-        
+
         // ถ้า sub_admin จะตั้งคนอื่นเป็น admin? ปกติ sub_admin ไม่น่าจะตั้งคนเป็น admin ได้
         if (currentUserRole === 'sub_admin' && role === 'admin') {
             return res.status(403).json({ message: "แอดมินรอง ไม่สามารถตั้งค่าผู้อื่นเป็นแอดมินหลักได้" });
         }
 
         await joinPool.query("UPDATE users SET role = ? WHERE id = ?", [role, targetUserId]);
-        
+
         res.json({ success: true, message: "เปลี่ยนบทบาทสำเร็จ" });
     } catch (error) {
         console.error("Update Role Error:", error);
@@ -342,7 +355,7 @@ exports.resetPassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(targetUsername, salt);
 
         await joinPool.query("UPDATE users SET password = ? WHERE id = ?", [hashedPassword, targetUserId]);
-        
+
         res.json({ success: true, message: "รีเซ็ตรหัสผ่านเป็น " + targetUsername + " เรียบร้อยแล้ว" });
     } catch (error) {
         console.error("Reset Password Error:", error);

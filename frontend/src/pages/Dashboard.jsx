@@ -9,6 +9,7 @@ import WorkTypeChart from "./Dashboard/components/WorkTypeChart";
 import ActivityHeatmap from "./Dashboard/components/ActivityHeatmap";
 import CollaborationChart from "./Dashboard/components/CollaborationChart";
 import LearningKeywordsChart from "./Dashboard/components/LearningKeywordsChart";
+import api from "../services/api";
 
 const Dashboard = () => {
   const toast = useRef(null);
@@ -40,16 +41,11 @@ const Dashboard = () => {
     collabType: "all",
   });
 
-  // --- 📌 Options สำหรับ Dropdowns ---
-  const globalOptions = {
-    year: [{ label: "ปีการศึกษา 2566", value: "2566" }, { label: "ปีการศึกษา 2567", value: "2567" }],
-    term: [{ label: "เทอม 1", value: "1" }, { label: "เทอม 2", value: "2" }, { label: "ฤดูร้อน", value: "summer" }],
-    university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }, { label: "ม.เทคโนโลยีพระจอมเกล้าฯ", value: "kmutt" }, { label: "ม.เชียงใหม่", value: "cmu" }],
-    person: [
-      { label: "นักศึกษาทุกคน", value: "all" },
-      { label: "นายสมชาย (เดฟ)", value: "p1" },
-      { label: "น.ส.สมหญิง (เน็ตเวิร์ก)", value: "p2" },
-    ],
+  const [globalOptions, setGlobalOptions] = useState({
+    year: [{ label: "ทุกปีการศึกษา", value: "all" }, { label: "ปีการศึกษา 2566", value: "2566" }, { label: "ปีการศึกษา 2567", value: "2567" }, { label: "ปีการศึกษา 2568", value: "2568" }, { label: "ปีการศึกษา 2569", value: "2569" }],
+    term: [{ label: "ทุกเทอม", value: "all" }, { label: "เทอม 1", value: "1" }, { label: "เทอม 2", value: "2" }, { label: "ฤดูร้อน", value: "summer" }],
+    university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }],
+    person: [{ label: "นักศึกษาทุกคน", value: "all" }],
     timeRange: [
       { label: "วันนี้", value: "today" },
       { label: "สัปดาห์นี้", value: "week" },
@@ -57,13 +53,42 @@ const Dashboard = () => {
       { label: "ทั้งหมด", value: "all" },
       { label: "เลือกช่วงเวลาเอง...", value: "custom" },
     ],
-  };
+  });
 
   const cardOptions = {
     department: [{ label: "ทุกแผนก", value: "all" }, { label: "ฝ่ายบุคคล (HR)", value: "hr" }, { label: "ฝ่ายไอที (IT)", value: "it" }],
     staff: [{ label: "พี่เลี้ยงทุกคน", value: "all" }, { label: "พี่สมชาย", value: "s1" }, { label: "พี่วิชัย", value: "s2" }],
     workType: [{ label: "ทุกประเภทงาน", value: "all" }, { label: "Hardware", value: "hw" }, { label: "Network", value: "nw" }],
   };
+
+  // --- 🚀 Fetch Options ---
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [studentRes, filterRes] = await Promise.all([
+          api.get("/users/students"),
+          api.get("/tasks/workload-filters")
+        ]);
+
+        if (studentRes.data.success) {
+          setGlobalOptions(prev => ({
+            ...prev,
+            person: [{ label: "นักศึกษาทุกคน", value: "all" }, ...studentRes.data.data]
+          }));
+        }
+
+        if (filterRes.data.success) {
+          setGlobalOptions(prev => ({
+            ...prev,
+            university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }, ...filterRes.data.filters.universities]
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch dashboard options", err);
+      }
+    };
+    fetchOptions();
+  }, []);
 
   // --- 🚀 Fetch Data Functions ---
   const fetchDashboardData = async (filters) => {
@@ -170,7 +195,7 @@ const Dashboard = () => {
           <KPICards data={kpiData} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <WorkloadChart barData={workloadBarData} ganttData={workloadGanttData} filterOptions={cardOptions.staff} />
+            <WorkloadChart globalFilter={globalFilter} />
             <WorkTypeChart
               data={workTypeData}
               filter={cardFilter.workTypeDept}
