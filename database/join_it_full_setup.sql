@@ -30,6 +30,7 @@ CREATE TABLE `users` (
   `avatar_url` varchar(255) DEFAULT NULL,
   `university_name` varchar(255) DEFAULT NULL,
   `academic_year` varchar(50) DEFAULT NULL,
+  `term` varchar(255) DEFAULT NULL,
   `faculty` varchar(255) DEFAULT NULL,
   `role` varchar(50) DEFAULT 'user',
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
