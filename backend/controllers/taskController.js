@@ -496,12 +496,38 @@ exports.getWorkloadChartData = async (req, res) => {
 // --- 6.2 ดึงข้อมูลสำหรับ Local Filter ของ Workload ---
 exports.getWorkloadFilters = async (req, res) => {
     try {
+        const { academicYear, term, university } = req.query;
+
         const [workingList] = await joinPool.query('SELECT workingName as label, workingName as value FROM orderit.workinglist');
         const [problemList] = await joinPool.query('SELECT problemName as label, problemName as value FROM orderit.problemlist');
         const [device] = await joinPool.query('SELECT device_name as label, device_name as value FROM orderit.device');
         const [depart] = await joinPool.query('SELECT depart_name as label, depart_name as value FROM orderit.depart');
         const [staff] = await joinPool.query('SELECT username as value, CONCAT(fname, " ", lname) as label FROM orderit.admin');
-        const [universities] = await joinPool.query('SELECT DISTINCT university_name as label, university_name as value FROM join_it.users WHERE university_name IS NOT NULL AND university_name <> ""');
+
+        // Fetch Universities with User Counts filtered by year and term
+        let uniSql = `
+            SELECT university_name as label, university_name as value, COUNT(*) as user_count 
+            FROM join_it.users 
+            WHERE university_name IS NOT NULL AND university_name <> ""
+        `;
+        const uniParams = [];
+        if (academicYear && academicYear !== 'all') { uniSql += ` AND academic_year = ?`; uniParams.push(academicYear); }
+        if (term && term !== 'all') { uniSql += ` AND term = ?`; uniParams.push(term); }
+        uniSql += ` GROUP BY university_name ORDER BY user_count DESC`;
+        const [universities] = await joinPool.query(uniSql, uniParams);
+
+        // Fetch Students filtered by year, term, and university
+        let studentSql = `
+            SELECT full_name as label, id as value 
+            FROM join_it.users 
+            WHERE 1=1
+        `;
+        const studentParams = [];
+        if (academicYear && academicYear !== 'all') { studentSql += ` AND academic_year = ?`; studentParams.push(academicYear); }
+        if (term && term !== 'all') { studentSql += ` AND term = ?`; studentParams.push(term); }
+        if (university && university !== 'all') { studentSql += ` AND university_name = ?`; studentParams.push(university); }
+        studentSql += ` ORDER BY full_name ASC`;
+        const [students] = await joinPool.query(studentSql, studentParams);
 
         res.json({
             success: true,
@@ -511,7 +537,8 @@ exports.getWorkloadFilters = async (req, res) => {
                 device,
                 depart,
                 staff,
-                universities
+                universities,
+                students
             }
         });
     } catch (err) {
@@ -786,6 +813,82 @@ exports.getCollaborationData = async (req, res) => {
     } catch (err) {
         console.error("❌ Collab Chart Error:", err.message);
         res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟการร่วมงานล้มเหลว" });
+    }
+};
+
+// --- 6.6 ดึงข้อมูลสำหรับกราฟคีย์เวิร์ดการเรียนรู้ (Learning Keywords) ---
+exports.getLearningKeywordsData = async (req, res) => {
+    try {
+        const {
+            startDate,
+            endDate,
+            academicYear,
+            term,
+            university,
+            studentMode,
+            studentId
+        } = req.query;
+
+        let sql = `
+            SELECT 
+                r.problem as keyword,
+                COUNT(*) as count
+            FROM join_it.tasks t
+            JOIN join_it.users u ON t.intern_id = u.id
+            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            WHERE t.deleted_at IS NULL
+        `;
+
+        const params = [];
+
+        // Global Filters
+        if (academicYear && academicYear !== 'all') { sql += ` AND u.academic_year = ?`; params.push(academicYear); }
+        if (term && term !== 'all') { sql += ` AND u.term = ?`; params.push(term); }
+        if (university && university !== 'all') { sql += ` AND u.university_name = ?`; params.push(university); }
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        // Student Mode
+        if (studentMode === 'individual' && studentId && studentId !== 'all') {
+            sql += ` AND u.id = ?`;
+            params.push(studentId);
+        }
+
+        sql += ` GROUP BY r.problem ORDER BY count DESC LIMIT 10`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        // Clean labels: Remove "01.", "02." prefixes and split by " เช่น" to get concise keywords
+        const labels = rows.map(r => {
+            let k = r.keyword || 'ไม่ระบุ';
+            // Remove "01.", "02." etc.
+            k = k.replace(/^\d+\./, '').trim();
+            // Take only before " เช่น" or " ("
+            k = k.split(' เช่น')[0].split(' (')[0].trim();
+            return k;
+        });
+
+        const counts = rows.map(r => r.count);
+
+        res.json({
+            success: true,
+            chartData: {
+                labels,
+                datasets: [{
+                    label: 'จำนวนครั้ง',
+                    data: counts,
+                    backgroundColor: '#8b5cf6',
+                    borderRadius: 6
+                }]
+            }
+        });
+    } catch (err) {
+        console.error("❌ Keywords Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟคีย์เวิร์ดล้มเหลว" });
     }
 };
 

@@ -15,10 +15,19 @@ const Dashboard = () => {
   const toast = useRef(null);
   const [loading, setLoading] = useState(false);
 
+  // --- 🌟 Helpers ---
+  const getDefaultTerm = () => {
+    const month = new Date().getMonth() + 1; // 1-12
+    if (month >= 3 && month <= 5) return "ภาคฤดูร้อน";
+    if (month >= 6 && month <= 9) return "1";
+    if (month >= 10 || month <= 2) return "2";
+    return "1";
+  };
+
   // --- 🌟 Global Filters State ---
   const [globalFilter, setGlobalFilter] = useState({
     year: "2569",
-    term: "1",
+    term: getDefaultTerm(),
     university: "all",
     person: "all",
     timeRange: "today",
@@ -61,42 +70,53 @@ const Dashboard = () => {
     workType: [{ label: "ทุกประเภทงาน", value: "all" }, { label: "Hardware", value: "hw" }, { label: "Network", value: "nw" }],
   };
 
-  // --- 🚀 Fetch Options ---
-  useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const [studentRes, filterRes] = await Promise.all([
-          api.get("/users/students"),
-          api.get("/tasks/workload-filters")
-        ]);
+  // --- 🚀 Fetch Options (Cascading) ---
+  const prevYearTerm = useRef({ year: globalFilter.year, term: globalFilter.term });
 
-        if (studentRes.data.success) {
-          setGlobalOptions(prev => ({
-            ...prev,
-            person: [{ label: "นักศึกษาทุกคน", value: "all" }, ...studentRes.data.data]
-          }));
+  const fetchCascadingOptions = async (filters) => {
+    try {
+      const response = await api.get("/tasks/workload-filters", {
+        params: {
+          academicYear: filters.year,
+          term: filters.term,
+          university: filters.university
+        }
+      });
+
+      if (response.data.success) {
+        const { universities, students } = response.data.filters;
+        
+        setGlobalOptions(prev => ({
+          ...prev,
+          university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }, ...universities],
+          person: [{ label: "นักศึกษาทุกคน", value: "all" }, ...students]
+        }));
+
+        // Auto-select top university ONLY if year or term changed, or if current selection is invalid
+        const yearTermChanged = prevYearTerm.current.year !== filters.year || prevYearTerm.current.term !== filters.term;
+        
+        if (yearTermChanged && universities.length > 0) {
+          setGlobalFilter(prev => ({ ...prev, university: universities[0].value }));
+        } else if (filters.university !== "all" && !universities.find(u => u.value === filters.university)) {
+          // If current uni is not in the new list, reset to 'all' or top
+          setGlobalFilter(prev => ({ ...prev, university: universities.length > 0 ? universities[0].value : "all" }));
         }
 
-        if (filterRes.data.success) {
-          const universities = filterRes.data.filters.universities;
-          setGlobalOptions(prev => ({
-            ...prev,
-            university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }, ...universities]
-          }));
-
-          // Set default university to the first one available in the list
-          if (universities && universities.length > 0) {
-            setGlobalFilter(prev => ({
-              ...prev,
-              university: universities[0].value
-            }));
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch dashboard options", err);
+        prevYearTerm.current = { year: filters.year, term: filters.term };
       }
-    };
-    fetchOptions();
+    } catch (err) {
+      console.error("Failed to fetch cascading options", err);
+    }
+  };
+
+  // Trigger cascading fetch when dependencies change
+  useEffect(() => {
+    fetchCascadingOptions(globalFilter);
+  }, [globalFilter.year, globalFilter.term, globalFilter.university]);
+
+  // --- Initial Data Fetch ---
+  useEffect(() => {
+    fetchDashboardData(globalFilter);
   }, []);
 
   // --- 🚀 Fetch Data Functions ---
@@ -212,7 +232,7 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <CollaborationChart globalFilter={globalFilter} />
-            <LearningKeywordsChart data={keywordData} />
+            <LearningKeywordsChart globalFilter={globalFilter} />
           </div>
         </div>
       </div>

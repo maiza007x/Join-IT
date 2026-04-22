@@ -15,7 +15,7 @@ const DashboardFilter = ({ filters, options, onChange, onApply, loading }) => {
           <p className="text-xs font-medium text-slate-500 m-0">แดชบอร์ดสรุปผลการปฏิบัติงาน</p>
         </div>
       </div>
-      
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm ">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 m-0">
@@ -42,14 +42,6 @@ const DashboardFilter = ({ filters, options, onChange, onApply, loading }) => {
                 className="grow h-10"
                 inputClassName="text-sm border-slate-200 bg-white hover:border-indigo-300 focus:border-indigo-500 rounded-lg transition-colors"
               />
-              {filters.year !== "all" && (
-                <button
-                  onClick={() => onChange("year", "all")}
-                  className="px-3 h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-semibold transition-colors"
-                >
-                  ทั้งหมด
-                </button>
-              )}
             </div>
           </div>
 

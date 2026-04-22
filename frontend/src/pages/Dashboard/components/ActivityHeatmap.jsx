@@ -90,7 +90,7 @@ const ActivityHeatmap = ({ globalFilter }) => {
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/30">
         <div className="flex items-center gap-4">
-          <h3 className="text-base font-bold text-slate-800 m-0">ความหนาแน่นของงานที่เกิดขึ้น</h3>
+          <h3 className="text-base font-bold text-slate-800 m-0">ความหนาแน่นของงานที่เกิดขึ้นของเจ้าหน้าที่</h3>
           <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-500 border-l border-slate-200 pl-4">
             <span>น้อย</span>
             <div className="flex gap-0.5">
