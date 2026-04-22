@@ -1,475 +1,243 @@
-import { useEffect, useState, useRef } from "react";
-import api from '../services/api';
-import { Button } from "primereact/button";
-import { Tag } from 'primereact/tag';
-import { Toast } from 'primereact/toast';
-import { Chart } from 'primereact/chart';
-import { Dropdown } from 'primereact/dropdown';
-import socket from '../services/socket';
+import React, { useState, useRef, useEffect } from "react";
+import { Toast } from "primereact/toast";
+
+// Components
+import DashboardFilter from "./Dashboard/components/DashboardFilter";
+import KPICards from "./Dashboard/components/KPICards";
+import WorkloadChart from "./Dashboard/components/WorkloadChart";
+import WorkTypeChart from "./Dashboard/components/WorkTypeChart";
+import ActivityHeatmap from "./Dashboard/components/ActivityHeatmap";
+import CollaborationChart from "./Dashboard/components/CollaborationChart";
+import LearningKeywordsChart from "./Dashboard/components/LearningKeywordsChart";
+import api from "../services/api";
 
 const Dashboard = () => {
-    const [tasks, setTasks] = useState([]);
-    const [analytics, setAnalytics] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [ranges, setRanges] = useState({
-        person: 'today',
-        hour: 'today',
-        rating: 'today',
-        sla: 'today',
-        category: 'today'
-    });
-    const toast = useRef(null);
+  const toast = useRef(null);
+  const [loading, setLoading] = useState(false);
 
-    const rangeOptions = [
-        { label: 'วันนี้', value: 'today' },
-        { label: 'สัปดาห์นี้', value: 'week' },
-        { label: 'เดือนนี้', value: 'month' },
-        { label: 'ปีนี้', value: 'year' }
-    ];
+  // --- 🌟 Helpers ---
+  const getDefaultTerm = () => {
+    const month = new Date().getMonth() + 1; // 1-12
+    if (month >= 3 && month <= 5) return "ภาคฤดูร้อน";
+    if (month >= 6 && month <= 9) return "1";
+    if (month >= 10 || month <= 2) return "2";
+    return "1";
+  };
 
-    const fetchChartData = async (type, range) => {
-        try {
-            const response = await api.get(`/tasks/analytics-stats?type=${type}&range=${range}`);
-            const newData = response.data.data;
-            setAnalytics(prev => ({ ...prev, ...newData }));
-        } catch (err) {
-            console.error(`Error fetching ${type} stats:`, err);
+  // --- 🌟 Global Filters State ---
+  const [globalFilter, setGlobalFilter] = useState({
+    year: "2569",
+    term: getDefaultTerm(),
+    university: "all",
+    person: "all",
+    timeRange: "today",
+    customDates: null,
+  });
+
+  // --- 📊 Charts Data State ---
+  const [kpiData, setKpiData] = useState({ totalTasks: 0, joinTasks: 0, selfTasks: 0, topSkill: "-" });
+  const [workloadBarData, setWorkloadBarData] = useState({ labels: [], datasets: [] });
+  const [workloadGanttData, setWorkloadGanttData] = useState([]);
+  const [workTypeData, setWorkTypeData] = useState({ labels: [], datasets: [] });
+  const [heatmapData, setHeatmapData] = useState([]);
+  const [collabData, setCollabData] = useState({ labels: [], datasets: [] });
+  const [keywordData, setKeywordData] = useState({ labels: [], datasets: [] });
+
+  // --- 🔍 Card-level Filters State ---
+  const [cardFilter, setCardFilter] = useState({
+    workTypeDept: "all",
+    heatmapStaff: "all",
+    collabType: "all",
+  });
+
+  const [globalOptions, setGlobalOptions] = useState({
+    year: [{ label: "ทุกปีการศึกษา", value: "all" }, { label: "ปีการศึกษา 2566", value: "2566" }, { label: "ปีการศึกษา 2567", value: "2567" }, { label: "ปีการศึกษา 2568", value: "2568" }, { label: "ปีการศึกษา 2569", value: "2569" }],
+    term: [{ label: "ทุกเทอม", value: "all" }, { label: "เทอม 1", value: "1" }, { label: "เทอม 2", value: "2" }, { label: "ภาคฤดูร้อน", value: "ภาคฤดูร้อน" }],
+    university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }],
+    person: [{ label: "นักศึกษาทุกคน", value: "all" }],
+    timeRange: [
+      { label: "วันนี้", value: "today" },
+      { label: "สัปดาห์นี้", value: "week" },
+      { label: "เดือนนี้", value: "month" },
+      { label: "ทั้งหมด", value: "all" },
+      { label: "เลือกช่วงเวลาเอง...", value: "custom" },
+    ],
+  });
+
+  const cardOptions = {
+    department: [{ label: "ทุกแผนก", value: "all" }, { label: "ฝ่ายบุคคล (HR)", value: "hr" }, { label: "ฝ่ายไอที (IT)", value: "it" }],
+    staff: [{ label: "พี่เลี้ยงทุกคน", value: "all" }, { label: "พี่สมชาย", value: "s1" }, { label: "พี่วิชัย", value: "s2" }],
+    workType: [{ label: "ทุกประเภทงาน", value: "all" }, { label: "Hardware", value: "hw" }, { label: "Network", value: "nw" }],
+  };
+
+  // --- 🚀 Fetch Options (Cascading) ---
+  const prevYearTerm = useRef({ year: globalFilter.year, term: globalFilter.term });
+
+  const fetchCascadingOptions = async (filters) => {
+    try {
+      const response = await api.get("/tasks/workload-filters", {
+        params: {
+          academicYear: filters.year,
+          term: filters.term,
+          university: filters.university
         }
-    };
+      });
 
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const [tasksRes, statsRes] = await Promise.all([
-                api.get(`/tasks/tasks_collab`),
-                api.get(`/tasks/analytics-stats`)
-            ]);
-            setTasks(tasksRes.data.tasks || []);
-            setAnalytics(statsRes.data.data);
-        } catch (err) {
-            console.error("Error fetching dashboard data:", err);
-            toast.current?.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถโหลดข้อมูลแดชบอร์ดได้' });
-        } finally {
-            setLoading(false);
+      if (response.data.success) {
+        const { universities, students } = response.data.filters;
+        
+        setGlobalOptions(prev => ({
+          ...prev,
+          university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }, ...universities],
+          person: [{ label: "นักศึกษาทุกคน", value: "all" }, ...students]
+        }));
+
+        // Auto-select top university ONLY if year or term changed, or if current selection is invalid
+        const yearTermChanged = prevYearTerm.current.year !== filters.year || prevYearTerm.current.term !== filters.term;
+        
+        if (yearTermChanged && universities.length > 0) {
+          setGlobalFilter(prev => ({ ...prev, university: universities[0].value }));
+        } else if (filters.university !== "all" && !universities.find(u => u.value === filters.university)) {
+          // If current uni is not in the new list, reset to 'all' or top
+          setGlobalFilter(prev => ({ ...prev, university: universities.length > 0 ? universities[0].value : "all" }));
         }
-    };
 
-    useEffect(() => {
-        fetchData();
+        prevYearTerm.current = { year: filters.year, term: filters.term };
+      }
+    } catch (err) {
+      console.error("Failed to fetch cascading options", err);
+    }
+  };
 
-        // ฟัง Socket เพื่อรีเฟรชข้อมูลอัตโนมัติเมื่อมีงานใหม่
-        socket.on("new-task", () => {
-            console.log("🔄 [Dashboard]: Re-fetching analytics due to new task...");
-            fetchData();
-        });
+  // Trigger cascading fetch when dependencies change
+  useEffect(() => {
+    fetchCascadingOptions(globalFilter);
+  }, [globalFilter.year, globalFilter.term, globalFilter.university]);
 
-        return () => {
-            socket.off("new-task");
-        };
-    }, []);
+  // --- Initial Data Fetch ---
+  useEffect(() => {
+    fetchDashboardData(globalFilter);
+  }, []);
 
-    const myContributedTasks = tasks.filter(t => t.isContributedByMe).length;
-    const pendingHelpTasks = tasks.filter(t => !t.interns || t.interns.length === 0).length;
-    const completedTasks = analytics?.slaStats?.within_sla + analytics?.slaStats?.over_sla || 0;
+  // --- 🚀 Fetch Data Functions ---
+  const fetchDashboardData = async (filters) => {
+    setLoading(true);
+    try {
+      // TODO: Replace with real API call
+      // const response = await api.get('/dashboard', { params: filters });
+      // const data = response.data;
 
-    // --- Chart Data Formatting ---
+      // Simulated API Response Delay
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-    // 1. Reception Summary (Bar Chart)
-    const personChartData = {
-        labels: analytics?.personStats?.map(p => p.name) || [],
+      // Mock Data Update
+      setKpiData({ totalTasks: 45, joinTasks: 32, selfTasks: 13, topSkill: "Network" });
+
+      setWorkloadBarData({
+        labels: ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์"],
         datasets: [
-            {
-                label: 'จำนวนการรับงาน',
-                backgroundColor: '#3b82f6',
-                borderRadius: 12,
-                hoverBackgroundColor: '#2563eb',
-                data: analytics?.personStats?.map(p => p.count) || []
-            }
-        ]
-    };
+          { type: "bar", label: "งานที่ช่วยพี่ (Join)", backgroundColor: "#38bdf8", borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 4, bottomRight: 4 }, data: [6, 5, 8, 4, 9] },
+          { type: "bar", label: "งานที่ทำเอง (Self)", backgroundColor: "#fb7185", borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 }, data: [2, 4, 1, 5, 1] },
+        ],
+      });
 
-    // 2. Daily Trend (Line Chart)
-    const hourChartData = {
-        labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+      setWorkloadGanttData([
+        { id: 1, day: "จันทร์", title: "ซ่อม Printer", type: "join", start: 8.5, duration: 1.5 },
+        { id: 2, day: "จันทร์", title: "เดินสาย LAN", type: "self", start: 13.0, duration: 3.0 },
+        { id: 3, day: "อังคาร", title: "Config Router", type: "join", start: 9.0, duration: 2.0 },
+        { id: 4, day: "พุธ", title: "Support User", type: "join", start: 10.0, duration: 2.5 },
+        { id: 5, day: "พฤหัสบดี", title: "Meeting", type: "join", start: 13.5, duration: 1.5 },
+        { id: 6, day: "ศุกร์", title: "เช็คกล้องวงจรปิด", type: "self", start: 9.5, duration: 2.0 },
+      ]);
+
+      setWorkTypeData({
+        labels: ["Hardware", "Software", "Network", "Document"],
+        datasets: [{ data: [40, 30, 20, 10], backgroundColor: ["#38bdf8", "#fb7185", "#a78bfa", "#fbbf24"], hoverOffset: 4, borderWidth: 2, borderColor: "#ffffff", cutout: "70%" }],
+      });
+
+      setHeatmapData([
+        [0, 2, 4, 5, 1, 0, 3, 2, 1], [1, 3, 2, 1, 0, 4, 6, 3, 0], [0, 5, 3, 2, 2, 1, 2, 4, 1], [2, 1, 1, 3, 0, 5, 4, 2, 2], [1, 4, 6, 3, 1, 2, 1, 1, 0]
+      ]);
+
+      setCollabData({
+        labels: ["พี่สมชาย", "พี่สมหญิง", "พี่วิชัย"],
+        datasets: [{ label: "จำนวนงาน", backgroundColor: ["#6366f1", "#818cf8", "#a5b4fc"], borderRadius: 4, barPercentage: 0.6, data: [18, 10, 4] }],
+      });
+
+      setKeywordData({
+        labels: ["เปลี่ยน RAM", "Config LAN", "Printer Setup", "ซ่อม UPS", "ลง Windows", "Active Directory"],
         datasets: [
-            {
-                label: 'ปริมาณงาน',
-                data: Array.from({ length: 24 }, (_, i) => {
-                    const found = analytics?.hourStats?.find(h => h.hour === i);
-                    return found ? found.count : 0;
-                }),
-                fill: true,
-                borderColor: '#06b6d4',
-                tension: 0.5,
-                backgroundColor: 'rgba(6, 182, 212, 0.15)',
-                pointBackgroundColor: '#fff',
-                pointBorderColor: '#06b6d4',
-                pointBorderWidth: 3,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }
-        ]
-    };
+          {
+            label: "จำนวนครั้งที่บันทึก",
+            data: [28, 22, 18, 15, 12, 8],
+            backgroundColor: ["#a78bfa", "#38bdf8", "#fbbf24", "#e879f9", "#fb7185", "#34d399"],
+            hoverBackgroundColor: ["#8b5cf6", "#0ea5e9", "#f59e0b", "#d946ef", "#f43f5e", "#10b981"],
+            borderRadius: 8,
+            borderSkipped: false,
+            barPercentage: 0.6,
+          },
+        ],
+      });
 
-    // 3. Satisfaction Summary (Horizontal Bar)
-    const satisfactionChartData = {
-        labels: ['ความรวดเร็ว', 'การแก้ปัญหา', 'การให้บริการ'],
-        datasets: [
-            {
-                label: 'คะแนนเฉลี่ย',
-                backgroundColor: ['#60a5fa', '#34d399', '#f472b6'],
-                borderRadius: 10,
-                data: [
-                    analytics?.ratingStats?.speed || 0,
-                    analytics?.ratingStats?.problem || 0,
-                    analytics?.ratingStats?.service || 0
-                ]
-            }
-        ]
-    };
+      toast.current?.show({ severity: "success", summary: "Data Updated", detail: "ข้อมูลแดชบอร์ดอัปเดตเรียบร้อยแล้ว" });
+    } catch (error) {
+      toast.current?.show({ severity: "error", summary: "Error", detail: "ไม่สามารถโหลดข้อมูลได้" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // 4. SLA % (Pie Chart)
-    const slaChartData = {
-        labels: ['ในเวลา', 'เกินเวลา'],
-        datasets: [
-            {
-                data: [analytics?.slaStats?.within_sla || 0, analytics?.slaStats?.over_sla || 0],
-                backgroundColor: ['#10b981', '#f43f5e'],
-                hoverOffset: 15,
-                borderWidth: 0
-            }
-        ]
-    };
+  // --- Initial Load ---
+  useEffect(() => {
+    fetchDashboardData(globalFilter);
+  }, []);
 
-    // 5. Problem Category (Doughnut Chart)
-    const categoryChartData = {
-        labels: analytics?.categoryStats?.map(c => c.category?.length > 25 ? c.category?.substring(0, 25) + '...' : c.category) || [],
-        datasets: [
-            {
-                data: analytics?.categoryStats?.map(c => c.count) || [],
-                backgroundColor: ['#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4'],
-                hoverOffset: 15,
-                borderWidth: 4,
-                borderColor: '#ffffff',
-                cutout: '75%'
-            }
-        ]
-    };
+  // --- Handlers ---
+  const handleFilterChange = (key, value) => {
+    setGlobalFilter(prev => ({ ...prev, [key]: value }));
+  };
 
-    const chartOptions = {
-        plugins: {
-            legend: {
-                labels: { color: '#475569', font: { size: 12, weight: '600' } },
-                position: 'bottom'
-            }
-        },
-        scales: {
-            x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-            y: { grid: { color: '#f1f5f9', borderDash: [5, 5] }, ticks: { color: '#94a3b8', font: { size: 10 } } }
-        },
-        maintainAspectRatio: false,
-        animation: { duration: 2000, easing: 'easeOutQuart' }
-    };
+  const handleCardFilterChange = (key, value) => {
+    setCardFilter(prev => ({ ...prev, [key]: value }));
+    // Ideally fetch specific chart data here or filter locally
+    console.log(`Filtering ${key} by ${value}`);
+  };
 
-    const pieOptions = {
-        plugins: {
-            legend: {
-                labels: { color: '#475569', font: { size: 12, weight: '600' } },
-                position: 'bottom'
-            }
-        },
-        maintainAspectRatio: false,
-        animation: { animateRotate: true, animateScale: true, duration: 2000 }
-    };
+  return (
+    <div className="bg-slate-50 min-h-screen font-sans text-slate-800 pb-12">
+      <Toast ref={toast} />
 
-    const categoryPieOptions = {
-        plugins: {
-            legend: {
-                labels: { 
-                    color: '#475569', 
-                    font: { size: 12, weight: '700' },
-                    padding: 15,
-                    usePointStyle: true,
-                    pointStyle: 'circle'
-                },
-                position: 'right',
-                align: 'center'
-            },
-            tooltip: {
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                titleColor: '#1e293b',
-                bodyColor: '#475569',
-                borderColor: '#e2e8f0',
-                borderWidth: 1,
-                padding: 12,
-                boxPadding: 8,
-                usePointStyle: true
-            }
-        },
-        maintainAspectRatio: false,
-        layout: { padding: { left: 20, right: 20, top: 20, bottom: 20 } },
-        animation: { animateRotate: true, animateScale: true, duration: 2500, easing: 'easeOutQuart' }
-    };
-
-    return (
-        <div className="bg-[#f8fafc] min-h-screen font-sans text-slate-700 relative overflow-hidden pb-12">
-            {/* Background Decorations */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100/40 rounded-full blur-[120px] pointer-events-none"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-indigo-100/30 rounded-full blur-[100px] pointer-events-none"></div>
-            
-            <Toast ref={toast} />
-
-            <div className="max-w-[1440px] mx-auto px-4 md:px-10 relative z-10">
-                {/* Header Section */}
-                <div className="py-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                        <div className="w-16 h-16 bg-blue-600 rounded-[1.5rem] shadow-[0_20px_40px_rgba(37,99,235,0.3)] flex items-center justify-center transform hover:rotate-6 transition-transform">
-                            <i className="pi pi-chart-line text-3xl text-white"></i>
-                        </div>
-                        <div>
-                            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight m-0">ระบบวิเคราะห์ข้อมูล</h1>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 anim-pulse"></span>
-                                <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Analytics Operation Center • Live Data</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <Button
-                        label="อัปเดตข้อมูลภาพรวม"
-                        icon="pi pi-sync"
-                        className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl px-8 py-4 font-black transition-all shadow-sm hover:shadow-md active:scale-95"
-                        onClick={() => {
-                            fetchData();
-                            setRanges({ person: 'today', hour: 'today', rating: 'today', sla: 'today', category: 'today' });
-                        }}
-                        loading={loading}
-                    />
-                </div>
-
-                {/* Top Statistics Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                    {[
-                        { label: 'งานแจ้งซ่อมวันนี้', value: tasks.length, icon: 'pi-briefcase', color: 'blue' },
-                        { label: 'งานที่คุณรับผิดชอบ', value: myContributedTasks, icon: 'pi-user-edit', color: 'indigo' },
-                        { label: 'รอความช่วยเหลือ', value: pendingHelpTasks, icon: 'pi-exclamation-circle', color: 'amber' },
-                        { label: 'ตามเกณฑ์ SLA', value: completedTasks, icon: 'pi-verified', color: 'emerald' }
-                    ].map((stat, i) => (
-                        <div key={i} className="premium-card p-1">
-                            <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-8 h-full border border-white transition-all group hover:bg-white">
-                                <div className="flex items-center justify-between mb-6">
-                                    <div className={`p-4 bg-${stat.color}-50 rounded-2xl`}>
-                                        <i className={`pi ${stat.icon} text-2xl text-${stat.color}-500 group-hover:scale-110 transition-transform`} />
-                                    </div>
-                                    <div className="h-1 w-12 bg-slate-100 rounded-full overflow-hidden">
-                                        <div className={`h-full bg-${stat.color}-400 w-2/3`}></div>
-                                    </div>
-                                </div>
-                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
-                                <h2 className="text-4xl font-black text-slate-900 mt-1 tracking-tighter">{stat.value}</h2>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-                    
-                    {/* 1. สรุปยอดการรับงาน */}
-                    <div className="lg:col-span-4 glass-card p-1">
-                        <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] p-8 h-full flex flex-col">
-                            <div className="flex justify-between items-center mb-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
-                                    <h3 className="text-xl font-black text-slate-900 m-0">ผู้รับงาน</h3>
-                                </div>
-                                <Dropdown 
-                                    value={ranges.person} options={rangeOptions} 
-                                    onChange={(e) => { setRanges(prev => ({ ...prev, person: e.value })); fetchChartData('person', e.value); }} 
-                                    className="minimal-dropdown"
-                                />
-                            </div>
-                            <div className="flex-grow min-h-[250px]">
-                                <Chart type="bar" data={personChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 2. แนวโน้มงานรายชั่วโมง */}
-                    <div className="lg:col-span-8 glass-card p-1">
-                        <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] p-8 h-full flex flex-col">
-                            <div className="flex justify-between items-center mb-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-1.5 h-6 bg-cyan-500 rounded-full"></div>
-                                    <h3 className="text-xl font-black text-slate-900 m-0">แนวโน้มช่วงเวลาที่มีงานมาก</h3>
-                                </div>
-                                <Dropdown 
-                                    value={ranges.hour} options={rangeOptions} 
-                                    onChange={(e) => { setRanges(prev => ({ ...prev, hour: e.value })); fetchChartData('hour', e.value); }} 
-                                    className="minimal-dropdown"
-                                />
-                            </div>
-                            <div className="flex-grow min-h-[250px]">
-                                <Chart type="line" data={hourChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 3. สรุปความพึงพอใจ */}
-                    <div className="lg:col-span-4 glass-card p-1">
-                        <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] p-8 h-full flex flex-col">
-                            <div className="flex justify-between items-center mb-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-1.5 h-6 bg-pink-500 rounded-full"></div>
-                                    <h3 className="text-xl font-black text-slate-900 m-0">ความพึงพอใจ</h3>
-                                </div>
-                                <Dropdown 
-                                    value={ranges.rating} options={rangeOptions} 
-                                    onChange={(e) => { setRanges(prev => ({ ...prev, rating: e.value })); fetchChartData('rating', e.value); }} 
-                                    className="minimal-dropdown"
-                                />
-                            </div>
-                            <div className="flex-grow min-h-[250px]">
-                                <Chart type="bar" data={satisfactionChartData} options={{ ...chartOptions, indexAxis: 'y' }} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 4. SLA Metrics */}
-                    <div className="lg:col-span-4 glass-card p-1">
-                        <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] p-8 h-full flex flex-col">
-                            <div className="flex justify-between items-center mb-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
-                                    <h3 className="text-xl font-black text-slate-900 m-0">SLA Accuracy</h3>
-                                </div>
-                                <Dropdown 
-                                    value={ranges.sla} options={rangeOptions} 
-                                    onChange={(e) => { setRanges(prev => ({ ...prev, sla: e.value })); fetchChartData('sla', e.value); }} 
-                                    className="minimal-dropdown"
-                                />
-                            </div>
-                            <div className="flex-grow min-h-[250px] flex items-center justify-center">
-                                <Chart type="pie" data={slaChartData} options={pieOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 5. Problem Categories */}
-                    <div className="lg:col-span-12 glass-card p-1">
-                        <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] p-8 h-full flex flex-col">
-                            <div className="flex justify-between items-center mb-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
-                                    <h3 className="text-xl font-black text-slate-900 m-0">วิเคราะห์ประเภทปัญหา</h3>
-                                </div>
-                                <Dropdown 
-                                    value={ranges.category} options={rangeOptions} 
-                                    onChange={(e) => { setRanges(prev => ({ ...prev, category: e.value })); fetchChartData('category', e.value); }} 
-                                    className="minimal-dropdown"
-                                />
-                            </div>
-                            <div className="flex-grow min-h-[480px] flex items-center justify-center relative">
-                                <Chart type="doughnut" data={categoryChartData} options={categoryPieOptions} />
-                                <div className="absolute top-1/2 left-[31%] -translate-y-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">หมวดหมู่ทั้งหมด</span>
-                                    <span className="text-5xl font-black text-slate-900 leading-none drop-shadow-sm">{analytics?.categoryStats?.length || 0}</span>
-                                    <div className="w-10 h-1 bg-blue-500 rounded-full mt-4"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 6. Recent Tasks List */}
-                    <div className="lg:col-span-12 glass-card p-1">
-                        <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] p-10 h-full flex flex-col">
-                            <div className="flex items-center justify-between mb-10">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-4 bg-blue-50 rounded-2xl">
-                                        <i className="pi pi-list text-blue-600 text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-2xl font-black text-slate-900 m-0">บันทึกภารกิจตามเวลาจริง</h3>
-                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Live Activity Stream</p>
-                                    </div>
-                                </div>
-                                <Button label="ดูข้อมูลเชิงลึกทั้งหมด" icon="pi pi-arrow-right" iconPos="right" className="p-button-outlined border-slate-200 text-slate-600 font-black rounded-2xl px-6" />
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {tasks.slice(0, 3).map((task, idx) => (
-                                    <div key={idx} className="group relative bg-slate-50/50 rounded-[2rem] p-8 border border-transparent hover:border-blue-200 hover:bg-white hover:shadow-2xl transition-all duration-500">
-                                        <div className="flex justify-between items-start mb-6">
-                                            <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center group-hover:rotate-6 transition-transform">
-                                                <i className="pi pi-file-edit text-blue-500 text-xl" />
-                                            </div>
-                                            <Tag 
-                                                value={task.interns?.length > 0 ? "ASSISTED" : "PENDING"} 
-                                                className={`font-black text-[9px] px-4 py-1.5 rounded-full ${task.interns?.length > 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}
-                                            />
-                                        </div>
-                                        <h4 className="font-black text-slate-800 text-lg m-0 line-clamp-1 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{task.deviceName}</h4>
-                                        <p className="text-slate-400 text-sm mt-3 line-clamp-2 leading-relaxed h-10 font-medium">{task.report}</p>
-                                        
-                                        <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <i className="pi pi-building text-blue-400 text-xs"></i>
-                                                <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">{task.department}</span>
-                                            </div>
-                                            <div className="px-3 py-1 bg-blue-50 rounded-lg">
-                                                <span className="text-blue-600 font-black text-[10px] tracking-widest">{task.time_report?.substring(0, 5)} น.</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            <style dangerouslySetInnerHTML={{ __html: `
-                .premium-card:hover {
-                    box-shadow: 0 40px 80px -20px rgba(59, 130, 246, 0.15);
-                    transform: translateY(-8px);
-                }
-                .glass-card:hover {
-                    box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.05);
-                    transform: translateY(-5px);
-                }
-                .premium-card, .glass-card {
-                    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                .minimal-dropdown {
-                    width: 140px;
-                    border: 1px solid #f1f5f9;
-                    background: #f8fafc;
-                    border-radius: 1rem;
-                    font-size: 11px;
-                    font-weight: 800;
-                    height: 40px;
-                    align-items: center;
-                }
-                .minimal-dropdown .p-dropdown-label {
-                    padding: 0 1rem;
-                }
-                .p-dropdown:not(.p-disabled).p-focus {
-                    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #dbeafe;
-                    border-color: #3b82f6;
-                }
-                @keyframes pulse {
-                    0%, 100% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.1); opacity: 0.5; }
-                }
-                .anim-pulse {
-                    animation: pulse 2s ease-in-out infinite;
-                }
-                .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-                .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-            `}} />
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 pt-6 flex flex-col xl:flex-row gap-6">
+        {/* Sidebar Filter */}
+        <div className="w-full xl:w-72 shrink-0">
+          <DashboardFilter
+            filters={globalFilter}
+            options={globalOptions}
+            onChange={handleFilterChange}
+            onApply={() => fetchDashboardData(globalFilter)}
+            loading={loading}
+          />
         </div>
-    );
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0 flex flex-col gap-6">
+          <KPICards data={kpiData} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <WorkloadChart globalFilter={globalFilter} />
+            <WorkTypeChart globalFilter={globalFilter} />
+          </div>
+
+          <ActivityHeatmap globalFilter={globalFilter} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CollaborationChart globalFilter={globalFilter} />
+            <LearningKeywordsChart globalFilter={globalFilter} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Dashboard;

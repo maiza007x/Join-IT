@@ -55,8 +55,8 @@ exports.getTasksCollab = async (req, res) => {
             isContributedByMe: !!task.isContributedByMe
         }));
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             tasks: formattedStaffTasks,
             internTasks: internRows
         });
@@ -118,8 +118,8 @@ exports.getMyTasks = async (req, res) => {
         internSql += ` ORDER BY i.id DESC`;
         const [internRows] = await joinPool.query(internSql, internParams);
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             tasks: staffRows,
             internTasks: internRows
         });
@@ -289,6 +289,606 @@ exports.getAnalyticsStats = async (req, res) => {
     } catch (err) {
         console.error("❌ Analytics Stats Error:", err.message);
         res.status(500).json({ success: false, message: "ดึงข้อมูลสถิติล้มเหลว" });
+    }
+};
+
+// --- 6.1 ดึงข้อมูลสำหรับกราฟ Workload (Gantt & Bar) ---
+exports.getWorkloadChartData = async (req, res) => {
+    try {
+        const {
+            studentMode, // 'all', 'individual'
+            studentId,
+            academicYear,
+            term,
+            university,
+            startDate,
+            endDate,
+            groupingCategory, // 'workingList', 'problemList', 'device', 'depart', 'staff'
+            // Specific filters
+            workingList,
+            problemList,
+            device,
+            depart,
+            staff,
+            view,
+            timeRange
+        } = req.query;
+
+        // Map groupingCategory to column name
+        const categoryMap = {
+            workingList: 'r.device',
+            problemList: 'r.problem',
+            device: 'r.deviceName',
+            depart: 'd.depart_name',
+            staff: 'r.username'
+        };
+
+        const groupColumn = categoryMap[groupingCategory] || 'r.work_type';
+
+        let sql = `
+            SELECT 
+                u.full_name as student_name,
+                r.date_report,
+                r.time_report,
+                r.close_date as end_time,
+                r.report as title,
+                r.id as task_id,
+                ${groupColumn} as category_val,
+                DAYNAME(r.date_report) as day_en,
+                CONCAT(
+                    CASE DAYNAME(r.date_report)
+                        WHEN 'Monday' THEN 'จันทร์'
+                        WHEN 'Tuesday' THEN 'อังคาร'
+                        WHEN 'Wednesday' THEN 'พุธ'
+                        WHEN 'Thursday' THEN 'พฤหัสบดี'
+                        WHEN 'Friday' THEN 'ศุกร์'
+                        WHEN 'Saturday' THEN 'เสาร์'
+                        WHEN 'Sunday' THEN 'อาทิตย์'
+                    END,
+                    ' (', DAY(r.date_report), ')'
+                ) as day_th_with_date
+            FROM join_it.tasks t
+            JOIN join_it.users u ON t.intern_id = u.id
+            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            JOIN orderit.depart d ON r.department = d.depart_id
+            WHERE t.deleted_at IS NULL
+        `;
+
+        const params = [];
+
+        // Global Filters
+        if (academicYear && academicYear !== 'all') { sql += ` AND u.academic_year = ?`; params.push(academicYear); }
+        if (term && term !== 'all') { sql += ` AND u.term = ?`; params.push(term); }
+        if (university && university !== 'all') { sql += ` AND u.university_name = ?`; params.push(university); }
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        // Student Mode
+        if (studentMode === 'individual' && studentId && studentId !== 'all') {
+            sql += ` AND u.id = ?`;
+            params.push(studentId);
+        }
+
+        // Local Filters (Legends)
+        if (workingList && workingList !== 'all') { sql += ` AND r.work_type = ?`; params.push(workingList); }
+        if (problemList && problemList !== 'all') { sql += ` AND r.problem = ?`; params.push(problemList); }
+        if (device && device !== 'all') { sql += ` AND r.device = ?`; params.push(device); }
+        if (depart && depart !== 'all') { sql += ` AND r.department = ?`; params.push(depart); }
+        if (staff && staff !== 'all') { sql += ` AND r.username = ?`; params.push(staff); }
+
+        sql += ` ORDER BY r.date_report ASC, r.time_report ASC`;
+
+        // console.log("🔍 Workload SQL:", sql);
+        // console.log("📦 Params:", params);
+
+        const [rows] = await joinPool.query(sql, params);
+        // console.log("✅ Query Result Count:", rows.length);
+
+        // Transform data for Gantt
+        const ganttData = rows.map(row => {
+            const startTimeStr = row.time_report.toString(); // HH:mm:ss
+            const endTimeStr = row.end_time ? row.end_time.toString() : null;
+
+            const getDecimalHour = (timeStr) => {
+                if (!timeStr) return null;
+                const [h, m] = timeStr.split(':').map(Number);
+                return h + (m / 60);
+            };
+
+            const start = getDecimalHour(startTimeStr);
+            let end = getDecimalHour(endTimeStr);
+
+            // Default duration if no end time (e.g. 1 hour)
+            if (!end || end <= start) {
+                end = start + 1;
+            }
+
+            let yLabel = row.student_name;
+            if (studentMode !== 'all') {
+                if (view === 'bar') {
+                    const d = new Date(row.date_report);
+                    if (timeRange === 'today' || timeRange === 'custom') {
+                        yLabel = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
+                    } else if (timeRange === 'month') {
+                        yLabel = String(d.getDate());
+                    } else if (timeRange === 'week') {
+                        const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                        yLabel = `${row.day_th}(${d.getDate()} ${thaiMonths[d.getMonth()]})`;
+                    } else {
+                        yLabel = row.day_th_with_date;
+                    }
+                } else {
+                    yLabel = row.day_th_with_date;
+                }
+            }
+
+            return {
+                id: row.task_id,
+                yLabel: yLabel,
+                title: row.title,
+                start: start,
+                duration: end - start,
+                type: 'join',
+                date: row.date_report,
+                category: row.category_val
+            };
+        });
+
+        // Prepare Bar Data (Stacked by category)
+        let labels = [];
+        if (view === 'bar' && studentMode !== 'all' && startDate && endDate) {
+            const startD = new Date(startDate);
+            const endD = new Date(endDate);
+
+            if (timeRange === 'today' || timeRange === 'custom') {
+                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                    labels.push(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`);
+                }
+            } else if (timeRange === 'week') {
+                const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                const thaiDays = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
+                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                    labels.push(`${thaiDays[d.getDay()]}(${d.getDate()} ${thaiMonths[d.getMonth()]})`);
+                }
+            } else if (timeRange === 'month') {
+                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                    labels.push(String(d.getDate()));
+                }
+            } else {
+                labels = [...new Set(ganttData.map(item => item.yLabel))];
+            }
+        } else {
+            // For All Students or when no dates, use data-driven labels but they will be sorted due to SQL ORDER BY
+            labels = [...new Set(ganttData.map(item => item.yLabel))];
+        }
+        const categories = [...new Set(ganttData.map(item => item.category))];
+
+        const datasets = categories.map((cat, idx) => {
+            const colors = [
+                'rgba(79, 70, 229, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)',
+                'rgba(239, 68, 68, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(236, 72, 153, 0.8)',
+                'rgba(20, 184, 166, 0.8)', 'rgba(249, 115, 22, 0.8)'
+            ];
+            return {
+                label: cat || 'ไม่ระบุ',
+                data: labels.map(label => ganttData.filter(item => item.yLabel === label && item.category === cat).length),
+                backgroundColor: colors[idx % colors.length],
+                borderRadius: 4
+            };
+        });
+
+        const barData = {
+            labels: labels,
+            datasets: datasets
+        };
+
+        res.json({ success: true, ganttData, barData });
+    } catch (err) {
+        console.error("❌ Workload Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟล้มเหลว" });
+    }
+};
+
+// --- 6.2 ดึงข้อมูลสำหรับ Local Filter ของ Workload ---
+exports.getWorkloadFilters = async (req, res) => {
+    try {
+        const { academicYear, term, university } = req.query;
+
+        const [workingList] = await joinPool.query('SELECT workingName as label, workingName as value FROM orderit.workinglist');
+        const [problemList] = await joinPool.query('SELECT problemName as label, problemName as value FROM orderit.problemlist');
+        const [device] = await joinPool.query('SELECT device_name as label, device_name as value FROM orderit.device');
+        const [depart] = await joinPool.query('SELECT depart_name as label, depart_name as value FROM orderit.depart');
+        const [staff] = await joinPool.query('SELECT username as value, CONCAT(fname, " ", lname) as label FROM orderit.admin');
+
+        // Fetch Universities with User Counts filtered by year and term
+        let uniSql = `
+            SELECT university_name as label, university_name as value, COUNT(*) as user_count 
+            FROM join_it.users 
+            WHERE university_name IS NOT NULL AND university_name <> ""
+        `;
+        const uniParams = [];
+        if (academicYear && academicYear !== 'all') { uniSql += ` AND academic_year = ?`; uniParams.push(academicYear); }
+        if (term && term !== 'all') { uniSql += ` AND term = ?`; uniParams.push(term); }
+        uniSql += ` GROUP BY university_name ORDER BY user_count DESC`;
+        const [universities] = await joinPool.query(uniSql, uniParams);
+
+        // Fetch Students filtered by year, term, and university
+        let studentSql = `
+            SELECT full_name as label, id as value 
+            FROM join_it.users 
+            WHERE 1=1
+        `;
+        const studentParams = [];
+        if (academicYear && academicYear !== 'all') { studentSql += ` AND academic_year = ?`; studentParams.push(academicYear); }
+        if (term && term !== 'all') { studentSql += ` AND term = ?`; studentParams.push(term); }
+        if (university && university !== 'all') { studentSql += ` AND university_name = ?`; studentParams.push(university); }
+        studentSql += ` ORDER BY full_name ASC`;
+        const [students] = await joinPool.query(studentSql, studentParams);
+
+        res.json({
+            success: true,
+            filters: {
+                workingList,
+                problemList,
+                device,
+                depart,
+                staff,
+                universities,
+                students
+            }
+        });
+    } catch (err) {
+        console.error("❌ Workload Filters Error:", err.message);
+        res.status(500).json({ success: false, message: "โหลดข้อมูลฟิลเตอร์ล้มเหลว" });
+    }
+};
+
+// --- 6.3 ดึงข้อมูลสำหรับกราฟสัดส่วนงาน (Donut Chart) ---
+exports.getWorkTypeData = async (req, res) => {
+    try {
+        const {
+            studentMode,
+            studentId,
+            academicYear,
+            term,
+            university,
+            startDate,
+            endDate,
+            category // 'workingList', 'problemList', 'device', 'depart', 'staff'
+        } = req.query;
+
+        // Map category to column name (Keep consistent with getWorkloadChartData)
+        const categoryMap = {
+            workingList: 'r.device',
+            problemList: 'r.problem',
+            device: 'r.deviceName',
+            depart: 'd.depart_name',
+            staff: 'r.username'
+        };
+
+        const groupColumn = categoryMap[category] || 'r.work_type';
+
+        let sql = `
+            SELECT 
+                ${groupColumn} as label,
+                COUNT(*) as count
+            FROM join_it.tasks t
+            JOIN join_it.users u ON t.intern_id = u.id
+            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            JOIN orderit.depart d ON r.department = d.depart_id
+            WHERE t.deleted_at IS NULL
+        `;
+
+        const params = [];
+
+        // Global Filters
+        if (academicYear && academicYear !== 'all') { sql += ` AND u.academic_year = ?`; params.push(academicYear); }
+        if (term && term !== 'all') { sql += ` AND u.term = ?`; params.push(term); }
+        if (university && university !== 'all') { sql += ` AND u.university_name = ?`; params.push(university); }
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        // Student Mode
+        if (studentMode === 'individual' && studentId && studentId !== 'all') {
+            sql += ` AND u.id = ?`;
+            params.push(studentId);
+        }
+
+        sql += ` GROUP BY ${groupColumn}`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        const labels = rows.map(row => row.label || 'ไม่ระบุ');
+        const counts = rows.map(row => row.count);
+
+        const colors = [
+            '#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4b99', '#14b8a6', '#f97316'
+        ];
+
+        res.json({
+            success: true,
+            chartData: {
+                labels,
+                datasets: [{
+                    data: counts,
+                    backgroundColor: colors.slice(0, labels.length),
+                    hoverOffset: 4
+                }]
+            }
+        });
+    } catch (err) {
+        console.error("❌ WorkType Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลสัดส่วนงานล้มเหลว" });
+    }
+};
+
+// --- 6.4 ดึงข้อมูลสำหรับกราฟ Heatmap ---
+exports.getHeatmapData = async (req, res) => {
+    try {
+        const {
+            startDate,
+            endDate,
+            category // 'workingList', 'problemList', 'device', 'depart', 'staff'
+        } = req.query;
+
+        const categoryMap = {
+            workingList: 'r.device',
+            problemList: 'r.problem',
+            device: 'r.deviceName',
+            depart: 'd.depart_name',
+            staff: 'r.username'
+        };
+
+        const groupColumn = categoryMap[category] || 'r.device';
+
+        // 1. Fetch Master Labels based on category
+        let masterLabels = [];
+        try {
+            if (category === 'workingList') {
+                const [rows] = await joinPool.query('SELECT workingName as label FROM orderit.workinglist ORDER BY workingName ASC');
+                masterLabels = rows.map(r => r.label);
+            } else if (category === 'problemList') {
+                const [rows] = await joinPool.query('SELECT problemName as label FROM orderit.problemlist ORDER BY problemName ASC');
+                masterLabels = rows.map(r => r.label);
+            } else if (category === 'device') {
+                const [rows] = await joinPool.query('SELECT device_name as label FROM orderit.device ORDER BY device_name ASC');
+                masterLabels = rows.map(r => r.label);
+            } else if (category === 'depart') {
+                const [rows] = await joinPool.query('SELECT depart_name as label FROM orderit.depart ORDER BY depart_name ASC');
+                masterLabels = rows.map(r => r.label);
+            } else if (category === 'staff') {
+                const [rows] = await joinPool.query('SELECT username as label FROM orderit.admin ORDER BY username ASC');
+                masterLabels = rows.map(r => r.label);
+            } else {
+                // Fallback for work_type if not specified
+                const [rows] = await joinPool.query('SELECT DISTINCT work_type as label FROM orderit.data_report WHERE work_type IS NOT NULL AND work_type <> "" ORDER BY work_type ASC');
+                masterLabels = rows.map(r => r.label);
+            }
+        } catch (err) {
+            console.error("Master labels fetch error:", err);
+        }
+
+        // Always include "ไม่ระบุ" at the end if there's unmatched data
+        masterLabels.push("ไม่ระบุ");
+
+        let sql = `
+            SELECT 
+                ${groupColumn} as category_val,
+                HOUR(r.time_report) as hour_val,
+                COUNT(*) as count
+            FROM orderit.data_report r
+            JOIN orderit.depart d ON r.department = d.depart_id
+            WHERE 1=1
+        `;
+
+        const params = [];
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        sql += ` GROUP BY ${groupColumn}, HOUR(r.time_report)`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        // Prepare heatmap data structure
+        const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+
+        // Initialize Matrix: masterLabels x hours (filled with 0)
+        const matrix = masterLabels.map(() => hours.map(() => 0));
+
+        // Fill Matrix
+        rows.forEach(row => {
+            const hourIdx = hours.findIndex(h => parseInt(h.split(':')[0]) === row.hour_val);
+            if (hourIdx === -1) return;
+
+            let labelIdx = masterLabels.indexOf(row.category_val);
+            if (labelIdx === -1) {
+                // Map to "ไม่ระบุ" which is the last element
+                labelIdx = masterLabels.length - 1;
+            }
+
+            matrix[labelIdx][hourIdx] += row.count;
+        });
+
+        // Filter out labels that have 0 total count to keep the chart clean, 
+        // EXCEPT if the user wants to see all master labels.
+        // Let's keep only labels with data to avoid a huge empty chart.
+        const finalLabels = [];
+        const finalMatrix = [];
+
+        masterLabels.forEach((label, idx) => {
+            const total = matrix[idx].reduce((a, b) => a + b, 0);
+            if (total > 0) {
+                finalLabels.push(label);
+                finalMatrix.push(matrix[idx]);
+            }
+        });
+
+        res.json({
+            success: true,
+            heatmapData: {
+                yLabels: finalLabels,
+                hours,
+                matrix: finalMatrix
+            }
+        });
+    } catch (err) {
+        console.error("❌ Heatmap Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟความหนาแน่นล้มเหลว" });
+    }
+};
+
+// --- 6.5 ดึงข้อมูลสำหรับกราฟการร่วมงาน (Collaboration) ---
+exports.getCollaborationData = async (req, res) => {
+    try {
+        const {
+            startDate,
+            endDate,
+            academicYear,
+            term,
+            university,
+            studentMode,
+            studentId
+        } = req.query;
+
+        let sql = `
+            SELECT 
+                r.username as staff_name,
+                COUNT(*) as count
+            FROM join_it.tasks t
+            JOIN join_it.users u ON t.intern_id = u.id
+            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            WHERE t.deleted_at IS NULL
+        `;
+
+        const params = [];
+
+        // Global Filters
+        if (academicYear && academicYear !== 'all') { sql += ` AND u.academic_year = ?`; params.push(academicYear); }
+        if (term && term !== 'all') { sql += ` AND u.term = ?`; params.push(term); }
+        if (university && university !== 'all') { sql += ` AND u.university_name = ?`; params.push(university); }
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        // Student Mode
+        if (studentMode === 'individual' && studentId && studentId !== 'all') {
+            sql += ` AND u.id = ?`;
+            params.push(studentId);
+        }
+
+        sql += ` GROUP BY r.username ORDER BY count DESC`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        const labels = rows.map(r => r.staff_name || 'ไม่ระบุ');
+        const counts = rows.map(r => r.count);
+
+        res.json({
+            success: true,
+            chartData: {
+                labels,
+                datasets: [{
+                    label: 'จำนวนงานที่ร่วมกัน',
+                    data: counts,
+                    backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                    borderRadius: 6
+                }]
+            }
+        });
+    } catch (err) {
+        console.error("❌ Collab Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟการร่วมงานล้มเหลว" });
+    }
+};
+
+// --- 6.6 ดึงข้อมูลสำหรับกราฟคีย์เวิร์ดการเรียนรู้ (Learning Keywords) ---
+exports.getLearningKeywordsData = async (req, res) => {
+    try {
+        const {
+            startDate,
+            endDate,
+            academicYear,
+            term,
+            university,
+            studentMode,
+            studentId
+        } = req.query;
+
+        let sql = `
+            SELECT 
+                r.problem as keyword,
+                COUNT(*) as count
+            FROM join_it.tasks t
+            JOIN join_it.users u ON t.intern_id = u.id
+            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            WHERE t.deleted_at IS NULL
+        `;
+
+        const params = [];
+
+        // Global Filters
+        if (academicYear && academicYear !== 'all') { sql += ` AND u.academic_year = ?`; params.push(academicYear); }
+        if (term && term !== 'all') { sql += ` AND u.term = ?`; params.push(term); }
+        if (university && university !== 'all') { sql += ` AND u.university_name = ?`; params.push(university); }
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        // Student Mode
+        if (studentMode === 'individual' && studentId && studentId !== 'all') {
+            sql += ` AND u.id = ?`;
+            params.push(studentId);
+        }
+
+        sql += ` GROUP BY r.problem ORDER BY count DESC LIMIT 10`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        // Clean labels: Remove "01.", "02." prefixes and split by " เช่น" to get concise keywords
+        const labels = rows.map(r => {
+            let k = r.keyword || 'ไม่ระบุ';
+            // Remove "01.", "02." etc.
+            k = k.replace(/^\d+\./, '').trim();
+            // Take only before " เช่น" or " ("
+            k = k.split(' เช่น')[0].split(' (')[0].trim();
+            return k;
+        });
+
+        const counts = rows.map(r => r.count);
+
+        res.json({
+            success: true,
+            chartData: {
+                labels,
+                datasets: [{
+                    label: 'จำนวนครั้ง',
+                    data: counts,
+                    backgroundColor: '#8b5cf6',
+                    borderRadius: 6
+                }]
+            }
+        });
+    } catch (err) {
+        console.error("❌ Keywords Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟคีย์เวิร์ดล้มเหลว" });
     }
 };
 

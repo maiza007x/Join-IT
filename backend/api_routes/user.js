@@ -31,6 +31,9 @@ const upload = multer({
 // ดึงข้อมูลผู้ใช้ทั้งหมดเพื่อแสดงในหน้าจัดการสมาชิก
 router.get('/all', authMiddleware, userController.getAllUsers); 
 
+// ดึงรายชื่อนักศึกษาสำหรับตัวกรอง
+router.get('/students', authMiddleware, userController.getStudentList); 
+
 // [NEW] ลบสมาชิกรายบุคคล (รับ ID ผ่าน URL)
 router.delete('/:id', authMiddleware, userController.deleteUser);
 

@@ -1,4 +1,29 @@
 @import "tailwindcss";
+
+/* --- PrimeReact Global Overrides --- */
+.premium-tooltip.p-tooltip {
+    max-width: 300px;
+}
+
+.premium-tooltip .p-tooltip-text {
+    background: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3) !important;
+    padding: 0.8rem 1rem !important;
+    border-radius: 0.75rem !important;
+    color: white !important;
+    font-size: 0.85rem !important;
+    line-height: 1.4 !important;
+}
+
+.premium-tooltip .p-tooltip-arrow {
+    border-top-color: rgba(15, 23, 42, 0.95) !important;
+}
+
+.premium-tooltip .p-tooltip-arrow-bottom {
+    border-bottom-color: rgba(15, 23, 42, 0.95) !important;
+}
 /* :root {
   --text: #6b6375;
   --text-h: #08060d;

@@ -21,6 +21,24 @@ router.delete('/leave/:id', auth, taskController.leaveTask);
 // --- 6. GET /api/tasks/analytics-stats (ข้อมูลสถิติกราฟ Dashboard) ---
 router.get('/analytics-stats', auth, taskController.getAnalyticsStats);
 
+// --- 6.1 GET /api/tasks/workload-chart (ข้อมูลกราฟ Workload รายคน/รายวัน) ---
+router.get('/workload-chart', auth, taskController.getWorkloadChartData);
+
+// --- 6.2 GET /api/tasks/workload-filters (ดึงข้อมูลตัวเลือกสำหรับ Local Filter ของ Workload) ---
+router.get('/workload-filters', auth, taskController.getWorkloadFilters);
+
+// --- 6.3 GET /api/tasks/worktype-chart (ข้อมูลกราฟสัดส่วนงาน Donut Chart) ---
+router.get('/worktype-chart', auth, taskController.getWorkTypeData);
+
+// --- 6.4 GET /api/tasks/heatmap-chart (ข้อมูลกราฟ Heatmap ความหนาแน่นของงาน) ---
+router.get('/heatmap-chart', auth, taskController.getHeatmapData);
+
+// --- 6.5 GET /api/tasks/collab-chart (ข้อมูลกราฟการร่วมงานกับเจ้าหน้าที่) ---
+router.get('/collab-chart', auth, taskController.getCollaborationData);
+
+// --- 6.6 GET /api/tasks/keywords-chart (ข้อมูลกราฟสิ่งที่ได้เรียนรู้ Keywords) ---
+router.get('/keywords-chart', auth, taskController.getLearningKeywordsData);
+
 // --- 7. GET /api/tasks/form-options (ดึงข้อมูลตัวเลือกสำหรับฟอร์มสร้างงาน) ---
 router.get('/form-options', auth, taskController.getFormOptions);
 

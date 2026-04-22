@@ -331,7 +331,7 @@ function MyTasks() {
         <div className="bg-[#f0f9ff] min-h-screen p-4 md:p-8 font-sans text-slate-700">
             <Toast ref={toast} />
 
-            <div className="max-w-[1250px] mx-auto flex flex-col gap-6">
+            <div className="max-w-312.5 mx-auto flex flex-col gap-6">
 
                 {/* Header & Filter Section */}
                 <div className="flex flex-wrap justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-sm border border-blue-100 gap-4">
@@ -390,7 +390,7 @@ function MyTasks() {
                         <TabPanel header={<span><i className="pi pi-building mr-2"></i>งานเจ้าหน้าที่ ({pendingTasks.length})</span>}>
                             <div className="flex flex-col gap-6 pt-4">
                                 {/* Staff Pending Table */}
-                                <div className="bg-white rounded-[2rem] border border-blue-50 overflow-hidden shadow-sm">
+                                <div className="bg-white rounded-4xl border border-blue-50 overflow-hidden shadow-sm">
                                     <div className="p-5 bg-blue-600 flex items-center gap-3 text-white">
                                         <i className="pi pi-clock"></i>
                                         <h4 className="m-0 font-bold">รอยืนยันรายละเอียด ({pendingTasks.length})</h4>
@@ -424,7 +424,7 @@ function MyTasks() {
                                 </div>
 
                                 {/* Staff History Table */}
-                                <div className="bg-white rounded-[2rem] border border-blue-50 overflow-hidden shadow-sm">
+                                <div className="bg-white rounded-4xl border border-blue-50 overflow-hidden shadow-sm">
                                     <div className="p-5 bg-slate-50 border-b border-blue-100 flex items-center justify-between">
                                         <div className="flex items-center gap-3 text-blue-900">
                                             <i className="pi pi-history"></i>
@@ -446,7 +446,7 @@ function MyTasks() {
                         <TabPanel header={<span><i className="pi pi-user mr-2"></i>งานนักศึกษา ({pendingInternTasks.length})</span>}>
                             <div className="flex flex-col gap-6 pt-4">
                                 {/* Intern Pending Table */}
-                                <div className="bg-white rounded-[2rem] border border-white overflow-hidden shadow-md shadow-orange-100/30">
+                                <div className="bg-white rounded-4xl border border-white overflow-hidden shadow-md shadow-orange-100/30">
                                     <div className="p-5 bg-orange-500 flex items-center gap-3 text-white">
                                         <i className="pi pi-user-edit"></i>
                                         <h4 className="m-0 font-bold">งานที่รับผิดชอบ ({pendingInternTasks.length})</h4>
@@ -465,7 +465,7 @@ function MyTasks() {
                                 </div>
 
                                 {/* Intern History Table */}
-                                <div className="bg-white rounded-[2rem] border border-orange-50 overflow-hidden shadow-sm">
+                                <div className="bg-white rounded-4xl border border-orange-50 overflow-hidden shadow-sm">
                                     <div className="p-5 bg-orange-50/50 border-b border-orange-100 flex items-center justify-between">
                                         <div className="flex items-center gap-3 text-orange-900">
                                             <i className="pi pi-check-circle"></i>

@@ -42,11 +42,11 @@ const Navbar = () => {
 
     return (
         <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 md:px-6 md:py-2">
-            <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-2">
+            <div className="max-w-350 mx-auto flex items-center justify-between gap-2">
 
                 {/* --- ฝั่งซ้าย: โลโก้ --- */}
                 <div className="flex items-center gap-2 md:gap-4 cursor-pointer min-w-0" onClick={() => navigate('/tasks')}>
-                    <div className="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2 md:p-2.5 rounded-2xl shadow-md shadow-blue-100 shrink-0">
+                    <div className="bg-linear-to-tr from-blue-600 to-indigo-500 p-2 md:p-2.5 rounded-2xl shadow-md shadow-blue-100 shrink-0">
                         <i className="pi pi-briefcase text-white text-lg md:text-xl"></i>
                     </div>
                     <div className="hidden sm:block">
@@ -62,7 +62,7 @@ const Navbar = () => {
                     <PrimaryBtn icon="pi-th-large" label="แดชบอร์ด" path="/dashboard" />
 
                     {/* ปุ่มสร้างงาน */}
-                    <button
+                    {/* <button
                         onClick={() => navigate('/create-task')}
                         className={`p-3 md:px-5 md:py-2.5 rounded-2xl font-bold  transition-all duration-300 flex items-center shadow-lg relative overflow-hidden
                             ${location.pathname === '/create-task'
@@ -71,7 +71,7 @@ const Navbar = () => {
                     >
                         <i className={`pi pi-plus-circle md:mr-2 text-base md:text-sm ${location.pathname === '/create-task' ? 'animate-spin-slow' : ''}`}></i>
                         <span className="hidden md:inline text-xs">สร้างงาน</span>
-                    </button>
+                    </button> */}
 
                     {/* ปุ่มงานวันนี้ */}
                     <PrimaryBtn icon="pi-list" label="งานวันนี้" path="/tasks" />
@@ -82,7 +82,7 @@ const Navbar = () => {
                     {/* ปุ่มจัดการสมาชิก */}
                     <PrimaryBtn icon="pi-users" label="จัดการสมาชิก" path="/members" />
 
-                    <div className="h-6 w-[1px] bg-slate-200 mx-1 hidden sm:block"></div>
+                    <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
 
                     {/* โปรไฟล์ดึงจาก AuthContext */}
                     <div className="flex items-center gap-2 md:gap-3 bg-slate-50 p-1 md:pr-4 rounded-full border border-slate-100 cursor-pointer hover:bg-white transition-all shadow-sm"
@@ -93,7 +93,7 @@ const Navbar = () => {
                                 alt="Profile"
                                 className="rounded-full object-cover border-2 border-white w-8 h-8 md:w-9 md:h-9 shadow-sm"
                             />
-                            <div className="absolute bottom-0 right-[-2px] w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
+                            <div className="absolute bottom-0 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
                         </div>
                         <span className="text-[11px] font-black text-slate-700 hidden lg:block mr-2">
                             {user?.username || 'User'}
