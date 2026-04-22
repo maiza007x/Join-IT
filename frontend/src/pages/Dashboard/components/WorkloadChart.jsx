@@ -6,11 +6,63 @@ import { Calendar } from "primereact/calendar";
 import { Skeleton } from "primereact/skeleton";
 import api from "../../../services/api";
 
+const getWeekRange = (date) => {
+  const d = date ? new Date(date) : new Date();
+  const day = d.getDay(); // 0 = Sunday, 1 = Monday
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d);
+  monday.setDate(diff);
+
+  const weekDates = [];
+  const daysTh = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์"];
+  for (let i = 0; i < 5; i++) {
+    const current = new Date(monday);
+    current.setDate(monday.getDate() + i);
+    weekDates.push({
+      date: current,
+      label: `${daysTh[i]} (${current.getDate()})`
+    });
+  }
+
+  const startOfWeek = new Date(monday);
+  const endOfWeek = new Date(monday);
+  endOfWeek.setDate(monday.getDate() + 6); // Sunday
+
+  return { startOfWeek, endOfWeek, weekDates };
+};
+
+const getTimeRangeBounds = (timeRange, customDates) => {
+  const today = new Date();
+  let start = new Date(today);
+  let end = new Date(today);
+
+  if (timeRange === "today") {
+    // Keep today
+  } else if (timeRange === "week") {
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    start.setDate(diff);
+    end = new Date(start);
+    end.setDate(start.getDate() + 4); // Mon to Fri
+  } else if (timeRange === "month") {
+    start = new Date(today.getFullYear(), today.getMonth(), 1);
+    end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  } else if (timeRange === "custom" && customDates && customDates.length === 2) {
+    if (customDates[0]) start = new Date(customDates[0]);
+    if (customDates[1]) end = new Date(customDates[1]);
+  } else if (timeRange === "all") {
+    return { startDate: undefined, endDate: undefined };
+  }
+
+  const format = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { startDate: format(start), endDate: format(end) };
+};
+
 const WorkloadChart = ({ globalFilter }) => {
   const [view, setView] = useState("gantt");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({ ganttData: [], barData: { labels: [], datasets: [] } });
-  const [groupingCategory, setGroupingCategory] = useState("workingList");
+  const [groupingCategory, setGroupingCategory] = useState("device");
   const [localFilters, setLocalFilters] = useState({
     date: new Date(),
   });
@@ -34,11 +86,11 @@ const WorkloadChart = ({ globalFilter }) => {
   const ganttHours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
 
   const categories = [
-    { label: "รูปแบบการทำงาน", value: "workingList" },
-    { label: "รูปแบบ activity", value: "problemList" },
     { label: "อุปกรณ์", value: "device" },
+    { label: "รูปแบบ activity", value: "problemList" },
     { label: "หน่วยงาน", value: "depart" },
     { label: "ร่วมงานกับเจ้าหน้าที่", value: "staff" },
+    { label: "รูปแบบการทำงาน", value: "workingList" },
   ];
 
   const packTasksIntoLanes = (tasks) => {
@@ -90,6 +142,25 @@ const WorkloadChart = ({ globalFilter }) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      let queryStartDate = undefined;
+      let queryEndDate = undefined;
+
+      if (view === "gantt") {
+        if (globalFilter.person !== "all") {
+          const { startOfWeek, endOfWeek } = getWeekRange(localFilters.date);
+          queryStartDate = `${startOfWeek.getFullYear()}-${String(startOfWeek.getMonth() + 1).padStart(2, '0')}-${String(startOfWeek.getDate()).padStart(2, '0')}`;
+          queryEndDate = `${endOfWeek.getFullYear()}-${String(endOfWeek.getMonth() + 1).padStart(2, '0')}-${String(endOfWeek.getDate()).padStart(2, '0')}`;
+        } else {
+          const d = localFilters.date || new Date();
+          queryStartDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          queryEndDate = queryStartDate;
+        }
+      } else if (view === "bar") {
+        const bounds = getTimeRangeBounds(globalFilter.timeRange, globalFilter.customDates);
+        queryStartDate = bounds.startDate;
+        queryEndDate = bounds.endDate;
+      }
+
       const params = {
         studentMode: globalFilter.person === "all" ? "all" : "individual",
         studentId: globalFilter.person !== "all" ? globalFilter.person : undefined,
@@ -97,9 +168,10 @@ const WorkloadChart = ({ globalFilter }) => {
         term: globalFilter.term,
         university: globalFilter.university !== "all" ? globalFilter.university : undefined,
         groupingCategory: groupingCategory,
-        // Gantt chart uses local filter (date), Bar chart will be implemented later
-        startDate: view === "gantt" ? localFilters.date?.toISOString().split("T")[0] : undefined,
-        endDate: view === "gantt" ? localFilters.date?.toISOString().split("T")[0] : undefined,
+        startDate: queryStartDate,
+        endDate: queryEndDate,
+        view: view,
+        timeRange: globalFilter.timeRange
       };
 
       const response = await api.get("/tasks/workload-chart", { params });
@@ -165,7 +237,9 @@ const WorkloadChart = ({ globalFilter }) => {
 
   const yLabels = [...new Set(data.ganttData.map(t => t.yLabel))];
   // If individual mode, ensure Mon-Fri are shown even if empty
-  const displayYLabels = globalFilter.person === "all" ? yLabels : ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์"];
+  const displayYLabels = globalFilter.person === "all" 
+    ? yLabels 
+    : getWeekRange(localFilters.date).weekDates.map(w => w.label);
 
   return (
     <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">

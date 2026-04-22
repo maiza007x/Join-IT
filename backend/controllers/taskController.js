@@ -55,8 +55,8 @@ exports.getTasksCollab = async (req, res) => {
             isContributedByMe: !!task.isContributedByMe
         }));
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             tasks: formattedStaffTasks,
             internTasks: internRows
         });
@@ -118,8 +118,8 @@ exports.getMyTasks = async (req, res) => {
         internSql += ` ORDER BY i.id DESC`;
         const [internRows] = await joinPool.query(internSql, internParams);
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             tasks: staffRows,
             internTasks: internRows
         });
@@ -309,14 +309,16 @@ exports.getWorkloadChartData = async (req, res) => {
             problemList,
             device,
             depart,
-            staff
+            staff,
+            view,
+            timeRange
         } = req.query;
 
         // Map groupingCategory to column name
         const categoryMap = {
             workingList: 'r.device',
             problemList: 'r.problem',
-            device: 'r.device',
+            device: 'r.deviceName',
             depart: 'd.depart_name',
             staff: 'r.username'
         };
@@ -333,15 +335,18 @@ exports.getWorkloadChartData = async (req, res) => {
                 r.id as task_id,
                 ${groupColumn} as category_val,
                 DAYNAME(r.date_report) as day_en,
-                CASE DAYNAME(r.date_report)
-                    WHEN 'Monday' THEN 'จันทร์'
-                    WHEN 'Tuesday' THEN 'อังคาร'
-                    WHEN 'Wednesday' THEN 'พุธ'
-                    WHEN 'Thursday' THEN 'พฤหัสบดี'
-                    WHEN 'Friday' THEN 'ศุกร์'
-                    WHEN 'Saturday' THEN 'เสาร์'
-                    WHEN 'Sunday' THEN 'อาทิตย์'
-                END as day_th
+                CONCAT(
+                    CASE DAYNAME(r.date_report)
+                        WHEN 'Monday' THEN 'จันทร์'
+                        WHEN 'Tuesday' THEN 'อังคาร'
+                        WHEN 'Wednesday' THEN 'พุธ'
+                        WHEN 'Thursday' THEN 'พฤหัสบดี'
+                        WHEN 'Friday' THEN 'ศุกร์'
+                        WHEN 'Saturday' THEN 'เสาร์'
+                        WHEN 'Sunday' THEN 'อาทิตย์'
+                    END,
+                    ' (', DAY(r.date_report), ')'
+                ) as day_th_with_date
             FROM join_it.tasks t
             JOIN join_it.users u ON t.intern_id = u.id
             JOIN orderit.data_report r ON t.task_staff_id = r.id
@@ -375,6 +380,8 @@ exports.getWorkloadChartData = async (req, res) => {
         if (depart && depart !== 'all') { sql += ` AND r.department = ?`; params.push(depart); }
         if (staff && staff !== 'all') { sql += ` AND r.username = ?`; params.push(staff); }
 
+        sql += ` ORDER BY r.date_report ASC, r.time_report ASC`;
+
         console.log("🔍 Workload SQL:", sql);
         console.log("📦 Params:", params);
 
@@ -400,9 +407,28 @@ exports.getWorkloadChartData = async (req, res) => {
                 end = start + 1;
             }
 
+            let yLabel = row.student_name;
+            if (studentMode !== 'all') {
+                if (view === 'bar') {
+                    const d = new Date(row.date_report);
+                    if (timeRange === 'today' || timeRange === 'custom') {
+                        yLabel = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
+                    } else if (timeRange === 'month') {
+                        yLabel = String(d.getDate());
+                    } else if (timeRange === 'week') {
+                        const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                        yLabel = `${row.day_th}(${d.getDate()} ${thaiMonths[d.getMonth()]})`;
+                    } else {
+                        yLabel = row.day_th_with_date;
+                    }
+                } else {
+                    yLabel = row.day_th_with_date;
+                }
+            }
+
             return {
                 id: row.task_id,
-                yLabel: studentMode === 'all' ? row.student_name : row.day_th,
+                yLabel: yLabel,
                 title: row.title,
                 start: start,
                 duration: end - start,
@@ -413,7 +439,32 @@ exports.getWorkloadChartData = async (req, res) => {
         });
 
         // Prepare Bar Data (Stacked by category)
-        const labels = [...new Set(ganttData.map(item => item.yLabel))];
+        let labels = [];
+        if (view === 'bar' && studentMode !== 'all' && startDate && endDate) {
+            const startD = new Date(startDate);
+            const endD = new Date(endDate);
+
+            if (timeRange === 'today' || timeRange === 'custom') {
+                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                    labels.push(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`);
+                }
+            } else if (timeRange === 'week') {
+                const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                const thaiDays = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
+                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                    labels.push(`${thaiDays[d.getDay()]}(${d.getDate()} ${thaiMonths[d.getMonth()]})`);
+                }
+            } else if (timeRange === 'month') {
+                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                    labels.push(String(d.getDate()));
+                }
+            } else {
+                labels = [...new Set(ganttData.map(item => item.yLabel))];
+            }
+        } else {
+            // For All Students or when no dates, use data-driven labels but they will be sorted due to SQL ORDER BY
+            labels = [...new Set(ganttData.map(item => item.yLabel))];
+        }
         const categories = [...new Set(ganttData.map(item => item.category))];
 
         const datasets = categories.map((cat, idx) => {

@@ -21,7 +21,7 @@ const Dashboard = () => {
     term: "1",
     university: "all",
     person: "all",
-    timeRange: "week",
+    timeRange: "today",
     customDates: null,
   });
 
@@ -43,7 +43,7 @@ const Dashboard = () => {
 
   const [globalOptions, setGlobalOptions] = useState({
     year: [{ label: "ทุกปีการศึกษา", value: "all" }, { label: "ปีการศึกษา 2566", value: "2566" }, { label: "ปีการศึกษา 2567", value: "2567" }, { label: "ปีการศึกษา 2568", value: "2568" }, { label: "ปีการศึกษา 2569", value: "2569" }],
-    term: [{ label: "ทุกเทอม", value: "all" }, { label: "เทอม 1", value: "1" }, { label: "เทอม 2", value: "2" }, { label: "ฤดูร้อน", value: "summer" }],
+    term: [{ label: "ทุกเทอม", value: "all" }, { label: "เทอม 1", value: "1" }, { label: "เทอม 2", value: "2" }, { label: "ภาคฤดูร้อน", value: "ภาคฤดูร้อน" }],
     university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }],
     person: [{ label: "นักศึกษาทุกคน", value: "all" }],
     timeRange: [
