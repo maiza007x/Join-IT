@@ -382,11 +382,11 @@ exports.getWorkloadChartData = async (req, res) => {
 
         sql += ` ORDER BY r.date_report ASC, r.time_report ASC`;
 
-        console.log("🔍 Workload SQL:", sql);
-        console.log("📦 Params:", params);
+        // console.log("🔍 Workload SQL:", sql);
+        // console.log("📦 Params:", params);
 
         const [rows] = await joinPool.query(sql, params);
-        console.log("✅ Query Result Count:", rows.length);
+        // console.log("✅ Query Result Count:", rows.length);
 
         // Transform data for Gantt
         const ganttData = rows.map(row => {
@@ -517,6 +517,275 @@ exports.getWorkloadFilters = async (req, res) => {
     } catch (err) {
         console.error("❌ Workload Filters Error:", err.message);
         res.status(500).json({ success: false, message: "โหลดข้อมูลฟิลเตอร์ล้มเหลว" });
+    }
+};
+
+// --- 6.3 ดึงข้อมูลสำหรับกราฟสัดส่วนงาน (Donut Chart) ---
+exports.getWorkTypeData = async (req, res) => {
+    try {
+        const {
+            studentMode,
+            studentId,
+            academicYear,
+            term,
+            university,
+            startDate,
+            endDate,
+            category // 'workingList', 'problemList', 'device', 'depart', 'staff'
+        } = req.query;
+
+        // Map category to column name (Keep consistent with getWorkloadChartData)
+        const categoryMap = {
+            workingList: 'r.device',
+            problemList: 'r.problem',
+            device: 'r.deviceName',
+            depart: 'd.depart_name',
+            staff: 'r.username'
+        };
+
+        const groupColumn = categoryMap[category] || 'r.work_type';
+
+        let sql = `
+            SELECT 
+                ${groupColumn} as label,
+                COUNT(*) as count
+            FROM join_it.tasks t
+            JOIN join_it.users u ON t.intern_id = u.id
+            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            JOIN orderit.depart d ON r.department = d.depart_id
+            WHERE t.deleted_at IS NULL
+        `;
+
+        const params = [];
+
+        // Global Filters
+        if (academicYear && academicYear !== 'all') { sql += ` AND u.academic_year = ?`; params.push(academicYear); }
+        if (term && term !== 'all') { sql += ` AND u.term = ?`; params.push(term); }
+        if (university && university !== 'all') { sql += ` AND u.university_name = ?`; params.push(university); }
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        // Student Mode
+        if (studentMode === 'individual' && studentId && studentId !== 'all') {
+            sql += ` AND u.id = ?`;
+            params.push(studentId);
+        }
+
+        sql += ` GROUP BY ${groupColumn}`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        const labels = rows.map(row => row.label || 'ไม่ระบุ');
+        const counts = rows.map(row => row.count);
+
+        const colors = [
+            '#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4b99', '#14b8a6', '#f97316'
+        ];
+
+        res.json({
+            success: true,
+            chartData: {
+                labels,
+                datasets: [{
+                    data: counts,
+                    backgroundColor: colors.slice(0, labels.length),
+                    hoverOffset: 4
+                }]
+            }
+        });
+    } catch (err) {
+        console.error("❌ WorkType Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลสัดส่วนงานล้มเหลว" });
+    }
+};
+
+// --- 6.4 ดึงข้อมูลสำหรับกราฟ Heatmap ---
+exports.getHeatmapData = async (req, res) => {
+    try {
+        const {
+            startDate,
+            endDate,
+            category // 'workingList', 'problemList', 'device', 'depart', 'staff'
+        } = req.query;
+
+        const categoryMap = {
+            workingList: 'r.device',
+            problemList: 'r.problem',
+            device: 'r.deviceName',
+            depart: 'd.depart_name',
+            staff: 'r.username'
+        };
+
+        const groupColumn = categoryMap[category] || 'r.device';
+
+        // 1. Fetch Master Labels based on category
+        let masterLabels = [];
+        try {
+            if (category === 'workingList') {
+                const [rows] = await joinPool.query('SELECT workingName as label FROM orderit.workinglist ORDER BY workingName ASC');
+                masterLabels = rows.map(r => r.label);
+            } else if (category === 'problemList') {
+                const [rows] = await joinPool.query('SELECT problemName as label FROM orderit.problemlist ORDER BY problemName ASC');
+                masterLabels = rows.map(r => r.label);
+            } else if (category === 'device') {
+                const [rows] = await joinPool.query('SELECT device_name as label FROM orderit.device ORDER BY device_name ASC');
+                masterLabels = rows.map(r => r.label);
+            } else if (category === 'depart') {
+                const [rows] = await joinPool.query('SELECT depart_name as label FROM orderit.depart ORDER BY depart_name ASC');
+                masterLabels = rows.map(r => r.label);
+            } else if (category === 'staff') {
+                const [rows] = await joinPool.query('SELECT username as label FROM orderit.admin ORDER BY username ASC');
+                masterLabels = rows.map(r => r.label);
+            } else {
+                // Fallback for work_type if not specified
+                const [rows] = await joinPool.query('SELECT DISTINCT work_type as label FROM orderit.data_report WHERE work_type IS NOT NULL AND work_type <> "" ORDER BY work_type ASC');
+                masterLabels = rows.map(r => r.label);
+            }
+        } catch (err) {
+            console.error("Master labels fetch error:", err);
+        }
+
+        // Always include "ไม่ระบุ" at the end if there's unmatched data
+        masterLabels.push("ไม่ระบุ");
+
+        let sql = `
+            SELECT 
+                ${groupColumn} as category_val,
+                HOUR(r.time_report) as hour_val,
+                COUNT(*) as count
+            FROM orderit.data_report r
+            JOIN orderit.depart d ON r.department = d.depart_id
+            WHERE 1=1
+        `;
+
+        const params = [];
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        sql += ` GROUP BY ${groupColumn}, HOUR(r.time_report)`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        // Prepare heatmap data structure
+        const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+
+        // Initialize Matrix: masterLabels x hours (filled with 0)
+        const matrix = masterLabels.map(() => hours.map(() => 0));
+
+        // Fill Matrix
+        rows.forEach(row => {
+            const hourIdx = hours.findIndex(h => parseInt(h.split(':')[0]) === row.hour_val);
+            if (hourIdx === -1) return;
+
+            let labelIdx = masterLabels.indexOf(row.category_val);
+            if (labelIdx === -1) {
+                // Map to "ไม่ระบุ" which is the last element
+                labelIdx = masterLabels.length - 1;
+            }
+
+            matrix[labelIdx][hourIdx] += row.count;
+        });
+
+        // Filter out labels that have 0 total count to keep the chart clean, 
+        // EXCEPT if the user wants to see all master labels.
+        // Let's keep only labels with data to avoid a huge empty chart.
+        const finalLabels = [];
+        const finalMatrix = [];
+
+        masterLabels.forEach((label, idx) => {
+            const total = matrix[idx].reduce((a, b) => a + b, 0);
+            if (total > 0) {
+                finalLabels.push(label);
+                finalMatrix.push(matrix[idx]);
+            }
+        });
+
+        res.json({
+            success: true,
+            heatmapData: {
+                yLabels: finalLabels,
+                hours,
+                matrix: finalMatrix
+            }
+        });
+    } catch (err) {
+        console.error("❌ Heatmap Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟความหนาแน่นล้มเหลว" });
+    }
+};
+
+// --- 6.5 ดึงข้อมูลสำหรับกราฟการร่วมงาน (Collaboration) ---
+exports.getCollaborationData = async (req, res) => {
+    try {
+        const {
+            startDate,
+            endDate,
+            academicYear,
+            term,
+            university,
+            studentMode,
+            studentId
+        } = req.query;
+
+        let sql = `
+            SELECT 
+                r.username as staff_name,
+                COUNT(*) as count
+            FROM join_it.tasks t
+            JOIN join_it.users u ON t.intern_id = u.id
+            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            WHERE t.deleted_at IS NULL
+        `;
+
+        const params = [];
+
+        // Global Filters
+        if (academicYear && academicYear !== 'all') { sql += ` AND u.academic_year = ?`; params.push(academicYear); }
+        if (term && term !== 'all') { sql += ` AND u.term = ?`; params.push(term); }
+        if (university && university !== 'all') { sql += ` AND u.university_name = ?`; params.push(university); }
+
+        // Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        // Student Mode
+        if (studentMode === 'individual' && studentId && studentId !== 'all') {
+            sql += ` AND u.id = ?`;
+            params.push(studentId);
+        }
+
+        sql += ` GROUP BY r.username ORDER BY count DESC`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        const labels = rows.map(r => r.staff_name || 'ไม่ระบุ');
+        const counts = rows.map(r => r.count);
+
+        res.json({
+            success: true,
+            chartData: {
+                labels,
+                datasets: [{
+                    label: 'จำนวนงานที่ร่วมกัน',
+                    data: counts,
+                    backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                    borderRadius: 6
+                }]
+            }
+        });
+    } catch (err) {
+        console.error("❌ Collab Chart Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟการร่วมงานล้มเหลว" });
     }
 };
 

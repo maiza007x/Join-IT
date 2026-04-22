@@ -205,28 +205,13 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <WorkloadChart globalFilter={globalFilter} />
-            <WorkTypeChart
-              data={workTypeData}
-              filter={cardFilter.workTypeDept}
-              onFilterChange={(val) => handleCardFilterChange("workTypeDept", val)}
-              filterOptions={cardOptions.department}
-            />
+            <WorkTypeChart globalFilter={globalFilter} />
           </div>
 
-          <ActivityHeatmap
-            data={heatmapData}
-            filter={cardFilter.heatmapStaff}
-            onFilterChange={(val) => handleCardFilterChange("heatmapStaff", val)}
-            filterOptions={cardOptions.staff}
-          />
+          <ActivityHeatmap globalFilter={globalFilter} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <CollaborationChart
-              data={collabData}
-              filter={cardFilter.collabType}
-              onFilterChange={(val) => handleCardFilterChange("collabType", val)}
-              filterOptions={cardOptions.workType}
-            />
+            <CollaborationChart globalFilter={globalFilter} />
             <LearningKeywordsChart data={keywordData} />
           </div>
         </div>
