@@ -13,7 +13,8 @@ import { Calendar } from 'primereact/calendar';
 import { InputText } from 'primereact/inputtext';
 import { Tooltip } from 'primereact/tooltip';
 import * as XLSX from 'xlsx'; // ✅ เพิ่ม library สำหรับ Excel
-
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, AlignmentType, WidthType, VerticalAlign, BorderStyle } from "docx";
+import { saveAs } from "file-saver";
 function MyTasks() {
     const [tasks, setTasks] = useState([]);
     const [internTasks, setInternTasks] = useState([]);
@@ -106,6 +107,152 @@ function MyTasks() {
         XLSX.writeFile(workbook, fileName);
 
         toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'ส่งออกไฟล์ Excel เรียบร้อยแล้ว' });
+    };
+
+    // ✅ ฟังก์ชัน Export ข้อมูลเป็น Word (อิงตาม template แบบบันทึกภาระงาน)
+    const exportToWord = async () => {
+        // เลือกข้อมูลที่สร้างรีพอร์ตตาม Tab (ตอนนี้เป็น 1 = นักศึกษา หรือจะเลือกจาก internTasks ที่ completed ก็ได้)
+        const tasksToExport = activeTab === 0 ? completedTasks : completedInternTasks;
+        
+        if (tasksToExport.length === 0) {
+            toast.current.show({ severity: 'warn', summary: 'แจ้งเตือน', detail: 'ไม่มีข้อมูลสำเร็จที่สามารถ Export ได้ในแท็บนี้' });
+            return;
+        }
+
+        // เรียงวันที่จากเก่าไปใหม่ (ascending)
+        const sortedTasks = [...tasksToExport].sort((a, b) => new Date(a.date_report) - new Date(b.date_report));
+
+        // Group by date
+        const tasksByDate = {};
+        sortedTasks.forEach(task => {
+            if (!tasksByDate[task.date_report]) {
+                tasksByDate[task.date_report] = [];
+            }
+            tasksByDate[task.date_report].push(task);
+        });
+
+        const tableRows = [
+            new TableRow({
+                children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "No.", bold: true })], alignment: AlignmentType.CENTER })], width: { size: 10, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "วัน/เดือน/ปี", bold: true })], alignment: AlignmentType.CENTER })], width: { size: 20, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "รายละเอียดภาระงาน หน้าที่ การปฏิบัติงาน", bold: true })], alignment: AlignmentType.CENTER })], width: { size: 50, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "หมายเหตุ", bold: true })], alignment: AlignmentType.CENTER })], width: { size: 20, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
+                ]
+            })
+        ];
+
+        let no = 1;
+        for (const [date, tasks] of Object.entries(tasksByDate)) {
+            const taskParagraphs = tasks.map((task, index) => {
+                const detailText = task.contribution_detail ? String(task.contribution_detail).trim() : "";
+                const titleText = task.deviceName ? String(task.deviceName).trim() : "";
+                return new Paragraph({
+                    children: [new TextRun({ text: `${index + 1}. ${titleText} ${detailText ? "- " + detailText : ""}` })],
+                    spacing: { before: 60, after: 60 }
+                });
+            });
+
+            // หาหมายเหตุ (ดึงจาก learning_outcome ของงานในวันนั้นๆ)
+            const remarks = tasks.filter(t => t.learning_outcome).map(t => t.learning_outcome).join(", ");
+
+            tableRows.push(new TableRow({
+                children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(no) })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.TOP }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: date })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.TOP }),
+                    new TableCell({ children: taskParagraphs, margins: { top: 100, bottom: 100, left: 100, right: 100 } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: remarks })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.TOP })
+                ]
+            }));
+            no++;
+        }
+
+        const doc = new Document({
+            styles: {
+                default: {
+                    document: {
+                        run: {
+                            size: 32, // 16pt (1/2 pt units)
+                            font: {
+                                ascii: "TH SarabunPSK",
+                                cs: "TH SarabunPSK",
+                                eastAsia: "TH SarabunPSK",
+                                hAnsi: "TH SarabunPSK",
+                            },
+                        },
+                    },
+                },
+            },
+            sections: [{
+                properties: {},
+                children: [
+                    new Paragraph({
+                        children: [new TextRun({ text: "แบบบันทึกภาระงาน", bold: true, size: 36 })],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 120 }
+                    }),
+                    new Paragraph({
+                        children: [new TextRun({ text: "สัปดาห์ที่ 1 การปฏิบัติสหกิจศึกษา", bold: true, size: 32 })],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 120 }
+                    }),
+                    new Paragraph({
+                        children: [new TextRun({ text: "นิสิตคณะเทคโนโลยีอุตสาหกรรม มหาวิทยาลัยราชภัฏกำแพงเพชร", bold: true, size: 32 })],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 300 }
+                    }),
+                    new Table({
+                        width: {
+                            size: 100,
+                            type: WidthType.PERCENTAGE,
+                        },
+                        rows: tableRows,
+                    }),
+                    new Table({
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                        borders: { 
+                            top: { style: BorderStyle.NONE }, 
+                            bottom: { style: BorderStyle.NONE }, 
+                            left: { style: BorderStyle.NONE }, 
+                            right: { style: BorderStyle.NONE },
+                            insideHorizontal: { style: BorderStyle.NONE }, 
+                            insideVertical: { style: BorderStyle.NONE } 
+                        },
+                        rows: [
+                            new TableRow({
+                                children: [
+                                    new TableCell({
+                                        children: [new Paragraph({ text: "" })],
+                                        width: { size: 40, type: WidthType.PERCENTAGE },
+                                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }
+                                    }),
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({ children: [new TextRun({ text: "ลงชื่อ / Signature.........................................." })], alignment: AlignmentType.CENTER, spacing: { before: 800, after: 120 } }),
+                                            new Paragraph({ children: [new TextRun({ text: "(..........................................)" })], alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
+                                            new Paragraph({ children: [new TextRun({ text: "ตำแหน่ง / Position .........................................." })], alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
+                                            new Paragraph({ children: [new TextRun({ text: "วันที่ / Date.........................................." })], alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
+                                            new Paragraph({ children: [new TextRun({ text: "หน่วยสหกิจศึกษา คณะเทคโนโลยีอุตสาหกรรม มหาวิทยาลัยราชภัฏกำแพงเพชร", size: 28 })], alignment: AlignmentType.CENTER, spacing: { after: 120 } })
+                                        ],
+                                        width: { size: 60, type: WidthType.PERCENTAGE },
+                                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }
+                                    })
+                                ]
+                            })
+                        ]
+                    })
+                ],
+            }],
+        });
+
+        try {
+            const blob = await Packer.toBlob(doc);
+            saveAs(blob, `ภาระงาน_สหกิจศึกษา_${new Date().toISOString().split('T')[0]}.docx`);
+            toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'ส่งออกไฟล์ Word เรียบร้อยแล้ว' });
+        } catch (error) {
+            console.error("Export Word Error:", error);
+            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถสร้างไฟล์ Word ได้' });
+        }
     };
 
     const timeTemplate = (rowData) => {
@@ -227,6 +374,12 @@ function MyTasks() {
                             onClick={fetchMyTasks}
                             className="bg-blue-600 border-none rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100"
                             loading={loading}
+                        />
+                        <Button
+                            icon="pi pi-file-word"
+                            label="Export Word"
+                            onClick={exportToWord}
+                            className="bg-[#2b579a] border-none rounded-xl hover:bg-blue-800 shadow-lg shadow-blue-200 ml-2"
                         />
                     </div>
                 </div>

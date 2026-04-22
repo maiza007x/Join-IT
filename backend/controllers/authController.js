@@ -1,9 +1,9 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const db = require('../helper/db.js');
 const jwt = require('jsonwebtoken');
 
 // ใช้รหัสลับจาก env หรือค่า default
-const JWT_SECRET = process.env.JWT_SECRET || "secret_key";
+const JWT_SECRET = process.env.SECRET_ACCESS_TOKEN || "secret_key";
 
 exports.login = async (req, res) => {
   try {
