@@ -76,27 +76,42 @@ CREATE TABLE `tasks` (
 DROP TABLE IF EXISTS `intern_tasks`;
 CREATE TABLE `intern_tasks` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `ticket_no` varchar(50) DEFAULT NULL COMMENT 'เลขที่ใบงาน (ถ้ามี)',
   `date_report` date NOT NULL,
   `time_report` time NOT NULL,
   `reporter` varchar(255) NOT NULL,
-  `department` varchar(100) NOT NULL COMMENT 'เก็บ ID หรือชื่อแผนก',
+  `department` varchar(100) NOT NULL COMMENT 'แผนกที่แจ้ง',
   `tel` varchar(50) DEFAULT NULL,
   `deviceName` varchar(255) NOT NULL,
   `number_device` varchar(255) DEFAULT NULL,
   `ip_address` varchar(50) DEFAULT NULL,
-  `report` longtext NOT NULL,
-  `status` int(1) NOT NULL DEFAULT 1 COMMENT '1:รับแจ้ง, 2:ดำเนินการ, 3:เสร็จสิ้น',
-  `username` varchar(255) DEFAULT NULL COMMENT 'Username นักศึกษาที่รับงาน',
-  `contribution_detail` longtext DEFAULT NULL,
-  `learning_outcome` longtext DEFAULT NULL,
-  `created_by` varchar(255) DEFAULT NULL,
+  `report` longtext NOT NULL COMMENT 'รายละเอียดปัญหา',
+  `status` int(1) NOT NULL DEFAULT 1 COMMENT '1:รอรับงาน, 2:กำลังดำเนินการ, 3:เสร็จสิ้น',
+  `created_by` int(11) DEFAULT NULL COMMENT 'ID นศ.ที่สร้างใบงานนี้',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `closed_date` date DEFAULT NULL,
-  `closed_time` time DEFAULT NULL,
+  `closed_at` timestamp NULL DEFAULT NULL COMMENT 'เวลาที่งานนี้ปิดตัวลงอย่างสมบูรณ์',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+DROP TABLE IF EXISTS `intern_task_assignees`;
+CREATE TABLE `intern_task_assignees` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `intern_task_id` int(11) NOT NULL COMMENT 'FK โยงไปหา intern_tasks.id',
+  `intern_id` int(11) NOT NULL COMMENT 'FK โยงไปหา users.id',
+  
+  -- ส่วนของการลงเวลา (แยกรายบุคคล)
+  `take_time` timestamp NULL DEFAULT NULL COMMENT 'เวลาที่ นศ. คนนี้กดรับ/เข้าร่วมงาน',
+  `close_time` timestamp NULL DEFAULT NULL COMMENT 'เวลาที่ นศ. คนนี้ทำงานส่วนของตัวเองเสร็จ',
+  
+  -- ส่วนของรายละเอียดงาน (แยกรายบุคคล)
+  `contribution_detail` longtext DEFAULT NULL COMMENT 'นศ. คนนี้ทำอะไรไปบ้างในงานนี้',
+  `learning_outcome` longtext DEFAULT NULL COMMENT 'นศ. คนนี้ได้เรียนรู้อะไร',
+  
+  `role` varchar(50) DEFAULT 'member' COMMENT 'บทบาท เช่น lead (หัวหน้างาน), member (ผู้ช่วย)',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_assignee` (`intern_task_id`, `intern_id`) -- ป้องกัน นศ. คนเดิมกดรับงานเดิมซ้ำ 2 รอบ
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
