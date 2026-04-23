@@ -25,14 +25,28 @@ const Dashboard = () => {
   };
 
   // --- 🌟 Global Filters State ---
-  const [globalFilter, setGlobalFilter] = useState({
-    year: "2569",
-    term: getDefaultTerm(),
-    university: "all",
-    person: "all",
-    timeRange: "today",
-    customDates: null,
+  const [globalFilter, setGlobalFilter] = useState(() => {
+    const saved = localStorage.getItem("dashboardGlobalFilter");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error parsing dashboardGlobalFilter", e);
+      }
+    }
+    return {
+      year: "2569",
+      term: getDefaultTerm(),
+      university: "all",
+      person: "all",
+      timeRange: "today",
+      customDates: null,
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem("dashboardGlobalFilter", JSON.stringify(globalFilter));
+  }, [globalFilter]);
 
   // --- 📊 Charts Data State ---
   const [kpiData, setKpiData] = useState({ totalTasks: 0, joinTasks: 0, selfTasks: 0, topSkill: "-" });

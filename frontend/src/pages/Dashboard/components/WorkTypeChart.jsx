@@ -7,7 +7,11 @@ import api from "../../../services/api";
 const WorkTypeChart = ({ globalFilter }) => {
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState({ labels: [], datasets: [] });
-  const [category, setCategory] = useState("device");
+  const [category, setCategory] = useState(() => localStorage.getItem("workTypeCategory") || "device");
+
+  useEffect(() => {
+    localStorage.setItem("workTypeCategory", category);
+  }, [category]);
 
   const donutConfig = {
     plugins: {

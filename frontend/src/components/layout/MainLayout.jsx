@@ -14,7 +14,7 @@ const MainLayout = () => {
 
   // --- Real-time Notification Listener ---
   useEffect(() => {
-    socket.on("new-task", (data) => {
+    const handleNewTaskNotification = (data) => {
       globalToast.current?.show({
         severity: "info",
         summary: "📥 มีงานใหม่ในระบบ!",
@@ -32,10 +32,12 @@ const MainLayout = () => {
         ),
         life: 10000, // แสดงนิ่งๆ 10 วินาที
       });
-    });
+    };
+
+    socket.on("new-task", handleNewTaskNotification);
 
     return () => {
-      socket.off("new-task");
+      socket.off("new-task", handleNewTaskNotification);
     };
   }, [navigate]);
 

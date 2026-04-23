@@ -71,15 +71,21 @@ function Tasks() {
         fetchTasks();
 
         // ฟัง Socket เพื่อรีเฟรชข้อมูลเมื่อมีงานใหม่
-        socket.on("new-task", () => {
-            console.log(
-                "🔄 [Tasks]: Refreshing task list due to new incoming task...",
-            );
-            fetchTasks();
-        });
+        let debounceTimer;
+        const handleNewTask = () => {
+            console.log("🔄 [Tasks]: Task update received. Scheduling refresh...");
+            clearTimeout(debounceTimer);
+            // Debounce การดึงข้อมูลเพื่อป้องกันการยิง API ซ้ำซ้อนเมื่อมีหลาย socket events เข้ามาพร้อมกัน
+            debounceTimer = setTimeout(() => {
+                fetchTasks();
+            }, 1000);
+        };
+
+        socket.on("new-task", handleNewTask);
 
         return () => {
-            socket.off("new-task");
+            socket.off("new-task", handleNewTask);
+            clearTimeout(debounceTimer);
         };
     }, []);
 

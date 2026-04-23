@@ -59,10 +59,18 @@ const getTimeRangeBounds = (timeRange, customDates) => {
 };
 
 const WorkloadChart = ({ globalFilter }) => {
-  const [view, setView] = useState("gantt");
+  const [view, setView] = useState(() => localStorage.getItem("workloadView") || "gantt");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({ ganttData: [], barData: { labels: [], datasets: [] } });
-  const [groupingCategory, setGroupingCategory] = useState("device");
+  const [groupingCategory, setGroupingCategory] = useState(() => localStorage.getItem("workloadGroupingCategory") || "device");
+
+  useEffect(() => {
+    localStorage.setItem("workloadView", view);
+  }, [view]);
+
+  useEffect(() => {
+    localStorage.setItem("workloadGroupingCategory", groupingCategory);
+  }, [groupingCategory]);
   const [localFilters, setLocalFilters] = useState({
     date: new Date(),
   });

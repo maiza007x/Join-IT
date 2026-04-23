@@ -669,7 +669,7 @@ exports.getHeatmapData = async (req, res) => {
                 COUNT(*) as count
             FROM orderit.data_report r
             JOIN orderit.depart d ON r.department = d.depart_id
-            WHERE 1=1
+            WHERE r.status != '1'
         `;
 
         const params = [];
@@ -902,6 +902,7 @@ exports.getHeatmapDetails = async (req, res) => {
                 r.date_report,
                 r.time_report,
                 r.deviceName,
+                r.report,
                 r.problem,
                 r.status,
                 d.depart_name,

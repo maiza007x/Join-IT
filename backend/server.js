@@ -24,7 +24,11 @@ async function startServer() {
       cors: {
         origin: "*", // ใน Production ควรระบุ Domain ของ Frontend
         methods: ["GET", "POST"]
-      }
+      },
+      transports: ["websocket", "polling"], // 🚀 บังคับใช้ WebSocket เป็นหลักเพื่อลด HTTP Overhead
+      allowUpgrades: true, // อนุญาตให้ยกระดับจาก Polling เป็น WebSocket
+      pingTimeout: 60000, // ⏳ จัดการ connection timeout ที่ดีขึ้น
+      pingInterval: 25000,
     });
 
     // แนบ io ไปกับ app เพื่อให้เรียกใช้ได้จาก Routes อื่นๆ

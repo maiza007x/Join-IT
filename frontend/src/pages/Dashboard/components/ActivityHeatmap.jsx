@@ -8,7 +8,13 @@ import api from "../../../services/api";
 const ActivityHeatmap = ({ globalFilter }) => {
   const [loading, setLoading] = useState(false);
   const [heatmapData, setHeatmapData] = useState({ yLabels: [], hours: [], matrix: [] });
-  const [selectedCategory, setSelectedCategory] = useState("device");
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    return localStorage.getItem("heatmapSelectedCategory") || "device";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("heatmapSelectedCategory", selectedCategory);
+  }, [selectedCategory]);
 
   // Sidebar State
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -123,17 +129,25 @@ const ActivityHeatmap = ({ globalFilter }) => {
 
   const getStatusSeverity = (status) => {
     switch (status) {
-      case "3": return "success";
+      case "6": return "success";
+      case "5": return "success";
+      case "4": return "success";
+      case "3": return "info";
       case "2": return "warning";
+      case "1": return "info";
       default: return "info";
     }
   };
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case "3": return "เสร็จสิ้น";
+      case "6": return "รอกรอกรายละเอียด";
+      case "5": return "ส่งซ่อม";
+      case "4": return "เสร็จสิ้น";
+      case "3": return "รออะไหล่";
       case "2": return "กำลังดำเนินการ";
-      default: return "รอดำเนินการ";
+      case "1": return "ยังไม่ได้ดำเนินการ";
+      default: return "เจ้าหน้าที่ยังไม่ได้รับงาน";
     }
   };
 
@@ -221,25 +235,17 @@ const ActivityHeatmap = ({ globalFilter }) => {
         )}
       </div>
 
-      {/* Footer Info */}
-      <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-        <p className="text-[10px] text-slate-400 m-0 flex items-center gap-1">
-          <i className="pi pi-info-circle text-[12px]"></i>
-          ข้อมูลอ้างอิงจากตารางการแจ้งซ่อม (orderit.data_report) เท่านั้น
-        </p>
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Heatmap Intensity Scale</span>
-      </div>
-
       {/* Task Details Sidebar */}
-      <Sidebar 
-        visible={sidebarVisible} 
-        position="right" 
+      <Sidebar
+        visible={sidebarVisible}
+        position="right"
         onHide={() => setSidebarVisible(false)}
-        className="w-full md:w-[450px] lg:w-[500px] border-l border-slate-200 shadow-2xl p-0"
+        className="border-l border-slate-200 shadow-2xl p-0"
+        style={{ width: '95vw', maxWidth: '650px' }}
         header={(
           <div className="flex flex-col">
             <h2 className="text-lg font-black text-indigo-700 m-0">{sidebarTitle}</h2>
-            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">รายการภารกิจที่พบ</p>
+            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">รายการงานที่พบ</p>
           </div>
         )}
       >
@@ -248,49 +254,83 @@ const ActivityHeatmap = ({ globalFilter }) => {
             [1, 2, 3, 4].map(i => <Skeleton key={i} height="120px" className="rounded-xl" />)
           ) : sidebarTasks.length > 0 ? (
             sidebarTasks.map((task, idx) => (
-              <div 
-                key={task.id} 
-                className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+              <div
+                key={task.id}
+                className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative overflow-hidden"
               >
                 {/* Status Indicator Bar */}
-                <div className={`absolute top-0 left-0 w-1.5 h-full ${
-                  task.status === "3" ? "bg-emerald-500" : task.status === "2" ? "bg-amber-500" : "bg-indigo-500"
-                }`}></div>
+                <div className={`absolute top-0 left-0 w-1.5 h-full ${task.status === "3" ? "bg-emerald-500" : task.status === "2" ? "bg-amber-500" : "bg-indigo-500"}`}></div>
 
-                <div className="flex justify-between items-start mb-3 ml-2">
-                  <div className="flex gap-2">
-                    <Tag value={getStatusLabel(task.status)} severity={getStatusSeverity(task.status)} className="text-[9px] font-bold py-0.5 px-2" />
-                    {task.intern_count > 0 && (
-                      <Tag value={`นักศึกษาช่วยงาน ${task.intern_count} คน`} severity="warning" icon="pi pi-users" className="text-[9px] font-bold py-0.5 px-2" />
+                <div className="pl-2">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Tag value={getStatusLabel(task.status)} severity={getStatusSeverity(task.status)} className="text-[9px] font-bold py-0.5 px-2" />
+                      {task.intern_count > 0 && (
+                        <Tag value={`นักศึกษาช่วยงาน ${task.intern_count} คน`} severity="warning" icon="pi pi-users" className="text-[9px] font-bold py-0.5 px-2" />
+                      )}
+                    </div>
+                    <div className="inline-flex items-center gap-2 text-slate-500 rounded-md">
+
+                      {/* ส่วนวันที่ */}
+                      <div className="flex items-center gap-1.5">
+                        <i className="pi pi-calendar text-[10px] text-slate-400"></i>
+                        <span className="text-[10px] font-bold">
+                          {/* แปลงจาก yyyy-mm-dd เป็น dd/mm/yyyy */}
+                          {task.date_report ? task.date_report.split('-').reverse().join('/') : '-'}
+                        </span>
+                      </div>
+
+                      {/* เส้นแบ่ง (Divider) บางๆ ดูมินิมอลกว่าการพิมพ์ตัว | */}
+                      <div className="w-[1px] h-3 bg-slate-300"></div>
+
+                      {/* ส่วนเวลา */}
+                      <div className="flex items-center gap-1.5">
+                        <i className="pi pi-clock text-[10px] text-slate-400"></i>
+                        <span className="text-[10px] font-bold">
+                          {task.time_report ? `${task.time_report.slice(0, 5)} น.` : '-'}
+                        </span>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-3">
+                    <h4 className="text-sm font-bold text-slate-800 m-0 leading-snug group-hover:text-blue-600 transition-colors">
+                      {task.deviceName}
+                    </h4>
+
+                    {task.problem && (
+                      <div className="bg-slate-50 text-slate-500 border border-slate-200 px-2.5 py-1 rounded-md inline-block">
+                        <p className="text-[10px] font-bold m-0 flex items-center gap-1.5">
+                          {task.problem}
+                        </p>
+                      </div>
                     )}
                   </div>
-                  <span className="text-xs font-black text-slate-400">{task.time_report.slice(0, 5)} น.</span>
-                </div>
 
-                <h4 className="text-sm font-bold text-slate-800 m-0 mb-1 ml-2 leading-snug">
-                  {task.deviceName}
-                </h4>
-                <p className="text-xs text-slate-500 ml-2 mb-4 italic line-clamp-2">
-                  {task.problem}
-                </p>
 
-                <div className="grid grid-cols-2 gap-2 ml-2 pt-3 border-t border-slate-50">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-slate-50 flex items-center justify-center">
-                      <i className="pi pi-building text-slate-400 text-[10px]"></i>
+                  <p className="text-md text-slate-600 mb-4 line-clamp-2 leading-relaxed">
+                    {task.report}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100/80">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 shrink-0 rounded-lg bg-blue-50/50 flex items-center justify-center text-blue-500">
+                        <i className="pi pi-building text-[11px]"></i>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">หน่วยงาน</span>
+                        <span className="text-[11px] font-bold text-slate-700 truncate" title={task.depart_name}>{task.depart_name || "-"}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">หน่วยงาน</span>
-                      <span className="text-[10px] font-bold text-slate-600 truncate w-32">{task.depart_name}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-slate-50 flex items-center justify-center">
-                      <i className="pi pi-user text-slate-400 text-[10px]"></i>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">เจ้าหน้าที่</span>
-                      <span className="text-[10px] font-bold text-slate-600 truncate w-32">{task.staff_name}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 shrink-0 rounded-lg bg-orange-50/50 flex items-center justify-center text-orange-500">
+                        <i className="pi pi-user text-[11px]"></i>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">เจ้าหน้าที่</span>
+                        <span className="text-[11px] font-bold text-slate-700 truncate" title={task.staff_name}>{task.staff_name || "-"}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
