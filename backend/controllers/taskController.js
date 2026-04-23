@@ -13,9 +13,11 @@ exports.getTasksCollab = async (req, res) => {
         let staffSql = `
             SELECT 
                 r.id as id, r.deviceName, r.report, r.time_report, r.date_report, r.username,
+                d.depart_name as department_name,
                 GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN t.intern_id = ? AND t.deleted_at IS NULL THEN 1 ELSE 0 END) as isContributedByMe
             FROM orderit.data_report r
+            LEFT JOIN orderit.depart d ON r.department = d.depart_id
             LEFT JOIN join_it.tasks t ON r.id = t.task_staff_id AND t.deleted_at IS NULL
             LEFT JOIN join_it.users u ON t.intern_id = u.id
             WHERE DATE(r.date_report) = ?
@@ -85,9 +87,11 @@ exports.getMyTasks = async (req, res) => {
                 r.time_report,
                 r.deviceName, 
                 r.report,
+                d.depart_name as department_name,
                 'staff' as type
             FROM join_it.tasks t
             LEFT JOIN orderit.data_report r ON t.task_staff_id = r.id
+            LEFT JOIN orderit.depart d ON r.department = d.depart_id
             WHERE t.intern_id = ? AND t.deleted_at IS NULL
         `;
         const staffParams = [userId];
@@ -108,8 +112,10 @@ exports.getMyTasks = async (req, res) => {
                 i.contribution_detail,
                 i.learning_outcome,
                 i.status,
+                d.depart_name as department_name,
                 'intern' as type
             FROM join_it.intern_tasks i
+            LEFT JOIN orderit.depart d ON i.department = d.depart_id
             WHERE i.username = ?
         `;
         const internParams = [username];
@@ -193,99 +199,76 @@ exports.leaveTask = async (req, res) => {
 // --- 6. ดึงข้อมูลสถิติสำหรับ Analytics Dashboard ---
 exports.getAnalyticsStats = async (req, res) => {
     try {
-        const { range, type } = req.query; // range: today, week, month, year | type: person, hour, rating, sla, category
+        const { range, year, term, university, person } = req.query;
 
-        // Helper สำหรับสร้าง SQL WHERE clause ตามช่วงเวลา
+        // 1. สร้าง Filter สำหรับช่วงเวลา (Time Range)
         const getDateFilter = (r) => {
             switch (r) {
                 case 'week': return 'YEARWEEK(r.date_report, 1) = YEARWEEK(CURDATE(), 1)';
                 case 'month': return 'MONTH(r.date_report) = MONTH(CURDATE()) AND YEAR(r.date_report) = YEAR(CURDATE())';
                 case 'year': return 'YEAR(r.date_report) = YEAR(CURDATE())';
-                case 'today':
+                case 'today': return 'DATE(r.date_report) = CURDATE()';
+                case 'all': return '1=1';
                 default: return 'DATE(r.date_report) = CURDATE()';
             }
         };
-
         const dateFilter = getDateFilter(range);
 
-        // ฟังก์ชันย่อยสำหรับดึงแต่ละส่วน (รองรับการดึงเฉพาะส่วนเพื่อ Performance)
-        const fetchPersonStats = async () => {
-            const [rows] = await joinPool.query(`
-                SELECT username as name, COUNT(*) as count 
-                FROM orderit.data_report r
-                WHERE ${dateFilter} 
-                GROUP BY username
-            `);
-            return rows;
-        };
+        // 2. สร้าง Filter สำหรับ Global Filters (Year, Term, University, Person)
+        // สำหรับ Join Tasks และ Top Skill (ใช้ join_it.users และ join_it.tasks)
+        let globalJoinFilter = '1=1';
+        const globalJoinParams = [];
 
-        const fetchHourStats = async () => {
-            const [rows] = await joinPool.query(`
-                SELECT HOUR(r.time_report) as hour, COUNT(*) as count 
-                FROM orderit.data_report r
-                WHERE ${dateFilter} 
-                GROUP BY HOUR(r.time_report) 
-                ORDER BY hour
-            `);
-            return rows;
-        };
+        if (year && year !== 'all') { globalJoinFilter += ' AND u.academic_year = ?'; globalJoinParams.push(year); }
+        if (term && term !== 'all') { globalJoinFilter += ' AND u.term = ?'; globalJoinParams.push(term); }
+        if (university && university !== 'all') { globalJoinFilter += ' AND u.university_name = ?'; globalJoinParams.push(university); }
+        if (person && person !== 'all') { globalJoinFilter += ' AND u.id = ?'; globalJoinParams.push(person); }
 
-        const fetchRatingStats = async () => {
-            // หมายเหตุ: ตาราง rating เป็น global หรืออาจต้องมีระบบกรองวันทีตาม timestamp
-            const [rows] = await joinPool.query(`
-                SELECT 
-                    AVG(service_speed) as speed, 
-                    AVG(problem_satisfaction) as problem, 
-                    AVG(service_satisfaction) as service 
-                FROM orderit.rating
-                WHERE ${dateFilter.replace('r.date_report', 'DATE(timestamp)')}
-            `);
-            return rows[0] || { speed: 0, problem: 0, service: 0 };
-        };
+        // --- 📊 คำนวณ KPI Data ---
 
-        const fetchSLAStats = async () => {
-            const [rows] = await joinPool.query(`
-                SELECT 
-                    SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, r.time_report, r.close_date) <= 30 THEN 1 ELSE 0 END) as within_sla,
-                    SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, r.time_report, r.close_date) > 30 THEN 1 ELSE 0 END) as over_sla
-                FROM orderit.data_report r
-                WHERE ${dateFilter} AND r.close_date IS NOT NULL
-            `);
-            return rows[0] || { within_sla: 0, over_sla: 0 };
-        };
+        // A. ภารกิจทั้งหมด (Total Tasks ในช่วงเวลาที่เลือก) จาก orderit.data_report
+        const [totalRows] = await joinPool.query(`
+            SELECT COUNT(*) as total 
+            FROM orderit.data_report r 
+            WHERE ${dateFilter}
+        `);
 
-        const fetchCategoryStats = async () => {
-            const [rows] = await joinPool.query(`
-                SELECT r.problem as category, COUNT(*) as count 
-                FROM orderit.data_report r
-                WHERE ${dateFilter} AND r.problem IS NOT NULL 
-                GROUP BY r.problem
-            `);
-            return rows;
-        };
+        // B. จำนวนงานที่เข้าร่วม (Join Tasks) กรองตามช่วงเวลา + Global Filter
+        const [joinRows] = await joinPool.query(`
+            SELECT COUNT(DISTINCT t.task_staff_id) as total
+            FROM join_it.tasks t
+            INNER JOIN join_it.users u ON t.intern_id = u.id
+            INNER JOIN orderit.data_report r ON t.task_staff_id = r.id
+            WHERE ${dateFilter} AND t.deleted_at IS NULL AND ${globalJoinFilter}
+        `, globalJoinParams);
 
-        // logic: ถ้าส่ง type มา จะคืนผลแค่ส่วนนั้น (เพื่ออัปเดตกราฟเดียว)
-        // ถ้าไม่ส่ง จะคืนทั้งหมด (โหลดครั้งแรก)
-        let responseData = {};
-        if (type) {
-            switch (type) {
-                case 'person': responseData.personStats = await fetchPersonStats(); break;
-                case 'hour': responseData.hourStats = await fetchHourStats(); break;
-                case 'rating': responseData.ratingStats = await fetchRatingStats(); break;
-                case 'sla': responseData.slaStats = await fetchSLAStats(); break;
-                case 'category': responseData.categoryStats = await fetchCategoryStats(); break;
-            }
-        } else {
-            responseData = {
-                personStats: await fetchPersonStats(),
-                hourStats: await fetchHourStats(),
-                ratingStats: await fetchRatingStats(),
-                slaStats: await fetchSLAStats(),
-                categoryStats: await fetchCategoryStats()
-            };
+        // C. ทักษะหลัก (Top Skill) - หา Keyword ที่ซ้ำกันมากที่สุดจาก Description
+        const [categoryRows] = await joinPool.query(`
+    SELECT r.problem, COUNT(*) as count
+    FROM join_it.tasks t
+    INNER JOIN join_it.users u ON t.intern_id = u.id
+    INNER JOIN orderit.data_report r ON t.task_staff_id = r.id
+    WHERE ${dateFilter} AND t.deleted_at IS NULL AND ${globalJoinFilter}
+    GROUP BY r.problem
+    ORDER BY count DESC
+    LIMIT 1
+`, globalJoinParams);
+
+        let topSkill = categoryRows.length > 0 ? categoryRows[0].problem : '-';
+
+        // ตัดเลขนำหน้าออกให้ดูสวยงาม (ถ้าต้องการ)
+        if (topSkill !== '-') {
+            topSkill = topSkill.replace(/^\d{2}\./, '').trim();
         }
 
-        res.json({ success: true, data: responseData });
+        res.json({
+            success: true,
+            kpi: {
+                totalTasks: totalRows[0]?.total || 0,
+                joinTasks: joinRows[0]?.total || 0,
+                topSkill: topSkill
+            }
+        });
     } catch (err) {
         console.error("❌ Analytics Stats Error:", err.message);
         res.status(500).json({ success: false, message: "ดึงข้อมูลสถิติล้มเหลว" });
@@ -889,6 +872,75 @@ exports.getLearningKeywordsData = async (req, res) => {
     } catch (err) {
         console.error("❌ Keywords Chart Error:", err.message);
         res.status(500).json({ success: false, message: "ดึงข้อมูลกราฟคีย์เวิร์ดล้มเหลว" });
+    }
+};
+
+// --- 6.7 ดึงรายละเอียดงานสำหรับช่อง Heatmap (Drill-down) ---
+exports.getHeatmapDetails = async (req, res) => {
+    try {
+        const {
+            startDate,
+            endDate,
+            category, // 'workingList', 'problemList', 'device', 'depart', 'staff'
+            hour,     // integer (8-17)
+            categoryValue // string value of the y-axis label
+        } = req.query;
+
+        const categoryMap = {
+            workingList: 'r.device',
+            problemList: 'r.problem',
+            device: 'r.deviceName',
+            depart: 'd.depart_name',
+            staff: 'r.username'
+        };
+
+        const groupColumn = categoryMap[category] || 'r.device';
+
+        let sql = `
+            SELECT 
+                r.id,
+                r.date_report,
+                r.time_report,
+                r.deviceName,
+                r.problem,
+                r.status,
+                d.depart_name,
+                r.username as staff_name,
+                r.work_type,
+                r.description,
+                (SELECT COUNT(*) FROM join_it.tasks t2 WHERE t2.task_staff_id = r.id AND t2.deleted_at IS NULL) as intern_count
+            FROM orderit.data_report r
+            JOIN orderit.depart d ON r.department = d.depart_id
+            WHERE HOUR(r.time_report) = ?
+        `;
+
+        const params = [hour];
+
+        // Filter by Date Range
+        if (startDate && endDate) {
+            sql += ` AND r.date_report BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        // Filter by the specific category value clicked
+        if (categoryValue === 'ไม่ระบุ') {
+            sql += ` AND (${groupColumn} IS NULL OR ${groupColumn} = "")`;
+        } else {
+            sql += ` AND ${groupColumn} = ?`;
+            params.push(categoryValue);
+        }
+
+        sql += ` ORDER BY r.time_report ASC`;
+
+        const [rows] = await joinPool.query(sql, params);
+
+        res.json({
+            success: true,
+            tasks: rows
+        });
+    } catch (err) {
+        console.error("❌ Heatmap Details Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงรายละเอียดงานล้มเหลว" });
     }
 };
 

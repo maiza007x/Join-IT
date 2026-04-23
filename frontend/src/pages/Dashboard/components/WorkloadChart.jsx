@@ -83,6 +83,15 @@ const WorkloadChart = ({ globalFilter }) => {
     staff: [],
   });
 
+  const handleDateChange = (direction) => {
+    setLocalFilters(prev => {
+      const current = prev.date ? new Date(prev.date) : new Date();
+      const daysToAdd = globalFilter.person === "all" ? 1 : 7;
+      current.setDate(current.getDate() + (direction * daysToAdd));
+      return { ...prev, date: current };
+    });
+  };
+
   const ganttHours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
 
   const categories = [
@@ -237,8 +246,8 @@ const WorkloadChart = ({ globalFilter }) => {
 
   const yLabels = [...new Set(data.ganttData.map(t => t.yLabel))];
   // If individual mode, ensure Mon-Fri are shown even if empty
-  const displayYLabels = globalFilter.person === "all" 
-    ? yLabels 
+  const displayYLabels = globalFilter.person === "all"
+    ? yLabels
     : getWeekRange(localFilters.date).weekDates.map(w => w.label);
 
   return (
@@ -280,15 +289,31 @@ const WorkloadChart = ({ globalFilter }) => {
           </div>
 
           {view === "gantt" && (
-            <div className="flex flex-col gap-1.5 w-44">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">วันที่ (Timeline)</label>
-              <Calendar
-                value={localFilters.date}
-                onChange={(e) => setLocalFilters(prev => ({ ...prev, date: e.value }))}
-                dateFormat="dd/mm/yy"
-                className="w-full h-10"
-                inputClassName="text-sm border-slate-200 bg-white rounded-lg shadow-sm"
-              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDateChange(-1)}
+                  className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 text-slate-500 transition-all"
+                  title={globalFilter.person === "all" ? "ย้อนกลับ 1 วัน" : "ย้อนกลับ 1 สัปดาห์"}
+                >
+                  <i className="pi pi-chevron-left text-xs"></i>
+                </button>
+                <Calendar
+                  value={localFilters.date}
+                  onChange={(e) => setLocalFilters(prev => ({ ...prev, date: e.value }))}
+                  dateFormat="dd/mm/yy"
+                  className="w-40 h-10"
+                  inputClassName="text-sm border-slate-200 bg-white rounded-lg shadow-sm"
+                />
+                <button
+                  onClick={() => handleDateChange(1)}
+                  className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 text-slate-500 transition-all"
+                  title={globalFilter.person === "all" ? "ถัดไป 1 วัน" : "ถัดไป 1 สัปดาห์"}
+                >
+                  <i className="pi pi-chevron-right text-xs"></i>
+                </button>
+              </div>
             </div>
           )}
         </div>

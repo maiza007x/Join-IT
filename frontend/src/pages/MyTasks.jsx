@@ -260,6 +260,22 @@ function MyTasks() {
         return <span className="font-bold text-blue-600">{rowData.time_report.substring(0, 5)} น.</span>;
     };
 
+    const deviceTemplate = (rowData) => {
+        return (
+            <div className="py-1">
+                <div className="font-bold text-slate-800 text-base">
+                    {rowData.deviceName}
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                    <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
+                    <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                        {rowData.department_name || rowData.department || '-'}
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
     const summaryTemplate = (rowData) => {
         const detail = rowData.contribution_detail || "ยังไม่ได้บันทึกรายละเอียด";
         const tooltipId = `summary-${rowData.contribution_id}`;
@@ -400,7 +416,7 @@ function MyTasks() {
                                             <DataTable value={pendingTasks} loading={loading} rows={10} scrollable emptyMessage="ไม่พบรายการงาน" className="p-datatable-sm custom-blue-table">
                                                 <Column field="time_report" header="เวลา" body={timeTemplate} style={{ width: '7rem' }} sortable />
                                                 <Column field="date_report" header="วันที่" style={{ width: '9rem' }} className="text-slate-400" sortable />
-                                                <Column field="deviceName" header="อุปกรณ์" style={{ width: '15rem' }} className="font-bold text-slate-700" sortable />
+                                                <Column field="deviceName" header="อุปกรณ์" body={deviceTemplate} style={{ width: '15rem' }} sortable />
                                                 <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600" sortable />
                                                 <Column header="จัดการ" body={(row) => (
                                                     <Button label="บันทึก" icon="pi pi-pencil" rounded className="py-1 px-3 text-[10px] font-bold bg-blue-600 border-none hover:bg-blue-700" onClick={() => openDetails({ ...row, type: 'staff' })} />
@@ -415,7 +431,17 @@ function MyTasks() {
                                                         <span className="font-bold text-blue-600">{task.time_report?.substring(0, 5)} น.</span>
                                                         <span className="text-slate-400 text-xs">{task.date_report}</span>
                                                     </div>
-                                                    <h4 className="font-bold text-slate-800 text-sm">{task.deviceName}</h4>
+                                                    <div className="flex flex-col gap-1">
+                                                        <h4 className="font-bold text-slate-800 text-base m-0 leading-tight">
+                                                            {task.deviceName}
+                                                        </h4>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                                                {task.department_name || task.department || '-'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                     <Button label="บันทึกข้อมูล" icon="pi pi-pencil" className="bg-blue-600 p-button-sm rounded-xl" onClick={() => openDetails({ ...task, type: 'staff' })} />
                                                 </div>
                                             ))}
@@ -434,7 +460,7 @@ function MyTasks() {
                                     <div className="p-4">
                                         <DataTable value={completedTasks} loading={loading} paginator rows={5} className="p-datatable-sm custom-blue-table">
                                             <Column field="date_report" header="วันที่" style={{ width: '9rem' }} sortable />
-                                            <Column field="deviceName" header="อุปกรณ์" className="font-bold" sortable />
+                                            <Column field="deviceName" header="อุปกรณ์" body={deviceTemplate} style={{ width: '15rem' }} sortable />
                                             <Column field="contribution_detail" header="สรุปผล" body={summaryTemplate} />
                                             <Column header="แก้ไข" body={(row) => <Button icon="pi pi-file-edit" text rounded onClick={() => openDetails({ ...row, type: 'staff' })} />} style={{ width: '5rem' }} />
                                         </DataTable>
@@ -455,7 +481,7 @@ function MyTasks() {
                                         <DataTable value={pendingInternTasks} loading={loading} rows={10} scrollable emptyMessage="ไม่มีงานที่กำลังทำ" className="p-datatable-sm custom-orange-table">
                                             <Column field="time_report" header="เวลา" body={timeTemplate} style={{ width: '7rem' }} sortable />
                                             <Column field="date_report" header="วันที่" style={{ width: '9rem' }} sortable />
-                                            <Column field="deviceName" header="อุปกรณ์/ชื่องาน" className="font-bold text-slate-700" sortable />
+                                            <Column field="deviceName" header="อุปกรณ์/ชื่องาน" body={deviceTemplate} style={{ width: '15rem' }} sortable />
                                             <Column field="report" header="รายละเอียดปัญหา" className="text-slate-600" />
                                             <Column header="จัดการ" body={(row) => (
                                                 <Button label="บันทึก" icon="pi pi-pencil" rounded className="py-1 px-3 text-[10px] font-bold bg-orange-500 border-none hover:bg-orange-600" onClick={() => openDetails({ ...row, type: 'intern' })} />
@@ -475,7 +501,7 @@ function MyTasks() {
                                     <div className="p-4">
                                         <DataTable value={completedInternTasks} loading={loading} paginator rows={5} className="p-datatable-sm custom-orange-table">
                                             <Column field="date_report" header="วันที่" style={{ width: '9rem' }} sortable />
-                                            <Column field="deviceName" header="อุปกรณ์/ชื่องาน" className="font-bold" sortable />
+                                            <Column field="deviceName" header="อุปกรณ์/ชื่องาน" body={deviceTemplate} style={{ width: '15rem' }} sortable />
                                             <Column field="contribution_detail" header="สรุปผล" body={summaryTemplate} />
                                             <Column header="แก้ไข" body={(row) => <Button icon="pi pi-file-edit" text rounded onClick={() => openDetails({ ...row, type: 'intern' })} />} style={{ width: '5rem' }} />
                                         </DataTable>

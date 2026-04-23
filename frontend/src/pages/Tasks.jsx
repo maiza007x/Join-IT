@@ -9,6 +9,8 @@ import { confirmDialog } from "primereact/confirmdialog";
 import { Toast } from "primereact/toast";
 import { InputText } from "primereact/inputtext";
 import { Calendar } from "primereact/calendar";
+import { FilterMatchMode } from "primereact/api";
+import { MultiSelect } from "primereact/multiselect";
 import socket from "../services/socket";
 
 import { useAuth } from "../context/AuthContext";
@@ -23,6 +25,25 @@ function Tasks() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [actionLoading, setActionLoading] = useState(null);
     const toast = useRef(null);
+
+    const [filters, setFilters] = useState({
+        username: { value: null, matchMode: FilterMatchMode.IN }
+    });
+
+    const reporters = Array.from(new Set(tasks.map(t => t.username).filter(Boolean)));
+
+    const reporterFilterTemplate = (options) => {
+        return (
+            <MultiSelect
+                value={options.value}
+                options={reporters}
+                onChange={(e) => options.filterCallback(e.value)}
+                placeholder="เลือกผู้แจ้ง"
+                className="p-column-filter"
+                maxSelectedLabels={1}
+            />
+        );
+    };
 
     const fetchTasks = async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
@@ -74,9 +95,9 @@ function Tasks() {
             });
 
             // Redirect to My Tasks (Staff Tab)
-            setTimeout(() => {
-                navigate("/my-tasks?tab=0");
-            }, 1000);
+            // setTimeout(() => {
+            //     navigate("/my-tasks?tab=0");
+            // }, 1000);
 
             fetchTasks();
         } catch (err) {
@@ -124,9 +145,9 @@ function Tasks() {
             });
 
             // Redirect to My Tasks (Intern Tab)
-            setTimeout(() => {
-                navigate("/my-tasks?tab=1");
-            }, 1000);
+            // setTimeout(() => {
+            //     navigate("/my-tasks?tab=1");
+            // }, 1000);
 
             fetchTasks();
         } catch (err) {
@@ -439,6 +460,8 @@ function Tasks() {
                                 rowHover
                                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
                                 currentPageReportTemplate="{first}-{last} of {totalRecords}"
+                                filters={filters}
+                                onFilter={(e) => setFilters(e.filters)}
                             >
                                 <Column
                                     field="id"
@@ -460,7 +483,7 @@ function Tasks() {
                                 />
                                 <Column
                                     field="deviceName"
-                                    header="อุปกรณ์ / แผนก"
+                                    header="อุปกรณ์"
                                     body={(row) => (
                                         <div className="py-1">
                                             <div className="font-bold text-slate-800 text-base">
@@ -469,12 +492,12 @@ function Tasks() {
                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                 <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
                                                 <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-                                                    {row.department}
+                                                    {row.department_name}
                                                 </span>
                                             </div>
                                         </div>
                                     )}
-                                    style={{ width: "18rem" }}
+                                    style={{ width: "17rem" }}
                                     sortable
                                 />
                                 <Column
@@ -482,6 +505,7 @@ function Tasks() {
                                     header="รายละเอียดปัญหา"
                                     className="text-slate-600 leading-relaxed"
                                     sortable
+                                    style={{ width: "20rem" }}
                                 />
                                 <Column
                                     field="username"
@@ -491,8 +515,11 @@ function Tasks() {
                                             @{row.username}
                                         </span>
                                     )}
-                                    style={{ width: "9rem" }}
+                                    style={{ width: "13rem" }}
                                     sortable
+                                    filter
+                                    filterElement={reporterFilterTemplate}
+                                    showFilterMatchModes={false}
                                 />
                                 <Column
                                     header="ผู้ช่วยเหลือ"
@@ -537,7 +564,7 @@ function Tasks() {
                                                 <div className="flex items-center gap-1.5">
                                                     <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
                                                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                                        {row.department}
+                                                        {row.department_name}
                                                     </span>
                                                 </div>
                                             </div>

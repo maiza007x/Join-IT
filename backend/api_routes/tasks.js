@@ -39,6 +39,9 @@ router.get('/collab-chart', auth, taskController.getCollaborationData);
 // --- 6.6 GET /api/tasks/keywords-chart (ข้อมูลกราฟสิ่งที่ได้เรียนรู้ Keywords) ---
 router.get('/keywords-chart', auth, taskController.getLearningKeywordsData);
 
+// --- 6.7 GET /api/tasks/heatmap-details (รายละเอียดงานเมื่อคลิกช่อง Heatmap) ---
+router.get('/heatmap-details', auth, taskController.getHeatmapDetails);
+
 // --- 7. GET /api/tasks/form-options (ดึงข้อมูลตัวเลือกสำหรับฟอร์มสร้างงาน) ---
 router.get('/form-options', auth, taskController.getFormOptions);
 
