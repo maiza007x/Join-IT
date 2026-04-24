@@ -11,6 +11,12 @@ export const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // 🛡️ ถ้าล็อกอินแล้วแต่ยังไม่ได้ยืนยันตัวตน (verified = 0) 
+  // ให้ส่งไปที่หน้า Profile เพื่อตั้งค่าเบื้องต้นเท่านั้น (ยกเว้นกำลังอยู่ที่หน้า Profile อยู่แล้ว)
+  if (user.verified === 0 && window.location.pathname !== '/profile') {
+    return <Navigate to="/profile" replace />;
+  }
+
   return children;
 };
 
@@ -22,6 +28,10 @@ export const ProtectedAdminRoute = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user.verified === 0 && window.location.pathname !== '/profile') {
+    return <Navigate to="/profile" replace />;
   }
 
   if (!isAdmin) {

@@ -195,6 +195,15 @@ function Members() {
                             <Column field="role" header="บทบาท ↑↓" body={(row) => (
                                 <Tag value={row.role === 'sub_admin' ? 'แอดมินรอง' : row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : row.role === 'sub_admin' ? 'bg-indigo-500 text-white' : 'bg-blue-500 text-white'}`} />
                             )} />
+                            <Column field="university_name" header="มหาวิทยาลัย" sortable body={(row) => (
+                                <span className="text-sm font-medium">{row.university_name || '-'}</span>
+                            )} />
+                            <Column field="academic_year" header="ปีการศึกษา" sortable body={(row) => (
+                                <span className="text-sm font-medium">{row.academic_year || '-'}</span>
+                            )} />
+                            <Column field="term" header="เทอม" sortable body={(row) => (
+                                <span className="text-sm font-medium">{row.term || '-'}</span>
+                            )} />
                             <Column field="updated_at" header="วันที่อัปเดตล่าสุด ↑↓" body={(row) => {
                                 if (!row.updated_at) return '-';
                                 const d = new Date(row.updated_at);

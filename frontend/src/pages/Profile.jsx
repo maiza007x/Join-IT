@@ -1,14 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api, { getImageUrl } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { Dialog } from 'primereact/dialog';
 import { Password } from 'primereact/password';
+import { Dropdown } from 'primereact/dropdown';
 import { Toast } from 'primereact/toast';
 import { Divider } from 'primereact/divider';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 
+const termOptions = [
+    { label: 'เทอม 1', value: 'เทอม 1' },
+    { label: 'เทอม 2', value: 'เทอม 2' },
+    { label: 'ภาคฤดูร้อน', value: 'ภาคฤดูร้อน' }
+];
+
 const Profile = () => {
+    const { login } = useAuth();
     const navigate = useNavigate();
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -18,6 +27,9 @@ const Profile = () => {
     const [fullName, setFullName] = useState("");
     const [academicYear, setAcademicYear] = useState("");
     const [universityName, setUniversityName] = useState("");
+    const [term, setTerm] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [uploading, setUploading] = useState(false);
 
     const [displayBasic, setDisplayBasic] = useState(false);
@@ -40,9 +52,10 @@ const Profile = () => {
             const data = res.data.data || res.data;
             if (data && data.username) {
                 setUserData(data);
-                setFullName(data.fullName || "");
+                setFullName(data.full_name || "");
                 setAcademicYear(data.academic_year || "");
                 setUniversityName(data.university_name || "");
+                setTerm(data.term || "");
             }
 
             // ถ้าเป็นผู้ดูแลระบบ ให้พยายามดึงโลโก้ปัจจุบันมาแสดง
@@ -67,9 +80,10 @@ const Profile = () => {
     }, []);
 
     const handleUpdateProfile = async () => {
-        if (fullName === userData.fullName &&
+        if (fullName === userData.full_name &&
             academicYear === userData.academic_year &&
-            universityName === userData.university_name) {
+            universityName === userData.university_name &&
+            term === userData.term) {
             setIsEditing(false);
             return;
         }
@@ -84,7 +98,8 @@ const Profile = () => {
             await api.put('/users/me', {
                 fullName,
                 academic_year: academicYear,
-                university_name: universityName
+                university_name: universityName,
+                term
             });
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'บันทึกข้อมูลเรียบร้อย', life: 3000 });
             setIsEditing(false);
@@ -95,6 +110,53 @@ const Profile = () => {
             setIsSaving(false);
         }
     };
+
+    const handleVerifyProfile = async () => {
+        if (!fullName.trim() || !universityName.trim() || !academicYear.trim() || !term.trim() || !newPassword || !confirmPassword) {
+            toast.current.show({ severity: 'warn', summary: 'ข้อมูลไม่ครบ', detail: 'กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง' });
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            toast.current.show({ severity: 'error', summary: 'รหัสผ่านไม่ตรงกัน', detail: 'รหัสผ่านใหม่และการยืนยันรหัสผ่านไม่ตรงกัน' });
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            toast.current.show({ severity: 'error', summary: 'รหัสผ่านสั้นเกินไป', detail: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const response = await api.post('/users/verify-profile', {
+                full_name: fullName,
+                university_name: universityName,
+                academic_year: academicYear,
+                term: term,
+                password: newPassword
+            });
+
+            toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: response.data.message });
+            
+            // อัปเดตข้อมูลใน Context
+            const token = localStorage.getItem("token");
+            const userRes = await api.get("/users/me");
+            const updatedUserData = userRes.data.data || userRes.data;
+            login(updatedUserData, token);
+
+            setTimeout(() => {
+                navigate('/tasks');
+            }, 1500);
+
+        } catch (err) {
+            console.error("Verify Error:", err);
+            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: err.response?.data?.message || 'บันทึกล้มเหลว' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
 
     const handleSavePassword = async () => {
         if (!passForm.current || !passForm.new || !passForm.confirm) {
@@ -207,8 +269,127 @@ const Profile = () => {
         }
     };
 
-    if (loading) return <div className="text-center mt-5"><i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem', color: '#34a6dbff' }}></i><p className="mt-2 text-muted">กำลังโหลดความหรูหรา...</p></div>;
-    if (!userData) return <div className="text-center mt-5 text-danger">ไม่พบข้อมูลผู้ใช้</div>;
+    if (loading) return <div className="text-center mt-10"><i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem', color: '#2563eb' }}></i><p className="mt-2 text-slate-500 font-bold">กำลังโหลดข้อมูลโปรไฟล์...</p></div>;
+    if (!userData) return <div className="text-center mt-10 text-red-500 font-bold">ไม่พบข้อมูลผู้ใช้</div>;
+
+    // --- 🧱 สำหรับ User ที่ยังไม่ได้ Verified ---
+    if (userData.verified === 0) {
+        return (
+            <div className="bg-[#f0f9ff] min-h-screen p-4 md:p-8 font-kanit">
+                <Toast ref={toast} />
+                <div className="mx-auto max-w-[600px] mt-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 overflow-hidden border border-blue-50">
+                        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-center text-white relative">
+                            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] [background-size:20px_20px]"></div>
+                            <div className="relative">
+                                <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-4 border border-white/30 shadow-lg">
+                                    <i className="pi pi-user-plus text-3xl"></i>
+                                </div>
+                                <h2 className="text-2xl font-black mb-1 tracking-tight">ยินดีต้อนรับสู่ JOIN-IT</h2>
+                                <p className="text-blue-100 text-sm font-medium opacity-90">กรุณาตั้งค่าโปรไฟล์และเปลี่ยนรหัสผ่านเพื่อเริ่มใช้งาน</p>
+                            </div>
+                        </div>
+
+                        <div className="p-8 md:p-10 space-y-6">
+                            <div className="grid grid-cols-1 gap-5">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-1">ชื่อ-นามสกุลจริง</label>
+                                    <div className="relative">
+                                        <i className="pi pi-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input
+                                            type="text"
+                                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 focus:bg-white outline-none transition-all font-bold text-slate-700"
+                                            placeholder="กรอกชื่อและนามสกุลจริง"
+                                            value={fullName}
+                                            onChange={(e) => setFullName(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-1">มหาวิทยาลัย / สถานศึกษา</label>
+                                    <div className="relative">
+                                        <i className="pi pi-building absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input
+                                            type="text"
+                                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 focus:bg-white outline-none transition-all font-bold text-slate-700"
+                                            placeholder="ระบุมหาวิทยาลัยของคุณ"
+                                            value={universityName}
+                                            onChange={(e) => setUniversityName(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] ml-1">ปีการศึกษา</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold text-slate-700"
+                                            placeholder="เช่น ปี 4"
+                                            value={academicYear}
+                                            onChange={(e) => setAcademicYear(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-amber-600 uppercase tracking-[0.2em] ml-1">เทอม</label>
+                                        <Dropdown
+                                            value={term}
+                                            options={termOptions}
+                                            onChange={(e) => setTerm(e.value)}
+                                            placeholder="เลือกเทอม"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-amber-100 outline-none transition-all font-bold text-slate-700"
+                                            pt={{
+                                                input: { className: 'font-bold text-slate-700 p-3.5' },
+                                                item: { className: 'font-bold text-slate-700' }
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="h-px bg-slate-100 my-2"></div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] ml-1">รหัสผ่านใหม่</label>
+                                    <Password
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        toggleMask
+                                        placeholder="ตั้งรหัสผ่านใหม่ของคุณ"
+                                        className="w-full"
+                                        inputClassName="w-full pl-4 pr-10 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-red-100 focus:border-red-500 focus:bg-white outline-none transition-all font-bold text-slate-700"
+                                        feedback={false}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] ml-1">ยืนยันรหัสผ่านใหม่</label>
+                                    <Password
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        toggleMask
+                                        placeholder="กรอกรหัสผ่านใหม่อีกครั้ง"
+                                        className="w-full"
+                                        inputClassName="w-full pl-4 pr-10 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-red-100 focus:border-red-500 focus:bg-white outline-none transition-all font-bold text-slate-700"
+                                        feedback={false}
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleVerifyProfile}
+                                disabled={isSaving}
+                                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.25rem] font-black shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+                            >
+                                {isSaving ? <i className="pi pi-spin pi-spinner"></i> : <i className="pi pi-check-circle group-hover:scale-110 transition-transform"></i>}
+                                <span>บันทึกและเริ่มใช้งานระบบ</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-[#f0f9ff] min-h-screen p-4 md:p-8 font-sans font-kanit">
@@ -302,12 +483,33 @@ const Profile = () => {
 
                             <div className="flex flex-col space-y-1 text-left">
                                 <label className="text-green-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                                    <i className="pi pi-calendar"></i> ระดับชั้นปีการศึกษา
+                                    <i className="pi pi-calendar"></i> ปีการศึกษา
                                 </label>
                                 {!isEditing ? (
                                     <span className="text-slate-700 font-bold text-lg bg-white p-3 rounded-xl border border-white h-full">{academicYear || <span className="text-slate-400 italic font-normal">ไม่ได้ระบุ</span>}</span>
                                 ) : (
-                                    <input className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm bg-white font-bold text-slate-700 text-sm" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="เช่น ปี 4, ชั้นประกาศนียบัตรวิชาชีพ ฯลฯ" />
+                                    <input className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm bg-white font-bold text-slate-700 text-sm" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="เช่น 2569" />
+                                )}
+                            </div>
+
+                            <div className="flex flex-col space-y-1 text-left">
+                                <label className="text-amber-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                                    <i className="pi pi-clock"></i> เทอมการศึกษา
+                                </label>
+                                {!isEditing ? (
+                                    <span className="text-slate-700 font-bold text-lg bg-white p-3 rounded-xl border border-white h-full">{term || <span className="text-slate-400 italic font-normal">ไม่ได้ระบุ</span>}</span>
+                                ) : (
+                                    <Dropdown
+                                        value={term}
+                                        options={termOptions}
+                                        onChange={(e) => setTerm(e.value)}
+                                        placeholder="เลือกเทอม"
+                                        className="w-full border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-sm bg-white font-bold text-slate-700"
+                                        pt={{
+                                            input: { className: 'font-bold text-slate-700 p-3' },
+                                            item: { className: 'font-bold text-slate-700' }
+                                        }}
+                                    />
                                 )}
                             </div>
 

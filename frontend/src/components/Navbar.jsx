@@ -7,7 +7,7 @@ import { getImageUrl } from '../services/api';
 const Navbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, logout } = useAuth();
+    const { user, logout, isAdmin } = useAuth();
 
     const handleLogout = () => {
         confirmDialog({
@@ -57,32 +57,23 @@ const Navbar = () => {
 
                 {/* --- ฝั่งขวา: กลุ่มปุ่มเมนู --- */}
                 <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                    {user?.verified !== 0 && (
+                        <>
+                            {/* ปุ่มแดชบอร์ด */}
+                            <PrimaryBtn icon="pi-th-large" label="แดชบอร์ด" path="/dashboard" />
 
-                    {/* ปุ่มแดชบอร์ด */}
-                    <PrimaryBtn icon="pi-th-large" label="แดชบอร์ด" path="/dashboard" />
+                            {/* ปุ่มงานวันนี้ */}
+                            <PrimaryBtn icon="pi-list" label="งานวันนี้" path="/tasks" />
 
-                    {/* ปุ่มสร้างงาน */}
-                    {/* <button
-                        onClick={() => navigate('/create-task')}
-                        className={`p-3 md:px-5 md:py-2.5 rounded-2xl font-bold  transition-all duration-300 flex items-center shadow-lg relative overflow-hidden
-                            ${location.pathname === '/create-task'
-                                ? 'bg-blue-500 text-white shadow-blue-100'
-                                : 'bg-slate-800 text-white hover:bg-slate-700 shadow-slate-100'}`}
-                    >
-                        <i className={`pi pi-plus-circle md:mr-2 text-base md:text-sm ${location.pathname === '/create-task' ? 'animate-spin-slow' : ''}`}></i>
-                        <span className="hidden md:inline text-xs">สร้างงาน</span>
-                    </button> */}
+                            {/* ปุ่มงานของฉัน */}
+                            <PrimaryBtn icon="pi-user-edit" label="งานของฉัน" path="/my-tasks" />
 
-                    {/* ปุ่มงานวันนี้ */}
-                    <PrimaryBtn icon="pi-list" label="งานวันนี้" path="/tasks" />
+                            {/* ปุ่มจัดการสมาชิก - แสดงเฉพาะ Admin */}
+                            {isAdmin && <PrimaryBtn icon="pi-users" label="จัดการสมาชิก" path="/members" />}
 
-                    {/* ปุ่มงานของฉัน */}
-                    <PrimaryBtn icon="pi-user-edit" label="งานของฉัน" path="/my-tasks" />
-
-                    {/* ปุ่มจัดการสมาชิก */}
-                    <PrimaryBtn icon="pi-users" label="จัดการสมาชิก" path="/members" />
-
-                    <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
+                            <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
+                        </>
+                    )}
 
                     {/* โปรไฟล์ดึงจาก AuthContext */}
                     <div className="flex items-center gap-2 md:gap-3 bg-slate-50 p-1 md:pr-4 rounded-full border border-slate-100 cursor-pointer hover:bg-white transition-all shadow-sm"

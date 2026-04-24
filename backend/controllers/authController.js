@@ -37,7 +37,14 @@ exports.login = async (req, res) => {
     return res.status(200).json({
       message: "เข้าสู่ระบบสำเร็จ",
       status: true,
-      data: user,
+      data: {
+        id: user.id,
+        username: user.username,
+        full_name: user.full_name,
+        role: user.role,
+        verified: user.verified,
+        avatar_url: user.avatar_url
+      },
       token,
     });
 
@@ -54,7 +61,8 @@ exports.getMe = async (req, res) => {
 
     // สมมติว่าคุณใช้ mysql.js หรือ db.js ในการ query
     // ให้ดึงข้อมูลเฉพาะที่จำเป็น ไม่ต้องเอา password มานะครับ
-    const [rows] = await db.query("SELECT id, username, role FROM users WHERE id = ?", [userId]);
+    // ✅ แก้ไข: ดึง verified มาด้วย
+    const [rows] = await db.query("SELECT id, username, role, verified, full_name, avatar_url FROM users WHERE id = ?", [userId]);
 
     if (rows.length === 0) {
       return res.status(404).json({ message: "ไม่พบข้อมูลผู้ใช้" });
@@ -62,7 +70,7 @@ exports.getMe = async (req, res) => {
 
     res.status(200).json({
       status: "success",
-      data: rows[0] // ส่งข้อมูล id, username, role กลับไป
+      data: rows[0]
     });
   } catch (error) {
     console.error("Error in getMe:", error);
@@ -95,7 +103,7 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // บันทึกข้อมูลลงฐานข้อมูล MySQL
-    await conn.execute('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedPassword]);
+    await conn.execute('INSERT INTO users (username, password, verified) VALUES (?, ?, ?)', [username, hashedPassword, 0]);
 
     return res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ!' });
 

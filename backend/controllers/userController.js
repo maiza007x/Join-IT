@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 exports.getProfile = async (req, res) => {
     try {
         const [rows] = await joinPool.query(
-            'SELECT id, username, full_name, university_name, academic_year, faculty, role, avatar_url FROM users WHERE id = ?',
+            'SELECT id, username, full_name, university_name, academic_year, term, faculty, role, avatar_url, verified FROM users WHERE id = ?',
             [req.user.id]
         );
 
@@ -38,7 +38,10 @@ exports.getAllUsers = async (req, res) => {
                 full_name,
                 avatar_url,
                 updated_at,
-                role
+                role,
+                university_name,
+                academic_year,
+                term
             FROM users 
         `);
         // หมายเหตุ: ถ้าคุณรัน ALTER TABLE เพิ่ม created_at แล้ว 
@@ -72,7 +75,7 @@ exports.getStudentList = async (req, res) => {
 
 // --- 3. PUT /api/users/me (อัปเดตข้อมูลส่วนตัว) ---
 exports.updateProfile = async (req, res) => {
-    const { fullName, full_name, university_name, academic_year } = req.body;
+    const { fullName, full_name, university_name, academic_year, term } = req.body;
     const finalName = fullName || full_name;
 
     if (!finalName || finalName.trim() === "") {
@@ -81,8 +84,8 @@ exports.updateProfile = async (req, res) => {
 
     try {
         await joinPool.query(
-            'UPDATE users SET full_name = ?, university_name = ?, academic_year = ? WHERE id = ?',
-            [finalName, university_name, academic_year, req.user.id]
+            'UPDATE users SET full_name = ?, university_name = ?, academic_year = ?, term = ? WHERE id = ?',
+            [finalName, university_name, academic_year, term, req.user.id]
         );
         res.json({ success: true, message: "อัปเดตข้อมูลโปรไฟล์สำเร็จ" });
     } catch (err) {
@@ -123,6 +126,38 @@ exports.changePassword = async (req, res) => {
     } catch (err) {
         console.error("Change Password Error:", err);
         res.status(500).json({ success: false, message: "เปลี่ยนรหัสผ่านล้มเหลว" });
+    }
+};
+
+// --- 4.1 POST /api/users/verify-profile (ยืนยันตัวตนครั้งแรก) ---
+exports.verifyProfile = async (req, res) => {
+    const { full_name, university_name, academic_year, term, password } = req.body;
+
+    if (!full_name || !university_name || !academic_year || !term || !password) {
+        return res.status(400).json({ success: false, message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+    }
+
+    try {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const sql = `
+            UPDATE users 
+            SET full_name = ?, 
+                university_name = ?, 
+                academic_year = ?, 
+                term = ?, 
+                password = ?, 
+                verified = 1 
+            WHERE id = ?
+        `;
+        
+        await joinPool.query(sql, [full_name, university_name, academic_year, term, hashedPassword, req.user.id]);
+
+        res.json({ success: true, message: "ตั้งค่าโปรไฟล์สำเร็จ พร้อมเริ่มใช้งานระบบ" });
+    } catch (err) {
+        console.error("Verify Profile Error:", err);
+        res.status(500).json({ success: false, message: "ไม่สามารถบันทึกข้อมูลการยืนยันตัวตนได้" });
     }
 };
 
@@ -275,8 +310,8 @@ exports.addUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(plainPassword, salt);
 
-        const sql = `INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)`;
-        const [result] = await joinPool.query(sql, [username, hashedPassword, full_name, role]);
+        const sql = `INSERT INTO users (username, password, full_name, role, verified) VALUES (?, ?, ?, ?, ?)`;
+        const [result] = await joinPool.query(sql, [username, hashedPassword, full_name, role, 0]);
 
         res.status(201).json({
             success: true,

@@ -49,6 +49,9 @@ router.put('/:id/reset-password', authMiddleware, userController.resetPassword);
 // ดูข้อมูลโปรไฟล์ตัวเอง
 router.get('/me', authMiddleware, userController.getProfile);
 
+// ยืนยันตัวตนครั้งแรก
+router.post('/verify-profile', authMiddleware, userController.verifyProfile);
+
 // แก้ไขข้อมูลส่วนตัว
 router.put('/me', authMiddleware, userController.updateProfile);
 

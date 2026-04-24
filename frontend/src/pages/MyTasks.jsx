@@ -13,8 +13,11 @@ import { Calendar } from 'primereact/calendar';
 import { InputText } from 'primereact/inputtext';
 import { Tooltip } from 'primereact/tooltip';
 import * as XLSX from 'xlsx'; // ✅ เพิ่ม library สำหรับ Excel
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, AlignmentType, WidthType, VerticalAlign, BorderStyle } from "docx";
 import { saveAs } from "file-saver";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+import { useAuth } from "../context/AuthContext";
+
 function MyTasks() {
     const [tasks, setTasks] = useState([]);
     const [internTasks, setInternTasks] = useState([]);
@@ -32,6 +35,7 @@ function MyTasks() {
         mentor_feedback: ''
     });
 
+    const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const toast = useRef(null);
@@ -109,9 +113,8 @@ function MyTasks() {
         toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'ส่งออกไฟล์ Excel เรียบร้อยแล้ว' });
     };
 
-    // ✅ ฟังก์ชัน Export ข้อมูลเป็น Word (อิงตาม template แบบบันทึกภาระงาน)
+    // ✅ ฟังก์ชัน Export ข้อมูลเป็น Word โดยใช้ Template (report.docx)
     const exportToWord = async () => {
-        // เลือกข้อมูลที่สร้างรีพอร์ตตาม Tab (ตอนนี้เป็น 1 = นักศึกษา หรือจะเลือกจาก internTasks ที่ completed ก็ได้)
         const tasksToExport = activeTab === 0 ? completedTasks : completedInternTasks;
         
         if (tasksToExport.length === 0) {
@@ -125,133 +128,69 @@ function MyTasks() {
         // Group by date
         const tasksByDate = {};
         sortedTasks.forEach(task => {
-            if (!tasksByDate[task.date_report]) {
-                tasksByDate[task.date_report] = [];
+            const dateStr = task.date_report || "-";
+            if (!tasksByDate[dateStr]) {
+                tasksByDate[dateStr] = [];
             }
-            tasksByDate[task.date_report].push(task);
+            tasksByDate[dateStr].push(task);
         });
 
-        const tableRows = [
-            new TableRow({
-                children: [
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "No.", bold: true })], alignment: AlignmentType.CENTER })], width: { size: 10, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "วัน/เดือน/ปี", bold: true })], alignment: AlignmentType.CENTER })], width: { size: 20, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "รายละเอียดภาระงาน หน้าที่ การปฏิบัติงาน", bold: true })], alignment: AlignmentType.CENTER })], width: { size: 50, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "หมายเหตุ", bold: true })], alignment: AlignmentType.CENTER })], width: { size: 20, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER }),
-                ]
-            })
-        ];
+        const tableData = Object.entries(tasksByDate).map(([date, tasks], index) => {
+            const detailText = tasks.map((t, idx) => {
+                const title = t.deviceName ? String(t.deviceName).trim() : "";
+                const detail = t.contribution_detail ? String(t.contribution_detail).trim() : "";
+                return `${idx + 1}. ${title} ${detail ? "- " + detail : ""}`;
+            }).join("\n");
 
-        let no = 1;
-        for (const [date, tasks] of Object.entries(tasksByDate)) {
-            const taskParagraphs = tasks.map((task, index) => {
-                const detailText = task.contribution_detail ? String(task.contribution_detail).trim() : "";
-                const titleText = task.deviceName ? String(task.deviceName).trim() : "";
-                return new Paragraph({
-                    children: [new TextRun({ text: `${index + 1}. ${titleText} ${detailText ? "- " + detailText : ""}` })],
-                    spacing: { before: 60, after: 60 }
-                });
-            });
-
-            // หาหมายเหตุ (ดึงจาก learning_outcome ของงานในวันนั้นๆ)
             const remarks = tasks.filter(t => t.learning_outcome).map(t => t.learning_outcome).join(", ");
 
-            tableRows.push(new TableRow({
-                children: [
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(no) })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.TOP }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: date })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.TOP }),
-                    new TableCell({ children: taskParagraphs, margins: { top: 100, bottom: 100, left: 100, right: 100 } }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: remarks })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.TOP })
-                ]
-            }));
-            no++;
-        }
-
-        const doc = new Document({
-            styles: {
-                default: {
-                    document: {
-                        run: {
-                            size: 32, // 16pt (1/2 pt units)
-                            font: {
-                                ascii: "TH SarabunPSK",
-                                cs: "TH SarabunPSK",
-                                eastAsia: "TH SarabunPSK",
-                                hAnsi: "TH SarabunPSK",
-                            },
-                        },
-                    },
-                },
-            },
-            sections: [{
-                properties: {},
-                children: [
-                    new Paragraph({
-                        children: [new TextRun({ text: "แบบบันทึกภาระงาน", bold: true, size: 36 })],
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 120 }
-                    }),
-                    new Paragraph({
-                        children: [new TextRun({ text: "สัปดาห์ที่ 1 การปฏิบัติสหกิจศึกษา", bold: true, size: 32 })],
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 120 }
-                    }),
-                    new Paragraph({
-                        children: [new TextRun({ text: "นิสิตคณะเทคโนโลยีอุตสาหกรรม มหาวิทยาลัยราชภัฏกำแพงเพชร", bold: true, size: 32 })],
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 300 }
-                    }),
-                    new Table({
-                        width: {
-                            size: 100,
-                            type: WidthType.PERCENTAGE,
-                        },
-                        rows: tableRows,
-                    }),
-                    new Table({
-                        width: { size: 100, type: WidthType.PERCENTAGE },
-                        borders: { 
-                            top: { style: BorderStyle.NONE }, 
-                            bottom: { style: BorderStyle.NONE }, 
-                            left: { style: BorderStyle.NONE }, 
-                            right: { style: BorderStyle.NONE },
-                            insideHorizontal: { style: BorderStyle.NONE }, 
-                            insideVertical: { style: BorderStyle.NONE } 
-                        },
-                        rows: [
-                            new TableRow({
-                                children: [
-                                    new TableCell({
-                                        children: [new Paragraph({ text: "" })],
-                                        width: { size: 40, type: WidthType.PERCENTAGE },
-                                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }
-                                    }),
-                                    new TableCell({
-                                        children: [
-                                            new Paragraph({ children: [new TextRun({ text: "ลงชื่อ / Signature.........................................." })], alignment: AlignmentType.CENTER, spacing: { before: 800, after: 120 } }),
-                                            new Paragraph({ children: [new TextRun({ text: "(..........................................)" })], alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
-                                            new Paragraph({ children: [new TextRun({ text: "ตำแหน่ง / Position .........................................." })], alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
-                                            new Paragraph({ children: [new TextRun({ text: "วันที่ / Date.........................................." })], alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
-                                            new Paragraph({ children: [new TextRun({ text: "หน่วยสหกิจศึกษา คณะเทคโนโลยีอุตสาหกรรม มหาวิทยาลัยราชภัฏกำแพงเพชร", size: 28 })], alignment: AlignmentType.CENTER, spacing: { after: 120 } })
-                                        ],
-                                        width: { size: 60, type: WidthType.PERCENTAGE },
-                                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }
-                                    })
-                                ]
-                            })
-                        ]
-                    })
-                ],
-            }],
+            return {
+                no: index + 1,
+                date: date,
+                details: detailText,
+                remarks: remarks || "-"
+            };
         });
 
         try {
-            const blob = await Packer.toBlob(doc);
-            saveAs(blob, `ภาระงาน_สหกิจศึกษา_${new Date().toISOString().split('T')[0]}.docx`);
+            // 1. โหลดไฟล์ template จาก /public/report.docx
+            const response = await fetch("/report.docx");
+            if (!response.ok) throw new Error("ไม่สามารถโหลดไฟล์ template.docx ได้ที่ /public/report.docx");
+            const content = await response.arrayBuffer();
+
+            // 2. เตรียมข้อมูลสำหรับใส่ใน template
+            const zip = new PizZip(content);
+            const doc = new Docxtemplater(zip, {
+                paragraphLoop: true,
+                linebreaks: true,
+            });
+
+            // ใส่ข้อมูลลงใน Template (รองรับทั้ง CamelCase และ snake_case)
+            const renderData = {
+                full_name: user?.full_name || user?.username || "-",
+                fullName: user?.full_name || user?.username || "-",
+                university_name: user?.university_name || "-",
+                universityName: user?.university_name || "-",
+                academic_year: user?.academic_year || "-",
+                academicYear: user?.academic_year || "-",
+                term: user?.term || "-",
+                tasks: tableData
+            };
+
+            doc.render(renderData);
+
+            // 3. สร้างและดาวน์โหลดไฟล์
+            const out = doc.getZip().generate({
+                type: "blob",
+                mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            });
+
+            saveAs(out, `แบบบันทึกภาระงาน_${user?.username || 'export'}_${new Date().toISOString().split('T')[0]}.docx`);
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'ส่งออกไฟล์ Word เรียบร้อยแล้ว' });
+
         } catch (error) {
             console.error("Export Word Error:", error);
-            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถสร้างไฟล์ Word ได้' });
+            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถสร้างไฟล์ Word ได้: ' + error.message });
         }
     };
 
