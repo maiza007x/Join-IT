@@ -110,9 +110,9 @@ const InternTasksSection = ({
                         </p>
                     </div>
                 </div>
-                <Button 
-                    label="สร้างงาน (นักศึกษา)" 
-                    icon="pi pi-plus" 
+                <Button
+                    label="สร้างงาน (นักศึกษา)"
+                    icon="pi pi-plus"
                     className="bg-orange-500 hover:bg-orange-600 border-none font-bold rounded-xl shadow-md shadow-orange-200 px-4 py-2 text-sm text-white transition-all hover:scale-105"
                     onClick={() => setCreateModalVisible(true)}
                 />
@@ -174,7 +174,19 @@ const InternTasksSection = ({
                             style={{ width: "20rem" }}
                         />
                         <Column
-                            header="ผู้รับงาน"
+                            field="created_by"
+                            header="สร้างโดย"
+                            body={(row) => (
+                                <span className="text-slate-500 font-semibold italic">
+                                    @{row.created_by}
+                                </span>
+                            )}
+                            style={{ width: "13rem" }}
+                            headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
+                            sortable
+                        />
+                        <Column
+                            header="สมาชิกร่วมงาน"
                             body={internTakerTemplate}
                             style={{ width: "14rem" }}
                             headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
@@ -211,7 +223,7 @@ const InternTasksSection = ({
                                             </span>
                                         </div>
                                         <span className="text-orange-500 font-semibold italic text-xs bg-orange-50 px-2 py-1 rounded-md">
-                                            @{row.created_by || row.username || 'Unknown'}
+                                            @{row.created_by}
                                         </span>
                                     </div>
                                     <div className="flex flex-col gap-1 relative z-20">

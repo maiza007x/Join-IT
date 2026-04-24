@@ -121,18 +121,6 @@ function Login() {
               className="w-full py-4 bg-slate-900 border-none rounded-2xl text-white font-bold text-sm shadow-xl shadow-slate-200 hover:bg-slate-800 hover:-translate-y-0.5 active:scale-95 transition-all"
             />
           </div>
-
-          <div className="mt-10 text-center">
-            <p className="text-slate-400 text-xs font-medium">
-              ยังไม่มีบัญชี? หรือ ลืมรหัสผ่าน?
-              <button
-                onClick={() => navigate("/contact-admin")}
-                className="ml-1 text-blue-600 font-bold hover:underline bg-transparent border-none p-0 cursor-pointer"
-              >
-                ติดต่อผู้ดูแล
-              </button>
-            </p>
-          </div>
         </div>
 
         <p className="text-center mt-8 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-semibold">

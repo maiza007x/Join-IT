@@ -35,11 +35,13 @@ exports.getTasksCollab = async (req, res) => {
         let internSql = `
             SELECT 
                 i.*, 
+                COALESCE(dev.device_name, i.deviceName) as deviceName,
                 d.depart_name as department_name,
                 GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN a.intern_id = ? THEN 1 ELSE 0 END) as isContributedByMe
             FROM join_it.intern_tasks i
             LEFT JOIN orderit.depart d ON i.department = d.depart_id
+            LEFT JOIN orderit.device dev ON i.deviceName = dev.device_id
             LEFT JOIN join_it.intern_task_assignees a ON i.id = a.intern_task_id
             LEFT JOIN join_it.users u ON a.intern_id = u.id
             WHERE DATE(i.date_report) = ?

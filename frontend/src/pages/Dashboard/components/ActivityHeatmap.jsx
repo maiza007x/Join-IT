@@ -151,6 +151,18 @@ const ActivityHeatmap = ({ globalFilter }) => {
     }
   };
 
+  const getStatusColorClass = (status) => {
+    switch (status) {
+      case "6":
+      case "5":
+      case "4": return "bg-green-500";
+      case "3": return "bg-blue-500";
+      case "2": return "bg-orange-500";
+      case "1": return "bg-cyan-500";
+      default: return "bg-cyan-500";
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Header */}
@@ -259,7 +271,7 @@ const ActivityHeatmap = ({ globalFilter }) => {
                 className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative overflow-hidden"
               >
                 {/* Status Indicator Bar */}
-                <div className={`absolute top-0 left-0 w-1.5 h-full ${task.status === "3" ? "bg-emerald-500" : task.status === "2" ? "bg-amber-500" : "bg-indigo-500"}`}></div>
+                <div className={`absolute top-0 left-0 w-1.5 h-full ${getStatusColorClass(task.status)}`}></div>
 
                 <div className="pl-2">
                   <div className="flex justify-between items-start mb-3">
