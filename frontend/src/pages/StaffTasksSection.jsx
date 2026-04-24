@@ -124,7 +124,7 @@ const StaffTasksSection = ({
                                 รายการงานวันนี้
                             </h3>
                             <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold mt-1">
-                                Update: {new Date().toLocaleTimeString()} น.
+                                Update: {new Date().toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' })} น.
                             </p>
                         </div>
                     </div>

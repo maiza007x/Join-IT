@@ -56,7 +56,7 @@ function Tasks() {
         setLoading(true);
         try {
             const formattedDate =
-                date instanceof Date ? date.toLocaleDateString("en-CA") : "";
+                date instanceof Date ? date.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" }) : "";
             const response = await api.get(`/tasks/tasks_collab`, {
                 params: { date: formattedDate, q: query },
             });
@@ -294,7 +294,7 @@ function Tasks() {
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50">
                     <div className="flex flex-wrap gap-5 items-end">
                         <div className="flex flex-col gap-2">
-                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest ml-1">
+                            <span className="text-sm font-black text-blue-500 uppercase tracking-widest ml-1">
                                 คัดกรองวันที่
                             </span>
                             <Calendar
@@ -302,11 +302,11 @@ function Tasks() {
                                 onChange={(e) => setSelectedDate(e.value)}
                                 dateFormat="yy-mm-dd"
                                 showIcon
-                                className="w-full md:w-56 custom-calendar shadow-inner"
+                                className="w-full md:w-56"
                             />
                         </div>
                         <div className="flex flex-col gap-2 grow">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                            <span className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1">
                                 ค้นหางาน (ปัญหา, อุปกรณ์, แผนก)
                             </span>
                             <div className="relative w-full">

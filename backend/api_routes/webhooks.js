@@ -28,7 +28,7 @@ router.post('/task-created', async (req, res) => {
                 deviceName,
                 report,
                 username,
-                time: time || new Date().toLocaleTimeString('th-TH'),
+                time: time || new Date().toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' }),
                 via: 'webhook' // ระบุว่ามาจาก Webhook
             });
 

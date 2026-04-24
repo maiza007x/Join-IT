@@ -4,7 +4,7 @@ const joinPool = require('../helper/db');
 exports.getTasksCollab = async (req, res) => {
     const { date, q } = req.query;
 
-    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
     const targetDate = date || today;
     const userId = req.user.id;
 

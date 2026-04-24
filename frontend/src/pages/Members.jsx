@@ -198,7 +198,7 @@ function Members() {
                             <Column field="updated_at" header="วันที่อัปเดตล่าสุด ↑↓" body={(row) => {
                                 if (!row.updated_at) return '-';
                                 const d = new Date(row.updated_at);
-                                return `${d.toLocaleDateString('th-TH')} ${d.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})}`;
+                                return `${d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })} ${d.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute:'2-digit' })}`;
                             }} />
 
                             <Column header="จัดการ" body={(row) => (

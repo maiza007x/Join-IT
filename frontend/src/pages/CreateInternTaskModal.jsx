@@ -71,8 +71,8 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
             // Format dates for MySQL
             const payload = {
                 ...formData,
-                date_report: formData.date_report.toLocaleDateString("en-CA"),
-                time_report: formData.time_report.toLocaleTimeString("en-GB", { hour12: false }),
+                date_report: formData.date_report.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" }),
+                time_report: formData.time_report.toLocaleTimeString("en-GB", { timeZone: "Asia/Bangkok", hour12: false }),
                 department: formData.department,
                 deviceName: formData.deviceName
             };
