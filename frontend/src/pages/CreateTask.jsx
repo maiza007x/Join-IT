@@ -7,7 +7,6 @@ import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Toast } from "primereact/toast";
-import { Card } from "primereact/card";
 
 const CreateTask = () => {
     const navigate = useNavigate();
@@ -74,23 +73,10 @@ const CreateTask = () => {
         }
     };
 
-    const priorities = [
-        { label: 'ปกติ', value: 'ปกติ' },
-        { label: 'ด่วน', value: 'ด่วน' },
-        { label: 'ด่วนที่สุด', value: 'ด่วนที่สุด' }
-    ];
-
-    const routines = [
-        { label: 'ไม่มี', value: 'ไม่มี' },
-        { label: 'ทุกวัน', value: 'ทุกวัน' },
-        { label: 'ทุกสัปดาห์', value: 'ทุกสัปดาห์' },
-        { label: 'ทุกเดือน', value: 'ทุกเดือน' }
-    ];
-
     return (
         <div className="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center font-sans text-slate-700">
             <Toast ref={toast} />
-            
+
             <div className="w-full max-w-4xl">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-black text-slate-800 tracking-tight">สร้างงาน</h1>
@@ -99,27 +85,27 @@ const CreateTask = () => {
 
                 <form onSubmit={handleSubmit} className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        
+
                         {/* วันที่และเวลา */}
                         <div className="flex flex-col gap-3">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest">วันที่แจ้ง</label>
-                            <Calendar 
-                                value={formData.date_report} 
-                                onChange={(e) => setFormData({...formData, date_report: e.value})} 
-                                dateFormat="dd/mm/yy" 
-                                showIcon 
+                            <Calendar
+                                value={formData.date_report}
+                                onChange={(e) => setFormData({ ...formData, date_report: e.value })}
+                                dateFormat="dd/mm/yy"
+                                showIcon
                                 className="w-full custom-input"
                                 placeholder="เลือกวันที่"
                             />
                         </div>
                         <div className="flex flex-col gap-3">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest">เวลาที่แจ้ง</label>
-                            <Calendar 
-                                value={formData.time_report} 
-                                onChange={(e) => setFormData({...formData, time_report: e.value})} 
-                                timeOnly 
+                            <Calendar
+                                value={formData.time_report}
+                                onChange={(e) => setFormData({ ...formData, time_report: e.value })}
+                                timeOnly
                                 hourFormat="12"
-                                showIcon 
+                                showIcon
                                 icon="pi pi-clock"
                                 className="w-full custom-input"
                                 placeholder="เลือกเวลา"
@@ -131,9 +117,9 @@ const CreateTask = () => {
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest">ผู้แจ้ง</label>
                             <span className="p-input-icon-left">
                                 <i className="pi pi-user text-slate-400" />
-                                <InputText 
-                                    value={formData.reporter} 
-                                    onChange={(e) => setFormData({...formData, reporter: e.target.value})} 
+                                <InputText
+                                    value={formData.reporter}
+                                    onChange={(e) => setFormData({ ...formData, reporter: e.target.value })}
                                     className="w-full custom-input"
                                     placeholder="ชื่อผู้แจ้ง"
                                     required
@@ -142,11 +128,11 @@ const CreateTask = () => {
                         </div>
                         <div className="flex flex-col gap-3">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest">หน่วยงาน</label>
-                            <Dropdown 
-                                value={formData.department} 
-                                options={departs} 
-                                onChange={(e) => setFormData({...formData, department: e.value})} 
-                                placeholder="กรุณาเลือก..." 
+                            <Dropdown
+                                value={formData.department}
+                                options={departs}
+                                onChange={(e) => setFormData({ ...formData, department: e.value })}
+                                placeholder="กรุณาเลือก..."
                                 filter
                                 className="w-full custom-dropdown"
                                 required
@@ -156,9 +142,9 @@ const CreateTask = () => {
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest">เบอร์โทร</label>
                             <span className="p-input-icon-left">
                                 <i className="pi pi-phone text-slate-400" />
-                                <InputText 
-                                    value={formData.tel} 
-                                    onChange={(e) => setFormData({...formData, tel: e.target.value})} 
+                                <InputText
+                                    value={formData.tel}
+                                    onChange={(e) => setFormData({ ...formData, tel: e.target.value })}
                                     className="w-full custom-input"
                                     placeholder="เบอร์โทรติดต่อ"
                                 />
@@ -168,11 +154,11 @@ const CreateTask = () => {
                         {/* อุปกรณ์ ครุภัณฑ์ IP */}
                         <div className="flex flex-col gap-3">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest">อุปกรณ์</label>
-                            <Dropdown 
-                                value={formData.deviceName} 
-                                options={devices} 
-                                onChange={(e) => setFormData({...formData, deviceName: e.value})} 
-                                placeholder="กรุณาเลือก..." 
+                            <Dropdown
+                                value={formData.deviceName}
+                                options={devices}
+                                onChange={(e) => setFormData({ ...formData, deviceName: e.value })}
+                                placeholder="กรุณาเลือก..."
                                 filter
                                 className="w-full custom-dropdown"
                                 required
@@ -180,58 +166,44 @@ const CreateTask = () => {
                         </div>
                         <div className="flex flex-col gap-3">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest">หมายเลขครุภัณฑ์ (ถ้ามี)</label>
-                            <InputText 
-                                value={formData.number_device} 
-                                onChange={(e) => setFormData({...formData, number_device: e.target.value})} 
+                            <InputText
+                                value={formData.number_device}
+                                onChange={(e) => setFormData({ ...formData, number_device: e.target.value })}
                                 className="w-full custom-input"
                                 placeholder="-"
                             />
                         </div>
                         <div className="flex flex-col gap-3">
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest">หมายเลข IP address</label>
-                            <InputText 
-                                value={formData.ip_address} 
-                                onChange={(e) => setFormData({...formData, ip_address: e.target.value})} 
+                            <InputText
+                                value={formData.ip_address}
+                                onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
                                 className="w-full custom-input"
                                 placeholder="-"
                             />
                         </div>
 
-                    
+
                     </div>
 
                     {/* อาการที่ได้รับแจ้ง */}
                     <div className="flex flex-col gap-3 mt-8">
                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest">อาการที่ได้รับแจ้ง</label>
-                        <InputTextarea 
-                            value={formData.report} 
-                            onChange={(e) => setFormData({...formData, report: e.target.value})} 
-                            rows={4} 
-                            className="w-full custom-input" 
+                        <InputTextarea
+                            value={formData.report}
+                            onChange={(e) => setFormData({ ...formData, report: e.target.value })}
+                            rows={4}
+                            className="w-full custom-input"
                             placeholder="..."
                             required
                         />
                     </div>
 
-                    {/* Routine */}
-                    <div className="flex flex-col gap-3 mt-8 max-w-xs">
-                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => {}}>
-                            <span className="text-xs font-black text-slate-800 uppercase tracking-widest">กำหนด Routine</span>
-                            <i className="pi pi-caret-down text-xs"></i>
-                        </div>
-                        <Dropdown 
-                            value={formData.routine} 
-                            options={routines} 
-                            onChange={(e) => setFormData({...formData, routine: e.value})} 
-                            className="w-full custom-dropdown mt-1"
-                        />
-                    </div>
-
                     {/* Submit Button */}
                     <div className="mt-12">
-                        <Button 
-                            label="บันทึก" 
-                            type="submit" 
+                        <Button
+                            label="บันทึก"
+                            type="submit"
                             loading={loading}
                             className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 border-none font-black text-lg shadow-xl shadow-blue-200 transition-all"
                         />
@@ -239,7 +211,8 @@ const CreateTask = () => {
                 </form>
             </div>
 
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-input {
                     border-radius: 0.85rem !important;
                     border: 1px solid #e2e8f0 !important;

@@ -36,19 +36,21 @@ exports.getTasksCollab = async (req, res) => {
             SELECT 
                 i.*, 
                 d.depart_name as department_name,
-                u.full_name as taker_name
+                GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
+                MAX(CASE WHEN a.intern_id = ? THEN 1 ELSE 0 END) as isContributedByMe
             FROM join_it.intern_tasks i
             LEFT JOIN orderit.depart d ON i.department = d.depart_id
-            LEFT JOIN join_it.users u ON i.username = u.username
+            LEFT JOIN join_it.intern_task_assignees a ON i.id = a.intern_task_id
+            LEFT JOIN join_it.users u ON a.intern_id = u.id
             WHERE DATE(i.date_report) = ?
         `;
-        const internParams = [targetDate];
+        const internParams = [userId, targetDate];
         if (q) {
             internSql += ` AND (i.report LIKE ? OR i.deviceName LIKE ?)`;
             const search = `%${q}%`;
             internParams.push(search, search);
         }
-        internSql += ` ORDER BY i.id DESC`;
+        internSql += ` GROUP BY i.id ORDER BY i.id DESC`;
         const [internRows] = await joinPool.query(internSql, internParams);
 
         const formattedStaffTasks = staffRows.map(task => ({
@@ -57,10 +59,17 @@ exports.getTasksCollab = async (req, res) => {
             isContributedByMe: !!task.isContributedByMe
         }));
 
+        const formattedInternTasks = internRows.map(task => ({
+            ...task,
+            interns: task.intern_names ? task.intern_names.split('||') : [],
+            isContributedByMe: !!task.isContributedByMe,
+            isClosed: !!task.closed_at
+        }));
+
         res.json({
             success: true,
             tasks: formattedStaffTasks,
-            internTasks: internRows
+            internTasks: formattedInternTasks
         });
     } catch (err) {
         console.error("❌ Tasks Collab Error:", err.message);
@@ -103,25 +112,27 @@ exports.getMyTasks = async (req, res) => {
         // ดึงงานนักศึกษา (Intern Tasks) ที่เรารับผิดชอบ
         let internSql = `
             SELECT 
-                i.id as intern_task_id,
+                a.id as assignee_id,
+                a.intern_task_id,
                 i.id,
                 i.deviceName,
                 i.report,
                 DATE_FORMAT(i.date_report, '%Y-%m-%d') as date_report,
                 i.time_report,
-                i.contribution_detail,
-                i.learning_outcome,
-                i.status,
+                a.contribution_detail,
+                a.learning_outcome,
+                CASE WHEN a.close_date IS NOT NULL AND a.close_date != '0000-00-00' THEN 3 ELSE 2 END as status,
                 d.depart_name as department_name,
                 'intern' as type
-            FROM join_it.intern_tasks i
+            FROM join_it.intern_task_assignees a
+            JOIN join_it.intern_tasks i ON a.intern_task_id = i.id
             LEFT JOIN orderit.depart d ON i.department = d.depart_id
-            WHERE i.username = ?
+            WHERE a.intern_id = ?
         `;
-        const internParams = [username];
+        const internParams = [userId];
         if (date) { internSql += ` AND DATE(i.date_report) = ?`; internParams.push(date); }
         if (q) { internSql += ` AND (i.report LIKE ? OR i.deviceName LIKE ?)`; const search = `%${q}%`; internParams.push(search, search); }
-        internSql += ` ORDER BY i.id DESC`;
+        internSql += ` ORDER BY a.take_date DESC, a.take_time DESC`;
         const [internRows] = await joinPool.query(internSql, internParams);
 
         res.json({
@@ -979,23 +990,24 @@ exports.createInternTask = async (req, res) => {
     } = req.body;
 
     const userId = req.user.id;
-    const username = req.user.username;
-    const fullName = req.user.full_name;
 
     try {
+        const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [userId]);
+        const fullName = userRows.length > 0 ? (userRows[0].full_name || userRows[0].username) : 'Unknown';
+
         // ใช้ joinPool เพื่อบันทึกลง join_it.intern_task
         // Mapping ฟิลด์ตาม Schema ที่ผู้ใช้แจ้งมา
         const sql = `
             INSERT INTO join_it.intern_tasks (
                 date_report, time_report, reporter, department, 
                 tel, deviceName, number_device, ip_address, 
-                report, status, username, created_by, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?, NOW())
+                report, status, created_by, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())
         `;
 
         // หมายเหตุ: work_type และ priority หากยังไม่มีฟิลด์ในตาราง 
         // จะนำไปต่อท้ายใน report เพื่อไม่ให้ข้อมูลสูญหาย (หรือถ้าผู้ใช้เพิ่มฟิลด์แล้วค่อยมาแก้ SQL)
-        const combinedReport = `[${work_type || 'ทั่วไป'}] [ความเร่งด่วน: ${priority || 'ปกติ'}] ${report}`;
+        const combinedReport = `${report}`;
 
         const params = [
             date_report,
@@ -1021,17 +1033,25 @@ exports.createInternTask = async (req, res) => {
 // --- 9. กดรับงาน (Intern Task) ---
 exports.acceptInternTask = async (req, res) => {
     const taskId = req.params.id;
-    const username = req.user.username;
+    const userId = req.user.id;
     try {
-        const [result] = await joinPool.query(
-            'UPDATE join_it.intern_tasks SET username = ?, status = 2 WHERE id = ? AND username IS NULL',
-            [username, taskId]
+        // เช็คก่อนว่างานถูกปิดไปหรือยัง
+        const [taskRows] = await joinPool.query('SELECT closed_at FROM join_it.intern_tasks WHERE id = ?', [taskId]);
+        if (taskRows.length === 0) return res.status(404).json({ success: false, message: "ไม่พบงานนี้" });
+        if (taskRows[0].closed_at !== null) return res.status(400).json({ success: false, message: "งานนี้เสร็จสิ้นแล้ว ไม่สามารถรับได้" });
+
+        // เช็คว่ารับงานไปแล้วหรือยัง
+        const [existing] = await joinPool.query('SELECT id FROM join_it.intern_task_assignees WHERE intern_task_id = ? AND intern_id = ?', [taskId, userId]);
+        if (existing.length > 0) return res.status(400).json({ success: false, message: "คุณได้รับงานนี้ไปแล้ว" });
+
+        await joinPool.query(
+            `INSERT INTO join_it.intern_task_assignees (intern_task_id, intern_id, take_date, take_time, contribution_detail, learning_outcome) 
+             VALUES (?, ?, CURDATE(), CURTIME(), '', '')`,
+            [taskId, userId]
         );
-        if (result.affectedRows === 0) {
-            return res.status(400).json({ success: false, message: "งานนี้มีคนรับไปแล้ว หรือไม่พบงาน" });
-        }
         res.json({ success: true, message: "รับงานเรียบร้อย" });
     } catch (err) {
+        console.error("❌ Accept Intern Task Error:", err.message);
         res.status(500).json({ success: false, message: "ล้มเหลว" });
     }
 };
@@ -1039,58 +1059,124 @@ exports.acceptInternTask = async (req, res) => {
 // --- 10. ยกเลิกการรับงาน (Intern Task) ---
 exports.leaveInternTask = async (req, res) => {
     const taskId = req.params.id;
-    const username = req.user.username;
+    const userId = req.user.id;
     try {
-        const [result] = await joinPool.query(
-            'UPDATE join_it.intern_tasks SET username = NULL, status = 1 WHERE id = ? AND username = ?',
-            [taskId, username]
+        await joinPool.query(
+            'DELETE FROM join_it.intern_task_assignees WHERE intern_task_id = ? AND intern_id = ?',
+            [taskId, userId]
         );
         res.json({ success: true, message: "ยกเลิกการรับงานเรียบร้อย" });
     } catch (err) {
+        console.error("❌ Leave Intern Task Error:", err.message);
         res.status(500).json({ success: false, message: "ล้มเหลว" });
     }
 };
-// --- 11. อัปเดตรายละเอียดงานนักศึกษา (Intern Task) ---
+
+// --- 11. อัปเดตรายละเอียดงานนักศึกษา (Intern Task Assignees) ---
 exports.updateInternTaskDetails = async (req, res) => {
-    const taskId = req.params.id;
+    const taskId = req.params.id; // นี่คือ intern_task_id
     const { contribution_detail, learning_outcome } = req.body;
-    const username = req.user.username;
+    const userId = req.user.id;
 
     try {
         await joinPool.query(
-            `UPDATE join_it.intern_tasks 
+            `UPDATE join_it.intern_task_assignees 
              SET contribution_detail = ?, 
-                 learning_outcome = ?,
-                 updated_at = NOW() 
-             WHERE id = ? AND username = ?`,
-            [contribution_detail, learning_outcome, taskId, username]
+                 learning_outcome = ?
+             WHERE intern_task_id = ? AND intern_id = ?`,
+            [contribution_detail, learning_outcome, taskId, userId]
         );
         res.json({ success: true, message: "บันทึกสำเร็จ" });
     } catch (err) {
+        console.error("❌ Update Intern Task Details Error:", err.message);
         res.status(500).json({ success: false, message: "บันทึกล้มเหลว" });
     }
 };
 
-// --- 12. ปิดงานนักศึกษา (Close Intern Task) ---
+// --- 12. ปิดงานนักศึกษา (Close Intern Task Assignee) ---
 exports.closeInternTask = async (req, res) => {
     const taskId = req.params.id;
     const { contribution_detail, learning_outcome } = req.body;
-    const username = req.user.username;
+    const userId = req.user.id;
 
     try {
         await joinPool.query(
-            `UPDATE join_it.intern_tasks 
+            `UPDATE join_it.intern_task_assignees 
              SET contribution_detail = ?, 
                  learning_outcome = ?,
-                 status = 3,
-                 closed_date = CURDATE(),
-                 closed_time = CURTIME(),
-                 updated_at = NOW() 
-             WHERE id = ? AND username = ?`,
-            [contribution_detail, learning_outcome, taskId, username]
+                 close_date = CURDATE(),
+                 close_time = CURTIME()
+             WHERE intern_task_id = ? AND intern_id = ?`,
+            [contribution_detail, learning_outcome, taskId, userId]
         );
         res.json({ success: true, message: "ปิดงานเรียบร้อยแล้ว" });
     } catch (err) {
+        console.error("❌ Close Intern Task Error:", err.message);
         res.status(500).json({ success: false, message: "ปิดงานล้มเหลว" });
+    }
+};
+
+// --- 13. แก้ไขรายละเอียดงานนักศึกษา (Edit Main Intern Task) ---
+exports.editInternTask = async (req, res) => {
+    const taskId = req.params.id;
+    const {
+        date_report,
+        time_report,
+        reporter,
+        department,
+        tel,
+        deviceName,
+        number_device,
+        ip_address,
+        report
+    } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [userId]);
+        const fullName = userRows.length > 0 ? (userRows[0].full_name || userRows[0].username) : 'Unknown';
+
+        const [result] = await joinPool.query(
+            `UPDATE join_it.intern_tasks 
+             SET date_report = ?, time_report = ?, reporter = ?, department = ?, 
+                 tel = ?, deviceName = ?, number_device = ?, ip_address = ?, 
+                 report = ?
+             WHERE id = ? AND created_by = ?`,
+            [date_report, time_report, reporter, department, tel, deviceName, number_device, ip_address, report, taskId, fullName]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(403).json({ success: false, message: "ไม่สามารถแก้ไขงานนี้ได้ (คุณอาจไม่ใช่ผู้สร้างงาน)" });
+        }
+        res.json({ success: true, message: "แก้ไขงานเรียบร้อย" });
+    } catch (err) {
+        console.error("❌ Edit Intern Task Error:", err.message);
+        res.status(500).json({ success: false, message: "แก้ไขงานล้มเหลว" });
+    }
+};
+
+// --- 14. ปิดงานหลักของนักศึกษา (Close Main Intern Task) ---
+exports.closeInternTaskMain = async (req, res) => {
+    const taskId = req.params.id;
+    const userId = req.user.id;
+
+    try {
+        const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [userId]);
+        const fullName = userRows.length > 0 ? (userRows[0].full_name || userRows[0].username) : 'Unknown';
+
+        const [result] = await joinPool.query(
+            `UPDATE join_it.intern_tasks 
+             SET closed_at = NOW(), status = 3
+             WHERE id = ? AND created_by = ?`,
+            [taskId, fullName]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(403).json({ success: false, message: "ไม่สามารถปิดงานนี้ได้ (คุณอาจไม่ใช่ผู้สร้างงาน)" });
+        }
+        res.json({ success: true, message: "ปิดงานหลักเรียบร้อย" });
+    } catch (err) {
+        console.error("❌ Close Main Intern Task Error:", err.message);
+        res.status(500).json({ success: false, message: "ปิดงานหลักล้มเหลว" });
     }
 };

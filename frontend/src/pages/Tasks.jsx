@@ -12,6 +12,8 @@ import { Calendar } from "primereact/calendar";
 import { FilterMatchMode } from "primereact/api";
 import { MultiSelect } from "primereact/multiselect";
 import socket from "../services/socket";
+import EditInternTask from "./EditInternTask";
+import CreateInternTaskModal from "./CreateInternTaskModal";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -25,6 +27,10 @@ function Tasks() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [actionLoading, setActionLoading] = useState(null);
     const toast = useRef(null);
+
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+    const [createModalVisible, setCreateModalVisible] = useState(false);
 
     const [filters, setFilters] = useState({
         username: { value: null, matchMode: FilterMatchMode.IN }
@@ -189,6 +195,38 @@ function Tasks() {
         }
     };
 
+    const openEditModal = (task) => {
+        setEditingTask(task);
+        setEditModalVisible(true);
+    };
+
+    const handleEditSuccess = () => {
+        setEditModalVisible(false);
+        fetchTasks();
+    };
+
+    const handleCloseMainTask = async (taskId) => {
+        setActionLoading(`intern-close-${taskId}`);
+        try {
+            await api.put(`/tasks/close-intern-task-main/${taskId}`);
+            toast.current.show({
+                severity: "success",
+                summary: "สำเร็จ",
+                detail: "ปิดงานเรียบร้อย",
+                life: 2000,
+            });
+            fetchTasks();
+        } catch (err) {
+            toast.current.show({
+                severity: "error",
+                summary: "ผิดพลาด",
+                detail: "ไม่สามารถปิดงานได้",
+            });
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     const timeTemplate = (rowData) => {
         if (!rowData.time_report) return "-";
         return (
@@ -236,46 +274,69 @@ function Tasks() {
     };
 
     const internActionTemplate = (rowData) => {
-        const isTaker = rowData.username === user?.username;
-        const isTaken = !!rowData.username;
-        const isLoading = actionLoading === `intern-${rowData.id}`;
-
-        if (isTaken && !isTaker) {
-            return (
-                <Tag
-                    value="มีผู้รับแล้ว"
-                    severity="secondary"
-                    rounded
-                    className="px-3 py-1.5 text-[10px] bg-slate-100 text-slate-400 border-none font-bold"
-                />
-            );
-        }
+        const isTaker = rowData.isContributedByMe;
+        const isClosed = rowData.isClosed;
+        const isOwner = rowData.created_by === (user?.full_name || user?.username);
+        const isLoading = actionLoading === `intern-${rowData.id}` || actionLoading === `intern-close-${rowData.id}`;
 
         return (
-            <Button
-                label={isTaker ? "รับงานแล้ว" : "รับงาน"}
-                icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
-                rounded
-                severity={isTaker ? "success" : "info"}
-                loading={isLoading}
-                className={`px-3 py-1.5 text-[10px] font-bold border-none transition-all ${isTaker ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-100" : "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100"}`}
-                onClick={() =>
-                    isTaker
-                        ? confirmLeaveIntern(rowData.id)
-                        : confirmAcceptIntern(rowData.id)
-                }
-            />
+            <div className="flex flex-wrap gap-2 justify-center items-center">
+                {isClosed ? (
+                    <Tag value="ปิดงานแล้ว" severity="danger" rounded className="px-3 py-1.5 text-[10px] bg-red-100 text-red-600 border-none font-bold" />
+                ) : (
+                    <Button
+                        label={isTaker ? "รับงานแล้ว" : "รับงาน"}
+                        icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
+                        rounded
+                        severity={isTaker ? "success" : "info"}
+                        loading={actionLoading === `intern-${rowData.id}`}
+                        className={`px-3 py-1.5 text-[10px] font-bold border-none transition-all ${isTaker ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-100" : "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100"}`}
+                        onClick={() =>
+                            isTaker
+                                ? confirmLeaveIntern(rowData.id)
+                                : confirmAcceptIntern(rowData.id)
+                        }
+                    />
+                )}
+
+                {isOwner && !isClosed && (
+                    <div className="flex gap-1 ml-1 border-l border-slate-200 pl-2">
+                        <Button
+                            icon="pi pi-pencil"
+                            rounded
+                            severity="warning"
+                            tooltip="แก้ไขงาน"
+                            tooltipOptions={{ position: 'top' }}
+                            className="w-7 h-7 p-0 bg-yellow-500 hover:bg-yellow-600 border-none shadow-md shadow-yellow-100"
+                            onClick={() => openEditModal(rowData)}
+                        />
+                        <Button
+                            icon="pi pi-power-off"
+                            rounded
+                            severity="danger"
+                            tooltip="ปิดงาน (เสร็จสิ้น)"
+                            tooltipOptions={{ position: 'top' }}
+                            className="w-7 h-7 p-0 bg-red-500 hover:bg-red-600 border-none shadow-md shadow-red-100"
+                            onClick={() => confirmCloseMain(rowData.id)}
+                            loading={actionLoading === `intern-close-${rowData.id}`}
+                        />
+                    </div>
+                )}
+            </div>
         );
     };
 
     const internTakerTemplate = (rowData) => (
         <div className="flex flex-wrap gap-1">
-            {rowData.taker_name ? (
-                <Tag
-                    value={rowData.taker_name}
-                    rounded
-                    className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold"
-                />
+            {rowData.interns && rowData.interns.length > 0 ? (
+                rowData.interns.map((name, index) => (
+                    <Tag
+                        key={index}
+                        value={name}
+                        rounded
+                        className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold"
+                    />
+                ))
             ) : (
                 <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
             )}
@@ -326,6 +387,17 @@ function Tasks() {
             acceptClassName: "p-button-danger rounded-xl px-4",
             rejectClassName: "p-button-text rounded-xl px-4",
             accept: () => handleLeaveInternTask(taskId),
+        });
+    };
+
+    const confirmCloseMain = (taskId) => {
+        confirmDialog({
+            message: "คุณต้องการปิดงานนี้อย่างสมบูรณ์ใช่หรือไม่? (เพื่อนจะไม่สามารถรับงานนี้ได้อีก)",
+            header: "ยืนยันการปิดงาน",
+            icon: "pi pi-exclamation-triangle",
+            acceptClassName: "p-button-danger rounded-xl px-4",
+            rejectClassName: "p-button-text rounded-xl px-4",
+            accept: () => handleCloseMainTask(taskId),
         });
     };
 
@@ -623,7 +695,7 @@ function Tasks() {
 
                 {/* Intern Tasks Data Table */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden mt-2">
-                    <div className="p-7 flex items-center justify-between bg-white border-b border-slate-100">
+                    <div className="p-7 flex items-center justify-between bg-white border-b border-slate-100 flex-wrap gap-4">
                         <div className="flex items-center gap-4">
                             <div className="w-1.5 h-10 bg-orange-400 rounded-full"></div>
                             <div>
@@ -635,6 +707,12 @@ function Tasks() {
                                 </p>
                             </div>
                         </div>
+                        <Button 
+                            label="สร้างงาน (นักศึกษา)" 
+                            icon="pi pi-plus" 
+                            className="bg-orange-500 hover:bg-orange-600 border-none font-bold rounded-xl shadow-md shadow-orange-200 px-4 py-2 text-sm text-white transition-all hover:scale-105"
+                            onClick={() => setCreateModalVisible(true)}
+                        />
                     </div>
 
                     <div className="p-4">
@@ -723,9 +801,10 @@ function Tasks() {
                         <div className="md:hidden flex flex-col gap-4">
                             {internTasks.length > 0 ? (
                                 internTasks.map((row, i) => {
-                                    const isTaker = row.username === user?.username;
-                                    const isTaken = !!row.username;
-                                    const isLoading = actionLoading === `intern-${row.id}`;
+                                    const isTaker = row.isContributedByMe;
+                                    const isClosed = row.isClosed;
+                                    const isOwner = row.created_by === (user?.full_name || user?.username);
+                                    const isLoading = actionLoading === `intern-${row.id}` || actionLoading === `intern-close-${row.id}`;
                                     return (
                                         <div
                                             key={i}
@@ -763,37 +842,60 @@ function Tasks() {
                                                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                                                     ผู้รับงาน
                                                 </span>
-                                                {row.taker_name ? (
-                                                    <Tag
-                                                        value={row.taker_name}
-                                                        rounded
-                                                        className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold self-start"
-                                                    />
-                                                ) : (
-                                                    <span className="text-slate-300 text-[10px] italic">
-                                                        รอผู้รับงาน
-                                                    </span>
-                                                )}
+                                                <div className="flex flex-wrap gap-1">
+                                                    {row.interns && row.interns.length > 0 ? (
+                                                        row.interns.map((name, index) => (
+                                                            <Tag
+                                                                key={index}
+                                                                value={name}
+                                                                rounded
+                                                                className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold self-start"
+                                                            />
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-slate-300 text-[10px] italic">
+                                                            รอผู้รับงาน
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            {(!isTaken || isTaker) && (
-                                                <Button
-                                                    label={isTaker ? "รับงานแล้ว" : "รับงาน"}
-                                                    icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
-                                                    loading={isLoading}
-                                                    className={`w-full h-10 p-button-sm border-none rounded-xl text-xs font-bold mt-2 shadow-md transition-all ${isTaker ? "bg-green-500 hover:bg-green-600" : "bg-blue-600 hover:bg-blue-700"}`}
-                                                    onClick={() =>
-                                                        isTaker
-                                                            ? confirmLeaveIntern(row.id)
-                                                            : confirmAcceptIntern(row.id)
-                                                    }
-                                                />
-                                            )}
-                                            {isTaken && !isTaker && (
-                                                <div className="w-full text-center py-3 bg-slate-50 rounded-xl text-slate-400 text-[10px] font-bold border border-slate-100 border-dashed mt-2">
-                                                    มีคนรับงานแล้ว
-                                                </div>
-                                            )}
+                                            <div className="flex gap-2 mt-2 w-full">
+                                                {isClosed ? (
+                                                    <Tag value="ปิดงานแล้ว" severity="danger" rounded className="w-full justify-center px-3 py-2 text-[10px] bg-red-100 text-red-600 border-none font-bold" />
+                                                ) : (
+                                                    <Button
+                                                        label={isTaker ? "รับงานแล้ว" : "รับงาน"}
+                                                        icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
+                                                        loading={actionLoading === `intern-${row.id}`}
+                                                        className={`flex-grow h-10 p-button-sm border-none rounded-xl text-xs font-bold shadow-md transition-all ${isTaker ? "bg-green-500 hover:bg-green-600" : "bg-blue-600 hover:bg-blue-700"}`}
+                                                        onClick={() =>
+                                                            isTaker
+                                                                ? confirmLeaveIntern(row.id)
+                                                                : confirmAcceptIntern(row.id)
+                                                        }
+                                                    />
+                                                )}
+                                                {isOwner && !isClosed && (
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            icon="pi pi-pencil"
+                                                            rounded
+                                                            severity="warning"
+                                                            className="w-10 h-10 p-0 bg-yellow-500 hover:bg-yellow-600 border-none shadow-md shadow-yellow-100"
+                                                            onClick={() => openEditModal(row)}
+                                                        />
+                                                        <Button
+                                                            icon="pi pi-power-off"
+                                                            rounded
+                                                            severity="danger"
+                                                            className="w-10 h-10 p-0 bg-red-500 hover:bg-red-600 border-none shadow-md shadow-red-100"
+                                                            onClick={() => confirmCloseMain(row.id)}
+                                                            loading={actionLoading === `intern-close-${row.id}`}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     );
                                 })
@@ -805,6 +907,24 @@ function Tasks() {
                         </div>
                     </div>
                 </div>
+
+                {/* Edit Intern Task Modal */}
+                <EditInternTask
+                    visible={editModalVisible}
+                    onHide={() => setEditModalVisible(false)}
+                    taskData={editingTask}
+                    onSuccess={handleEditSuccess}
+                />
+
+                {/* Create Intern Task Modal */}
+                <CreateInternTaskModal
+                    visible={createModalVisible}
+                    onHide={() => setCreateModalVisible(false)}
+                    onSuccess={() => {
+                        setCreateModalVisible(false);
+                        fetchTasks();
+                    }}
+                />
             </div>
 
             <style
