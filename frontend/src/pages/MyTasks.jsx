@@ -27,7 +27,7 @@ function MyTasks() {
     const [activeTab, setActiveTab] = useState(0);
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(new Date());
 
     const [formData, setFormData] = useState({
         contribution_detail: '',
@@ -336,6 +336,12 @@ function MyTasks() {
         }
     };
 
+    const handleDateChange = (direction) => {
+        const current = selectedDate ? new Date(selectedDate) : new Date();
+        current.setDate(current.getDate() + direction);
+        setSelectedDate(current);
+    };
+
     return (
         <div className="bg-[#f0f9ff] min-h-screen p-4 md:p-8 font-sans text-slate-700">
             <Toast ref={toast} />
@@ -358,15 +364,28 @@ function MyTasks() {
                     </div>
 
                     <div className="flex flex-wrap gap-3 items-center">
-                        <Calendar
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.value)}
-                            placeholder="กรองตามวันที่"
-                            dateFormat="yy-mm-dd"
-                            showIcon
-                            className="custom-blue-calendar w-44"
-                            showButtonBar
-                        />
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleDateChange(-1)}
+                                className="w-13 h-13 flex items-center justify-center bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 text-slate-500 transition-all"
+                            >
+                                <i className="pi pi-chevron-left text-xs"></i>
+                            </button>
+                            <Calendar
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.value)}
+                                dateFormat="yy-mm-dd"
+                                showIcon
+                                className="w-44"
+                                showButtonBar
+                            />
+                            <button
+                                onClick={() => handleDateChange(1)}
+                                className="w-13 h-13 flex items-center justify-center bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 text-slate-500 transition-all"
+                            >
+                                <i className="pi pi-chevron-right text-xs"></i>
+                            </button>
+                        </div>
                         <div className="relative">
                             <i className="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-blue-300"></i>
                             <InputText

@@ -32,6 +32,7 @@ function Tasks() {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [createModalVisible, setCreateModalVisible] = useState(false);
+    const [activeTab, setActiveTab] = useState("staff");
 
     const [filters, setFilters] = useState({
         username: { value: null, matchMode: FilterMatchMode.IN }
@@ -291,7 +292,7 @@ function Tasks() {
         <div className="bg-[#f8fafc] min-h-screen font-sans text-slate-700">
             <Toast ref={toast} />
 
-            <div className="max-w-312.5 mx-auto py-8 px-4 flex flex-col gap-6">
+            <div className="max-w-[1400px] mx-auto py-8 px-4 sm:px-6 flex flex-col gap-6">
                 {/* 🔍 Filter & Search Bar */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-50">
                     <div className="flex flex-wrap gap-5 items-end">
@@ -346,31 +347,66 @@ function Tasks() {
                     </div>
                 </div>
 
-                {/* Section 1: Staff Tasks */}
-                <StaffTasksSection
-                    tasks={tasks}
-                    loading={loading}
-                    actionLoading={actionLoading}
-                    filters={filters}
-                    setFilters={setFilters}
-                    reporterFilterTemplate={reporterFilterTemplate}
-                    fetchTasks={fetchTasks}
-                    confirmJoin={confirmJoin}
-                    confirmLeave={confirmLeave}
-                />
+                {/* Custom HRMS-style Tabs */}
+                <div className="flex gap-4 border-b border-slate-200 mt-2 mb-2">
+                    <button
+                        className={`pb-4 px-4 font-bold text-sm transition-all relative ${activeTab === "staff" ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+                            }`}
+                        onClick={() => setActiveTab("staff")}
+                    >
+                        <div className="flex items-center gap-2">
+                            <i className="pi pi-briefcase"></i>
+                            งานประจำวัน (โดยเจ้าหน้าที่)
+                        </div>
+                        {activeTab === "staff" && (
+                            <span className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-t-md"></span>
+                        )}
+                    </button>
+                    <button
+                        className={`pb-4 px-4 font-bold text-sm transition-all relative ${activeTab === "intern" ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+                            }`}
+                        onClick={() => setActiveTab("intern")}
+                    >
+                        <div className="flex items-center gap-2">
+                            <i className="pi pi-star"></i>
+                            งานสำหรับนักศึกษา
+                        </div>
+                        {activeTab === "intern" && (
+                            <span className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-t-md"></span>
+                        )}
+                    </button>
+                </div>
 
-                {/* Section 2: Intern Tasks */}
-                <InternTasksSection
-                    internTasks={internTasks}
-                    loading={loading}
-                    actionLoading={actionLoading}
-                    user={user}
-                    setCreateModalVisible={setCreateModalVisible}
-                    confirmAcceptIntern={confirmAcceptIntern}
-                    confirmLeaveIntern={confirmLeaveIntern}
-                    openEditModal={openEditModal}
-                    confirmCloseMain={confirmCloseMain}
-                />
+                {/* Tab Content */}
+                <div className="animate-fade-in-up">
+                    {activeTab === "staff" && (
+                        <StaffTasksSection
+                            tasks={tasks}
+                            loading={loading}
+                            actionLoading={actionLoading}
+                            filters={filters}
+                            setFilters={setFilters}
+                            reporterFilterTemplate={reporterFilterTemplate}
+                            fetchTasks={fetchTasks}
+                            confirmJoin={confirmJoin}
+                            confirmLeave={confirmLeave}
+                        />
+                    )}
+
+                    {activeTab === "intern" && (
+                        <InternTasksSection
+                            internTasks={internTasks}
+                            loading={loading}
+                            actionLoading={actionLoading}
+                            user={user}
+                            setCreateModalVisible={setCreateModalVisible}
+                            confirmAcceptIntern={confirmAcceptIntern}
+                            confirmLeaveIntern={confirmLeaveIntern}
+                            openEditModal={openEditModal}
+                            confirmCloseMain={confirmCloseMain}
+                        />
+                    )}
+                </div>
 
                 {/* Edit Intern Task Modal */}
                 <EditInternTask
@@ -394,6 +430,14 @@ function Tasks() {
             <style
                 dangerouslySetInnerHTML={{
                     __html: `
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in-up {
+                    animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                
                 /* Sort Icon Styling */
                 .p-sortable-column-icon {
                     font-size: 10px !important;

@@ -15,6 +15,16 @@ const InternTasksSection = ({
     openEditModal,
     confirmCloseMain
 }) => {
+    const myContributedTasks = internTasks.filter((t) => t.isContributedByMe).length;
+    const noHelperTasks = internTasks.filter((t) => !t.interns || t.interns.length === 0).length;
+
+    const processedInternTasks = React.useMemo(() => {
+        return internTasks.map((t) => ({
+            ...t,
+            interns_str: t.interns && t.interns.length > 0 ? t.interns.join(", ") : "",
+        }));
+    }, [internTasks]);
+
     const timeTemplate = (rowData) => {
         if (!rowData.time_report) return "-";
         return (
@@ -95,207 +105,261 @@ const InternTasksSection = ({
     };
 
     return (
-        <div className="mt-8 bg-white rounded-3xl shadow-lg shadow-slate-200/50 overflow-hidden border border-slate-100 mb-8">
-            <div className="bg-gradient-to-r from-orange-50 to-white p-5 md:p-6 border-b border-orange-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-orange-200 shrink-0">
-                        <i className="pi pi-users text-xl"></i>
-                    </div>
+        <div className="flex flex-col gap-5">
+            {/* 📊 Dashboard Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-blue-500">
+                    <i className="pi pi-star text-3xl text-blue-500 bg-blue-50 p-4 rounded-3xl" />
                     <div>
-                        <h3 className="m-0 font-black text-slate-800 text-xl tracking-tight">
-                            รายการภารกิจมอบหมายพิเศษ (โดยนักศึกษา)
-                        </h3>
-                        <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold mt-1">
-                            งานส่งต่อและช่วยเหลือกันภายในทีม
-                        </p>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                            งานทั้งหมดในระบบ
+                        </span>
+                        <h2 className="text-3xl font-black text-orange-950 mt-1">
+                            {internTasks.length}{" "}
+                            <span className="text-sm font-medium text-slate-400">
+                                รายการ
+                            </span>
+                        </h2>
                     </div>
                 </div>
-                <Button
-                    label="สร้างงาน (นักศึกษา)"
-                    icon="pi pi-plus"
-                    className="bg-orange-500 hover:bg-orange-600 border-none font-bold rounded-xl shadow-md shadow-orange-200 px-4 py-2 text-sm text-white transition-all hover:scale-105"
-                    onClick={() => setCreateModalVisible(true)}
-                />
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-green-500">
+                    <i className="pi pi-users text-3xl text-green-500 bg-green-50 p-4 rounded-3xl" />
+                    <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                            คุณเข้าร่วม
+                        </span>
+                        <h2 className="text-3xl font-black text-green-950 mt-1">
+                            {myContributedTasks}{" "}
+                            <span className="text-sm font-medium text-slate-400">
+                                รายการ
+                            </span>
+                        </h2>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-orange-400">
+                    <i className="pi pi-exclamation-triangle text-3xl text-orange-400 bg-orange-50 p-4 rounded-3xl" />
+                    <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                            รอผู้รับงาน
+                        </span>
+                        <h2 className="text-3xl font-black text-red-950 mt-1">
+                            {noHelperTasks}{" "}
+                            <span className="text-sm font-medium text-slate-400">
+                                รายการ
+                            </span>
+                        </h2>
+                    </div>
+                </div>
             </div>
 
-            <div className="p-4 md:p-6 bg-slate-50">
-                <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <DataTable
-                        value={internTasks}
-                        loading={loading}
-                        paginator
-                        rows={10}
-                        stripedRows
-                        sortField="id"
-                        sortOrder={-1}
-                        emptyMessage="ไม่พบรายการงานมอบหมายจากเพื่อน"
-                        className="p-datatable-sm custom-orange-table"
-                        rowHover
-                        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
-                        currentPageReportTemplate="{first}-{last} of {totalRecords}"
-                    >
-                        <Column
-                            field="id"
-                            header="#"
-                            headerStyle={{ width: "4rem", backgroundColor: '#fff7ed', color: '#ea580c' }}
-                            bodyStyle={{ fontWeight: "black", color: "#fdba74", fontSize: "13px" }}
-                            sortable
+            {/* Main Data Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-50 overflow-hidden">
+                <div className="p-7 flex items-center justify-between bg-slate-900 border-b border-slate-700">
+                    <div className="flex items-center gap-4">
+                        <div className="w-1.5 h-10 bg-orange-500 rounded-full"></div>
+                        <div>
+                            <h3 className="m-0 font-black text-white text-xl tracking-tight">
+                                รายการภารกิจมอบหมายพิเศษ
+                            </h3>
+                            <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold mt-1">
+                                งานส่งต่อและช่วยเหลือกันภายในทีมนักศึกษา
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            label="สร้างงาน (นักศึกษา)"
+                            icon="pi pi-plus"
+                            className="bg-orange-500 hover:bg-orange-600 border-none font-bold rounded-xl shadow-md shadow-orange-500/20 px-4 py-2 text-sm text-white transition-all"
+                            onClick={() => setCreateModalVisible(true)}
                         />
-                        <Column
-                            field="time_report"
-                            header="เวลาแจ้ง"
-                            body={timeTemplate}
-                            style={{ width: "8rem" }}
-                            headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
-                            sortable
-                        />
-                        <Column
-                            field="deviceName"
-                            header="งาน / อุปกรณ์"
-                            body={(row) => (
-                                <div className="py-1">
-                                    <div className="font-bold text-slate-800 text-base">{row.deviceName}</div>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                        <i className="pi pi-map-marker text-orange-400 text-[10px]"></i>
-                                        <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{row.department_name || row.department}</span>
-                                    </div>
-                                </div>
-                            )}
-                            style={{ width: "17rem" }}
-                            headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
-                            sortable
-                        />
-                        <Column
-                            field="report"
-                            header="รายละเอียดงาน"
-                            className="text-slate-600 leading-relaxed"
-                            sortable
-                            headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
-                            style={{ width: "20rem" }}
-                        />
-                        <Column
-                            field="created_by"
-                            header="สร้างโดย"
-                            body={(row) => (
-                                <span className="text-slate-500 font-semibold italic">
-                                    @{row.created_by}
-                                </span>
-                            )}
-                            style={{ width: "13rem" }}
-                            headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
-                            sortable
-                        />
-                        <Column
-                            header="สมาชิกร่วมงาน"
-                            body={internTakerTemplate}
-                            style={{ width: "14rem" }}
-                            headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
-                        />
-                        <Column
-                            header="จัดการ"
-                            body={internActionTemplate}
-                            style={{ textAlign: "center", width: "13rem" }}
-                            headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
-                        />
-                    </DataTable>
+                    </div>
                 </div>
 
-                {/* Mobile Cards (Intern Tasks) */}
-                <div className="md:hidden flex flex-col gap-4">
-                    {internTasks.length > 0 ? (
-                        internTasks.map((row, i) => {
-                            const isTaker = row.isContributedByMe;
-                            const isClosed = row.isClosed;
-                            const isOwner = row.created_by === (user?.full_name || user?.username);
-                            const isLoading = actionLoading === `intern-${row.id}` || actionLoading === `intern-close-${row.id}`;
-                            return (
-                                <div key={i} className={`bg-white border ${isClosed ? 'border-red-100 bg-red-50/10' : 'border-orange-100'} rounded-2xl p-5 shadow-sm flex flex-col gap-3 relative`}>
-                                    {isClosed && (
-                                        <div className="absolute top-4 right-4 z-10 opacity-20">
-                                            <i className="pi pi-lock text-5xl text-red-500"></i>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between items-center border-b border-slate-50 pb-3 relative z-20">
-                                        <div className="flex items-center gap-2">
-                                            <i className="pi pi-clock text-slate-400 text-xs"></i>
-                                            <span className="font-black text-slate-700 text-sm">
-                                                {row.time_report ? row.time_report.substring(0, 5) + " น." : "-"}
-                                            </span>
-                                        </div>
-                                        <span className="text-orange-500 font-semibold italic text-xs bg-orange-50 px-2 py-1 rounded-md">
-                                            @{row.created_by}
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col gap-1 relative z-20">
-                                        <h4 className="font-bold text-slate-800 text-base m-0 leading-tight">
-                                            {row.deviceName}
-                                        </h4>
-                                        <div className="flex items-center gap-1.5">
+                <div className="p-4">
+                    <div className="hidden md:block">
+                        <DataTable
+                            value={processedInternTasks}
+                            loading={loading}
+                            paginator
+                            rows={10}
+                            rowsPerPageOptions={[10, 25, 50]}
+                            stripedRows
+                            sortField="id"
+                            sortOrder={-1}
+                            emptyMessage="ไม่พบรายการงานมอบหมายจากเพื่อน"
+                            className="p-datatable-sm custom-orange-table custom-luxury-table"
+                            rowHover
+                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                            currentPageReportTemplate="{first}-{last} of {totalRecords}"
+                        >
+                            <Column
+                                field="id"
+                                header="#"
+                                headerStyle={{ width: "4rem", backgroundColor: '#fff7ed', color: '#ea580c' }}
+                                bodyStyle={{ fontWeight: "black", color: "#fdba74", fontSize: "13px" }}
+                                sortable
+                            />
+                            <Column
+                                field="time_report"
+                                header="เวลาแจ้ง"
+                                body={timeTemplate}
+                                style={{ width: "8rem" }}
+                                headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
+                                sortable
+                            />
+                            <Column
+                                field="deviceName"
+                                header="งาน / อุปกรณ์"
+                                body={(row) => (
+                                    <div className="py-1">
+                                        <div className="font-bold text-slate-800 text-base">{row.deviceName}</div>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
                                             <i className="pi pi-map-marker text-orange-400 text-[10px]"></i>
-                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                                {row.department_name || row.department}
-                                            </span>
+                                            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{row.department_name || row.department}</span>
                                         </div>
                                     </div>
-                                    <p className="text-slate-500 text-xs leading-relaxed line-clamp-3 bg-slate-50 p-3 rounded-xl border border-slate-100 relative z-20">
-                                        {row.report}
-                                    </p>
+                                )}
+                                style={{ width: "17rem" }}
+                                headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
+                                sortable
+                            />
+                            <Column
+                                field="report"
+                                header="รายละเอียดงาน"
+                                className="text-slate-600 leading-relaxed"
+                                sortable
+                                headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
+                                style={{ width: "20rem" }}
+                            />
+                            <Column
+                                field="created_by"
+                                header="สร้างโดย"
+                                body={(row) => (
+                                    <span className="text-slate-500 font-semibold italic">
+                                        @{row.created_by}
+                                    </span>
+                                )}
+                                style={{ width: "13rem" }}
+                                headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
+                                sortable
+                            />
+                            <Column
+                                field="interns_str"
+                                header="สมาชิกร่วมงาน"
+                                body={internTakerTemplate}
+                                style={{ width: "14rem" }}
+                                headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
+                                sortable
+                            />
+                            <Column
+                                field="isContributedByMe"
+                                header="จัดการ"
+                                body={internActionTemplate}
+                                style={{ textAlign: "center", width: "13rem" }}
+                                headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
+                                sortable
+                            />
+                        </DataTable>
+                    </div>
 
-                                    <div className="flex flex-col gap-2 mt-1 relative z-20">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                                            ผู้รับงาน
-                                        </span>
-                                        <div className="flex flex-wrap gap-1">
-                                            {row.interns && row.interns.length > 0 ? (
-                                                row.interns.map((name, index) => (
-                                                    <Tag key={index} value={name} rounded className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold" />
-                                                ))
+                    {/* Mobile Cards (Intern Tasks) */}
+                    <div className="md:hidden flex flex-col gap-4">
+                        {internTasks.length > 0 ? (
+                            internTasks.map((row, i) => {
+                                const isTaker = row.isContributedByMe;
+                                const isClosed = row.isClosed;
+                                const isOwner = row.created_by === (user?.full_name || user?.username);
+                                const isLoading = actionLoading === `intern-${row.id}` || actionLoading === `intern-close-${row.id}`;
+                                return (
+                                    <div key={i} className={`bg-white border ${isClosed ? 'border-red-100 bg-red-50/10' : 'border-orange-100'} rounded-2xl p-5 shadow-sm flex flex-col gap-3 relative`}>
+                                        {isClosed && (
+                                            <div className="absolute top-4 right-4 z-10 opacity-20">
+                                                <i className="pi pi-lock text-5xl text-red-500"></i>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center border-b border-slate-50 pb-3 relative z-20">
+                                            <div className="flex items-center gap-2">
+                                                <i className="pi pi-clock text-slate-400 text-xs"></i>
+                                                <span className="font-black text-slate-700 text-sm">
+                                                    {row.time_report ? row.time_report.substring(0, 5) + " น." : "-"}
+                                                </span>
+                                            </div>
+                                            <span className="text-orange-500 font-semibold italic text-xs bg-orange-50 px-2 py-1 rounded-md">
+                                                @{row.created_by}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col gap-1 relative z-20">
+                                            <h4 className="font-bold text-slate-800 text-base m-0 leading-tight">
+                                                {row.deviceName}
+                                            </h4>
+                                            <div className="flex items-center gap-1.5">
+                                                <i className="pi pi-map-marker text-orange-400 text-[10px]"></i>
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                                    {row.department_name || row.department}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p className="text-slate-500 text-xs leading-relaxed line-clamp-3 bg-slate-50 p-3 rounded-xl border border-slate-100 relative z-20">
+                                            {row.report}
+                                        </p>
+
+                                        <div className="flex flex-col gap-2 mt-1 relative z-20">
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                                ผู้รับงาน
+                                            </span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {row.interns && row.interns.length > 0 ? (
+                                                    row.interns.map((name, index) => (
+                                                        <Tag key={index} value={name} rounded className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold" />
+                                                    ))
+                                                ) : (
+                                                    <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 mt-2 relative z-20">
+                                            {isClosed ? (
+                                                <div className="w-full text-center py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs border border-red-100">
+                                                    <i className="pi pi-lock mr-2 text-[10px]"></i> ปิดงานแล้ว
+                                                </div>
                                             ) : (
-                                                <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
+                                                <Button
+                                                    label={isTaker ? "รับงานแล้ว" : "รับงาน"}
+                                                    icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
+                                                    loading={actionLoading === `intern-${row.id}`}
+                                                    className={`w-full h-10 p-button-sm border-none rounded-xl text-xs font-bold shadow-md transition-all ${isTaker ? "bg-green-500 hover:bg-green-600 shadow-green-100" : "bg-blue-600 hover:bg-blue-700 shadow-blue-100"}`}
+                                                    onClick={() => isTaker ? confirmLeaveIntern(row.id) : confirmAcceptIntern(row.id)}
+                                                />
+                                            )}
+                                            {isOwner && !isClosed && (
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        label="แก้ไข"
+                                                        icon="pi pi-pencil"
+                                                        className="flex-1 h-10 p-button-sm bg-yellow-500 hover:bg-yellow-600 border-none rounded-xl text-xs font-bold shadow-md shadow-yellow-100"
+                                                        onClick={() => openEditModal(row)}
+                                                    />
+                                                    <Button
+                                                        label="ปิดงาน"
+                                                        icon="pi pi-power-off"
+                                                        loading={actionLoading === `intern-close-${row.id}`}
+                                                        className="flex-1 h-10 p-button-sm bg-red-500 hover:bg-red-600 border-none rounded-xl text-xs font-bold shadow-md shadow-red-100"
+                                                        onClick={() => confirmCloseMain(row.id)}
+                                                    />
+                                                </div>
                                             )}
                                         </div>
                                     </div>
-
-                                    <div className="flex flex-col gap-2 mt-2 relative z-20">
-                                        {isClosed ? (
-                                            <div className="w-full text-center py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs border border-red-100">
-                                                <i className="pi pi-lock mr-2 text-[10px]"></i> ปิดงานแล้ว
-                                            </div>
-                                        ) : (
-                                            <Button
-                                                label={isTaker ? "รับงานแล้ว" : "รับงาน"}
-                                                icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
-                                                loading={actionLoading === `intern-${row.id}`}
-                                                className={`w-full h-10 p-button-sm border-none rounded-xl text-xs font-bold shadow-md transition-all ${isTaker ? "bg-green-500 hover:bg-green-600 shadow-green-100" : "bg-blue-600 hover:bg-blue-700 shadow-blue-100"}`}
-                                                onClick={() => isTaker ? confirmLeaveIntern(row.id) : confirmAcceptIntern(row.id)}
-                                            />
-                                        )}
-                                        {isOwner && !isClosed && (
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    label="แก้ไข"
-                                                    icon="pi pi-pencil"
-                                                    className="flex-1 h-10 p-button-sm bg-yellow-500 hover:bg-yellow-600 border-none rounded-xl text-xs font-bold shadow-md shadow-yellow-100"
-                                                    onClick={() => openEditModal(row)}
-                                                />
-                                                <Button
-                                                    label="ปิดงาน"
-                                                    icon="pi pi-power-off"
-                                                    loading={actionLoading === `intern-close-${row.id}`}
-                                                    className="flex-1 h-10 p-button-sm bg-red-500 hover:bg-red-600 border-none rounded-xl text-xs font-bold shadow-md shadow-red-100"
-                                                    onClick={() => confirmCloseMain(row.id)}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })
-                    ) : (
-                        <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium pr-2">
-                            ไม่พบรายการงานมอบหมายจากเพื่อน
-                        </div>
-                    )}
+                                );
+                            })
+                        ) : (
+                            <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium pr-2">
+                                ไม่พบรายการงานมอบหมายจากเพื่อน
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
