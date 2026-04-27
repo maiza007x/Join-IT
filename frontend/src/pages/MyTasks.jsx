@@ -116,40 +116,104 @@ function MyTasks() {
     // ✅ ฟังก์ชัน Export ข้อมูลเป็น Word โดยใช้ Template (report.docx)
     const exportToWord = async () => {
         const tasksToExport = activeTab === 0 ? completedTasks : completedInternTasks;
-        
-        if (tasksToExport.length === 0) {
-            toast.current.show({ severity: 'warn', summary: 'แจ้งเตือน', detail: 'ไม่มีข้อมูลสำเร็จที่สามารถ Export ได้ในแท็บนี้' });
-            return;
-        }
 
         // เรียงวันที่จากเก่าไปใหม่ (ascending)
         const sortedTasks = [...tasksToExport].sort((a, b) => new Date(a.date_report) - new Date(b.date_report));
 
-        // Group by date
-        const tasksByDate = {};
-        sortedTasks.forEach(task => {
-            const dateStr = task.date_report || "-";
-            if (!tasksByDate[dateStr]) {
-                tasksByDate[dateStr] = [];
+        // 1. หาวันจันทร์ถึงวันเสาร์ของสัปดาห์ปัจจุบัน
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday
+        const diffToMonday = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+        const monday = new Date(today);
+        monday.setDate(diffToMonday);
+        monday.setHours(0, 0, 0, 0);
+
+        const renderData = {
+            full_name: user?.full_name || user?.username || "-",
+            fullName: user?.full_name || user?.username || "-",
+            university_name: user?.university_name || "-",
+            universityName: user?.university_name || "-",
+            academic_year: user?.academic_year || "-",
+            academicYear: user?.academic_year || "-",
+            term: user?.term || "-",
+            number_of_week: "" // ยังไม่ต้องทำอะไรในตอนนี้
+        };
+
+        const weekDatesMap = {}; // mapping YYYY-MM-DD to dayIndex (1-6)
+
+        for (let i = 0; i < 5; i++) { // 0 ถึง 4 คือ จันทร์ ถึง ศุกร์
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+
+            const dayIndex = i + 1; // 1 ถึง 5
+            renderData[`memo_date_${dayIndex}`] = `${dd}/${mm}/${yyyy}`;
+            renderData[`note_today_${dayIndex}`] = ""; // เตรียมเผื่อไว้
+
+            // Map เอาไว้เช็คกับวันที่ใน task
+            weekDatesMap[`${yyyy}-${mm}-${dd}`] = dayIndex;
+
+            // เตรียมตัวแปร task 5 บรรทัด (ใช้ index 0 ถึง 4)
+            for (let taskIdx = 0; taskIdx < 5; taskIdx++) {
+                renderData[`memo[${taskIdx}]_${dayIndex}`] = ".......................................................................................................";
             }
-            tasksByDate[dateStr].push(task);
-        });
+        }
 
-        const tableData = Object.entries(tasksByDate).map(([date, tasks], index) => {
-            const detailText = tasks.map((t, idx) => {
-                const title = t.deviceName ? String(t.deviceName).trim() : "";
-                const detail = t.contribution_detail ? String(t.contribution_detail).trim() : "";
-                return `${idx + 1}. ${title} ${detail ? "- " + detail : ""}`;
-            }).join("\n");
+        const taskCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
-            const remarks = tasks.filter(t => t.learning_outcome).map(t => t.learning_outcome).join(", ");
+        sortedTasks.forEach(task => {
+            if (!task.date_report) return;
 
-            return {
-                no: index + 1,
-                date: date,
-                details: detailText,
-                remarks: remarks || "-"
-            };
+            let tYYYY, tMM, tDD;
+            // Parse string date เช่น 2026-04-27
+            if (typeof task.date_report === 'string' && (task.date_report.includes('-') || task.date_report.includes('/'))) {
+                const parts = task.date_report.split(/[-/ T]/);
+                const validParts = parts.filter(p => p.length > 0);
+                if (validParts[0].length === 4) {
+                    tYYYY = validParts[0];
+                    tMM = validParts[1].padStart(2, '0');
+                    tDD = validParts[2].padStart(2, '0');
+                } else {
+                    tDD = validParts[0].padStart(2, '0');
+                    tMM = validParts[1].padStart(2, '0');
+                    tYYYY = validParts[2];
+                }
+            } else {
+                const tDate = new Date(task.date_report);
+                tYYYY = tDate.getFullYear();
+                tMM = String(tDate.getMonth() + 1).padStart(2, '0');
+                tDD = String(tDate.getDate()).padStart(2, '0');
+            }
+
+            const dateKey = `${tYYYY}-${tMM}-${tDD}`;
+
+            if (weekDatesMap[dateKey]) {
+                const dayIndex = weekDatesMap[dateKey];
+
+                // ใส่ข้อมูลได้สูงสุด 5 งานต่อวัน (index 0 ถึง 4)
+                const detail = task.contribution_detail ? String(task.contribution_detail).trim() : ".......................................................................................................";
+
+                if (taskCounts[dayIndex] < 5) {
+                    const arrayIndex = taskCounts[dayIndex]; // 0 ถึง 4
+                    taskCounts[dayIndex]++;
+                    renderData[`memo[${arrayIndex}]_${dayIndex}`] = detail;
+                } else {
+                    // กรณีมีงานมากกว่า 5 งานต่อวัน จะนำไปต่อท้ายที่บรรทัดที่ 5 (index 4)
+                    const lastIndex = 4;
+                    const currentVal = renderData[`memo[${lastIndex}]_${dayIndex}`];
+                    
+                    taskCounts[dayIndex]++;
+                    
+                    if (currentVal === ".......................................................................................................") {
+                        renderData[`memo[${lastIndex}]_${dayIndex}`] = detail;
+                    } else {
+                        renderData[`memo[${lastIndex}]_${dayIndex}`] += `\n${taskCounts[dayIndex]}. ${detail}`;
+                    }
+                }
+            }
         });
 
         try {
@@ -165,18 +229,7 @@ function MyTasks() {
                 linebreaks: true,
             });
 
-            // ใส่ข้อมูลลงใน Template (รองรับทั้ง CamelCase และ snake_case)
-            const renderData = {
-                full_name: user?.full_name || user?.username || "-",
-                fullName: user?.full_name || user?.username || "-",
-                university_name: user?.university_name || "-",
-                universityName: user?.university_name || "-",
-                academic_year: user?.academic_year || "-",
-                academicYear: user?.academic_year || "-",
-                term: user?.term || "-",
-                tasks: tableData
-            };
-
+            // ใส่ข้อมูลลงใน Template
             doc.render(renderData);
 
             // 3. สร้างและดาวน์โหลดไฟล์

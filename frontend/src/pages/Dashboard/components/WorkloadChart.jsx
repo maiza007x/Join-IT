@@ -58,6 +58,14 @@ const getTimeRangeBounds = (timeRange, customDates) => {
   return { startDate: format(start), endDate: format(end) };
 };
 
+const formatDecimalTime = (decimal) => {
+  if (decimal === undefined || decimal === null) return "00:00";
+  const totalMinutes = Math.round(decimal * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
 const WorkloadChart = ({ globalFilter }) => {
   const [view, setView] = useState(() => localStorage.getItem("workloadView") || "gantt");
   const [loading, setLoading] = useState(false);
@@ -454,7 +462,7 @@ const WorkloadChart = ({ globalFilter }) => {
               <div className="flex items-center gap-2 mt-1">
                 <i className="pi pi-clock text-[10px] text-indigo-400"></i>
                 <span className="text-[11px] text-slate-200 font-bold">
-                  {tooltip.data.start.toFixed(2)} - {(tooltip.data.start + tooltip.data.duration).toFixed(2)} น.
+                  {formatDecimalTime(tooltip.data.start)} - {formatDecimalTime(tooltip.data.start + tooltip.data.duration)} น.
                 </span>
               </div>
             </div>
