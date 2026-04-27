@@ -135,6 +135,7 @@ function MyTasks() {
             universityName: user?.university_name || "-",
             academic_year: user?.academic_year || "-",
             academicYear: user?.academic_year || "-",
+            faculty: user?.faculty || "-",
             term: user?.term || "-",
             number_of_week: "" // ยังไม่ต้องทำอะไรในตอนนี้
         };
@@ -204,9 +205,9 @@ function MyTasks() {
                     // กรณีมีงานมากกว่า 5 งานต่อวัน จะนำไปต่อท้ายที่บรรทัดที่ 5 (index 4)
                     const lastIndex = 4;
                     const currentVal = renderData[`memo[${lastIndex}]_${dayIndex}`];
-                    
+
                     taskCounts[dayIndex]++;
-                    
+
                     if (currentVal === ".......................................................................................................") {
                         renderData[`memo[${lastIndex}]_${dayIndex}`] = detail;
                     } else {

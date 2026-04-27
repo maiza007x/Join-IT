@@ -14,17 +14,17 @@ function Members() {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Add User State
     const [displayAddDialog, setDisplayAddDialog] = useState(false);
     const [newUserName, setNewUserName] = useState('');
     const [newUserRole, setNewUserRole] = useState('user');
-    
+
     // Role Dialog State
     const [displayRoleDialog, setDisplayRoleDialog] = useState(false);
     const [selectedUserForRole, setSelectedUserForRole] = useState(null);
     const [newRole, setNewRole] = useState('user');
-    
+
     const roleOptions = [
         { label: 'แอดมินหลัก (admin)', value: 'admin' },
         { label: 'แอดมินรอง (sub_admin)', value: 'sub_admin' },
@@ -198,6 +198,9 @@ function Members() {
                             <Column field="university_name" header="มหาวิทยาลัย" sortable body={(row) => (
                                 <span className="text-sm font-medium">{row.university_name || '-'}</span>
                             )} />
+                            <Column field="faculty" header="คณะ" sortable body={(row) => (
+                                <span className="text-sm font-medium">{row.faculty || '-'}</span>
+                            )} />
                             <Column field="academic_year" header="ปีการศึกษา" sortable body={(row) => (
                                 <span className="text-sm font-medium">{row.academic_year || '-'}</span>
                             )} />
@@ -207,22 +210,22 @@ function Members() {
                             <Column field="updated_at" header="วันที่อัปเดตล่าสุด ↑↓" body={(row) => {
                                 if (!row.updated_at) return '-';
                                 const d = new Date(row.updated_at);
-                                return `${d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })} ${d.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute:'2-digit' })}`;
+                                return `${d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })} ${d.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })}`;
                             }} />
 
                             <Column header="จัดการ" body={(row) => (
                                 <div className="flex gap-2">
-                                    <Button 
-                                        icon="pi pi-key" 
-                                        rounded 
-                                        className="p-button-warning p-button-sm border-none bg-orange-400" 
+                                    <Button
+                                        icon="pi pi-key"
+                                        rounded
+                                        className="p-button-warning p-button-sm border-none bg-orange-400"
                                         onClick={() => handleResetPassword(row.id, row.username)}
                                         tooltip="รีเซ็ตรหัสผ่าน" tooltipOptions={{ position: 'top' }}
                                     />
-                                    <Button 
-                                        icon="pi pi-cog" 
-                                        rounded 
-                                        className="p-button-info p-button-sm bg-blue-500 border-none" 
+                                    <Button
+                                        icon="pi pi-cog"
+                                        rounded
+                                        className="p-button-info p-button-sm bg-blue-500 border-none"
                                         onClick={() => {
                                             setSelectedUserForRole(row);
                                             setNewRole(row.role);

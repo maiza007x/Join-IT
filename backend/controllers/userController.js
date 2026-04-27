@@ -1,5 +1,7 @@
 const joinPool = require('../helper/db'); // ใช้ตัวแปรนี้เป็นหลักในการเชื่อมต่อ DB
 const bcrypt = require('bcrypt');
+const fs = require('fs');
+const path = require('path');
 
 // --- 1. GET /api/users/me (ดึงข้อมูลโปรไฟล์ตัวเอง) ---
 exports.getProfile = async (req, res) => {
@@ -40,6 +42,7 @@ exports.getAllUsers = async (req, res) => {
                 updated_at,
                 role,
                 university_name,
+                faculty,
                 academic_year,
                 term
             FROM users 
@@ -75,7 +78,7 @@ exports.getStudentList = async (req, res) => {
 
 // --- 3. PUT /api/users/me (อัปเดตข้อมูลส่วนตัว) ---
 exports.updateProfile = async (req, res) => {
-    const { fullName, full_name, university_name, academic_year, term } = req.body;
+    const { fullName, full_name, university_name, academic_year, term, faculty } = req.body;
     const finalName = fullName || full_name;
 
     if (!finalName || finalName.trim() === "") {
@@ -84,8 +87,8 @@ exports.updateProfile = async (req, res) => {
 
     try {
         await joinPool.query(
-            'UPDATE users SET full_name = ?, university_name = ?, academic_year = ?, term = ? WHERE id = ?',
-            [finalName, university_name, academic_year, term, req.user.id]
+            'UPDATE users SET full_name = ?, university_name = ?, academic_year = ?, term = ?, faculty = ? WHERE id = ?',
+            [finalName, university_name, academic_year, term, faculty, req.user.id]
         );
         res.json({ success: true, message: "อัปเดตข้อมูลโปรไฟล์สำเร็จ" });
     } catch (err) {
@@ -131,9 +134,9 @@ exports.changePassword = async (req, res) => {
 
 // --- 4.1 POST /api/users/verify-profile (ยืนยันตัวตนครั้งแรก) ---
 exports.verifyProfile = async (req, res) => {
-    const { full_name, university_name, academic_year, term, password } = req.body;
+    const { full_name, university_name, academic_year, term, faculty, password } = req.body;
 
-    if (!full_name || !university_name || !academic_year || !term || !password) {
+    if (!full_name || !university_name || !academic_year || !term || !faculty || !password) {
         return res.status(400).json({ success: false, message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
     }
 
@@ -147,12 +150,13 @@ exports.verifyProfile = async (req, res) => {
                 university_name = ?, 
                 academic_year = ?, 
                 term = ?, 
+                faculty = ?, 
                 password = ?, 
                 verified = 1 
             WHERE id = ?
         `;
-        
-        await joinPool.query(sql, [full_name, university_name, academic_year, term, hashedPassword, req.user.id]);
+
+        await joinPool.query(sql, [full_name, university_name, academic_year, term, faculty, hashedPassword, req.user.id]);
 
         res.json({ success: true, message: "ตั้งค่าโปรไฟล์สำเร็จ พร้อมเริ่มใช้งานระบบ" });
     } catch (err) {
@@ -166,6 +170,20 @@ exports.uploadAvatar = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ success: false, message: "กรุณาเลือกไฟล์รูปภาพ" });
+        }
+
+        // ดึงข้อมูล avatar_url เดิม
+        const [rows] = await joinPool.query('SELECT avatar_url FROM users WHERE id = ?', [req.user.id]);
+        if (rows && rows.length > 0 && rows[0].avatar_url) {
+            const oldAvatar = rows[0].avatar_url;
+            if (oldAvatar.startsWith('/uploads/')) {
+                const oldFilePath = path.join(process.cwd(), oldAvatar);
+                fs.unlink(oldFilePath, (err) => {
+                    if (err && err.code !== 'ENOENT') {
+                        console.error("Failed to delete old avatar file:", err);
+                    }
+                });
+            }
         }
 
         const imageUrl = `/uploads/${req.file.filename}`;

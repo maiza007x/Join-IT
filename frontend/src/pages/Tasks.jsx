@@ -94,7 +94,7 @@ function Tasks() {
             socket.off("new-task", handleNewTask);
             clearTimeout(debounceTimer);
         };
-    }, []);
+    }, [selectedDate]);
 
     const handleJoin = async (taskId) => {
         setActionLoading(taskId);
@@ -106,11 +106,6 @@ function Tasks() {
                 detail: "เข้าร่วมงานเรียบร้อย",
                 life: 2000,
             });
-
-            // Redirect to My Tasks (Staff Tab)
-            // setTimeout(() => {
-            //     navigate("/my-tasks?tab=0");
-            // }, 1000);
 
             fetchTasks();
         } catch (err) {
@@ -285,25 +280,46 @@ function Tasks() {
         });
     };
 
+
+    const handleDateChange = (direction) => {
+        const current = selectedDate ? new Date(selectedDate) : new Date();
+        current.setDate(current.getDate() + direction);
+        setSelectedDate(current);
+    };
+
     return (
         <div className="bg-[#f8fafc] min-h-screen font-sans text-slate-700">
             <Toast ref={toast} />
 
             <div className="max-w-312.5 mx-auto py-8 px-4 flex flex-col gap-6">
                 {/* 🔍 Filter & Search Bar */}
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-50">
                     <div className="flex flex-wrap gap-5 items-end">
                         <div className="flex flex-col gap-2">
                             <span className="text-sm font-black text-blue-500 uppercase tracking-widest ml-1">
                                 คัดกรองวันที่
                             </span>
-                            <Calendar
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.value)}
-                                dateFormat="yy-mm-dd"
-                                showIcon
-                                className="w-full md:w-56"
-                            />
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleDateChange(-1)}
+                                    className="w-13 h-13 flex items-center justify-center bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 text-slate-500 transition-all"
+                                >
+                                    <i className="pi pi-chevron-left text-xs"></i>
+                                </button>
+                                <Calendar
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.value)}
+                                    dateFormat="yy-mm-dd"
+                                    showIcon
+                                    className="w-full md:w-56"
+                                />
+                                <button
+                                    onClick={() => handleDateChange(1)}
+                                    className="w-13 h-13 flex items-center justify-center bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 text-slate-500 transition-all"
+                                >
+                                    <i className="pi pi-chevron-right text-xs"></i>
+                                </button>
+                            </div>
                         </div>
                         <div className="flex flex-col gap-2 grow">
                             <span className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1">

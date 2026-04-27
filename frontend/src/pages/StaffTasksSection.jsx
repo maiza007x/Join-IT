@@ -17,6 +17,13 @@ const StaffTasksSection = ({
 }) => {
     const myContributedTasks = tasks.filter((t) => t.isContributedByMe).length;
 
+    const processedTasks = React.useMemo(() => {
+        return tasks.map((t) => ({
+            ...t,
+            interns_str: t.interns && t.interns.length > 0 ? t.interns.join(", ") : "",
+        }));
+    }, [tasks]);
+
     const timeTemplate = (rowData) => {
         if (!rowData.time_report) return "-";
         return (
@@ -67,7 +74,7 @@ const StaffTasksSection = ({
         <div className="flex flex-col gap-5">
             {/* 📊 Dashboard Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-blue-500">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-blue-500">
                     <i className="pi pi-briefcase text-3xl text-blue-500 bg-blue-50 p-4 rounded-3xl" />
                     <div>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -81,7 +88,7 @@ const StaffTasksSection = ({
                         </h2>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-green-500">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-green-500">
                     <i className="pi pi-users text-3xl text-green-500 bg-green-50 p-4 rounded-3xl" />
                     <div>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -95,7 +102,7 @@ const StaffTasksSection = ({
                         </h2>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-orange-400">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-orange-400">
                     <i className="pi pi-user text-3xl text-orange-400 bg-orange-50 p-4 rounded-3xl" />
                     <div>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -115,7 +122,7 @@ const StaffTasksSection = ({
             </div>
 
             {/* Main Data Table */}
-            <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-50 overflow-hidden">
                 <div className="p-7 flex items-center justify-between bg-slate-900 border-b border-slate-700">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-10 bg-blue-500 rounded-full"></div>
@@ -142,12 +149,12 @@ const StaffTasksSection = ({
                 <div className="p-4">
                     <div className="hidden md:block">
                         <DataTable
-                            value={tasks}
+                            value={processedTasks}
                             loading={loading}
                             paginator
                             rows={10}
                             scrollable
-                            scrollDirection="horizontal"
+                            rowsPerPageOptions={[10, 25, 50]}
                             stripedRows
                             sortField="id"
                             sortOrder={-1}
@@ -155,7 +162,7 @@ const StaffTasksSection = ({
                             emptyMessage="ไม่พบรายการงานที่ตรงตามเงื่อนไข"
                             className="p-datatable-sm custom-luxury-table"
                             rowHover
-                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
+                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                             currentPageReportTemplate="{first}-{last} of {totalRecords}"
                             filters={filters}
                             onFilter={(e) => setFilters(e.filters)}
@@ -209,7 +216,7 @@ const StaffTasksSection = ({
                                 header="ผู้แจ้ง"
                                 body={(row) => (
                                     <span className="text-slate-500 font-semibold italic">
-                                        @{row.username}
+                                        {row.username ? `@${row.username}` : "-"}
                                     </span>
                                 )}
                                 style={{ width: "13rem" }}
@@ -219,14 +226,18 @@ const StaffTasksSection = ({
                                 showFilterMatchModes={false}
                             />
                             <Column
+                                field="interns_str"
                                 header="ผู้ช่วยเหลือ"
                                 body={internTemplate}
                                 style={{ width: "14rem" }}
+                                sortable
                             />
                             <Column
+                                field="isContributedByMe"
                                 header="จัดการ"
                                 body={actionTemplate}
                                 style={{ textAlign: "center", width: "13rem" }}
+                                sortable
                             />
                         </DataTable>
                     </div>

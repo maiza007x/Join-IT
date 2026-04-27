@@ -28,6 +28,7 @@ const Profile = () => {
     const [academicYear, setAcademicYear] = useState("");
     const [universityName, setUniversityName] = useState("");
     const [term, setTerm] = useState("");
+    const [faculty, setFaculty] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [uploading, setUploading] = useState(false);
@@ -40,6 +41,7 @@ const Profile = () => {
 
     // --- Cropper States ---
     const [cropDialogParams, setCropDialogParams] = useState({ visible: false, src: null });
+    const [cropTarget, setCropTarget] = useState(null); // 'avatar' หรือ 'logo'
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -56,6 +58,7 @@ const Profile = () => {
                 setAcademicYear(data.academic_year || "");
                 setUniversityName(data.university_name || "");
                 setTerm(data.term || "");
+                setFaculty(data.faculty || "");
             }
 
             // ถ้าเป็นผู้ดูแลระบบ ให้พยายามดึงโลโก้ปัจจุบันมาแสดง
@@ -83,7 +86,8 @@ const Profile = () => {
         if (fullName === userData.full_name &&
             academicYear === userData.academic_year &&
             universityName === userData.university_name &&
-            term === userData.term) {
+            term === userData.term &&
+            faculty === userData.faculty) {
             setIsEditing(false);
             return;
         }
@@ -99,7 +103,8 @@ const Profile = () => {
                 fullName,
                 academic_year: academicYear,
                 university_name: universityName,
-                term
+                term,
+                faculty
             });
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'บันทึกข้อมูลเรียบร้อย', life: 3000 });
             setIsEditing(false);
@@ -112,7 +117,7 @@ const Profile = () => {
     };
 
     const handleVerifyProfile = async () => {
-        if (!fullName.trim() || !universityName.trim() || !academicYear.trim() || !term.trim() || !newPassword || !confirmPassword) {
+        if (!fullName.trim() || !universityName.trim() || !academicYear.trim() || !term.trim() || !faculty.trim() || !newPassword || !confirmPassword) {
             toast.current.show({ severity: 'warn', summary: 'ข้อมูลไม่ครบ', detail: 'กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง' });
             return;
         }
@@ -134,11 +139,12 @@ const Profile = () => {
                 university_name: universityName,
                 academic_year: academicYear,
                 term: term,
+                faculty: faculty,
                 password: newPassword
             });
 
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: response.data.message });
-            
+
             // อัปเดตข้อมูลใน Context
             const token = localStorage.getItem("token");
             const userRes = await api.get("/users/me");
@@ -204,22 +210,10 @@ const Profile = () => {
             return;
         }
 
-        const formData = new FormData();
-        formData.append('avatar', file);
-        setUploading(true);
-        try {
-            await api.post('/users/upload-avatar', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
-            toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'อัปโหลดรูปโปรไฟล์เรียบร้อย', life: 3000 });
-            fetchProfile();
-        } catch (err) {
-            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'อัปโหลดรูปภาพล้มเหลว' });
-        } finally {
-            setUploading(false);
-        }
+        const src = URL.createObjectURL(file);
+        setCropDialogParams({ visible: true, src });
+        setCropTarget('avatar');
+        e.target.value = '';
     };
 
     const onCropComplete = (croppedArea, croppedAreaPixels) => {
@@ -237,9 +231,41 @@ const Profile = () => {
 
         const src = URL.createObjectURL(file);
         setCropDialogParams({ visible: true, src });
+        setCropTarget('logo');
 
         // เราเคลียร์ค่า input file ให้เลือกไฟล์เดิมซ้ำได้ในครั้งหน้า
         e.target.value = '';
+    };
+
+    const handleConfirmCropAvatar = async () => {
+        try {
+            setUploading(true);
+            const croppedImageBlob = await getCroppedImg(cropDialogParams.src, croppedAreaPixels);
+
+            const formData = new FormData();
+            formData.append('avatar', croppedImageBlob, 'avatar.png');
+
+            await api.post('/users/upload-avatar', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'อัปโหลดรูปโปรไฟล์เรียบร้อย', life: 3000 });
+            fetchProfile();
+
+            setCropDialogParams({ visible: false, src: null });
+        } catch (error) {
+            console.error("Upload Avatar Error:", error);
+            toast.current.show({ severity: 'error', summary: 'ผิดพลาด', detail: 'ไม่สามารถอัปโหลดรูปโปรไฟล์ได้' });
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleConfirmCrop = async () => {
+        if (cropTarget === 'avatar') {
+            await handleConfirmCropAvatar();
+        } else if (cropTarget === 'logo') {
+            await handleConfirmCropLogo();
+        }
     };
 
     const handleConfirmCropLogo = async () => {
@@ -316,6 +342,20 @@ const Profile = () => {
                                             placeholder="ระบุมหาวิทยาลัยของคุณ"
                                             value={universityName}
                                             onChange={(e) => setUniversityName(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-violet-600 uppercase tracking-[0.2em] ml-1">คณะ</label>
+                                    <div className="relative">
+                                        <i className="pi pi-bookmark absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input
+                                            type="text"
+                                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-violet-100 focus:border-violet-500 focus:bg-white outline-none transition-all font-bold text-slate-700"
+                                            placeholder="ระบุคณะของคุณ"
+                                            value={faculty}
+                                            onChange={(e) => setFaculty(e.target.value)}
                                         />
                                     </div>
                                 </div>
@@ -402,13 +442,6 @@ const Profile = () => {
                     <h2 className="m-0 text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
                         ตั้งค่าโปรไฟล์ส่วนตัว
                     </h2>
-                    <button
-                        onClick={() => navigate('/tasks')}
-                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-xl shadow-sm transition-all duration-200 font-bold text-sm w-full md:w-auto overflow-hidden self-start md:self-auto"
-                    >
-                        <i className="pi pi-arrow-left text-xs"></i>
-                        <span>ยกเลิก (ไปที่รายการงาน)</span>
-                    </button>
                 </div>
 
                 <div className="card shadow-md border-0 bg-white" style={{ borderRadius: '2rem', overflow: 'hidden' }}>
@@ -478,6 +511,17 @@ const Profile = () => {
                                     <span className="text-slate-700 font-bold text-lg bg-white p-3 rounded-xl border border-white h-full">{universityName || <span className="text-slate-400 italic font-normal">ยังไม่ได้ระบุสถานศึกษา</span>}</span>
                                 ) : (
                                     <input className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm bg-white font-bold text-slate-700 text-sm" value={universityName} onChange={(e) => setUniversityName(e.target.value)} placeholder="ระบุมหาวิทยาลัยของคุณ" />
+                                )}
+                            </div>
+
+                            <div className="flex flex-col space-y-1 text-left">
+                                <label className="text-violet-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                                    <i className="pi pi-bookmark"></i> คณะ
+                                </label>
+                                {!isEditing ? (
+                                    <span className="text-slate-700 font-bold text-lg bg-white p-3 rounded-xl border border-white h-full">{faculty || <span className="text-slate-400 italic font-normal">ไม่ได้ระบุ</span>}</span>
+                                ) : (
+                                    <input className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm bg-white font-bold text-slate-700 text-sm" value={faculty} onChange={(e) => setFaculty(e.target.value)} placeholder="ระบุคณะของคุณ" />
                                 )}
                             </div>
 
@@ -692,7 +736,7 @@ const Profile = () => {
                             </button>
                             <button
                                 className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm shadow-md"
-                                onClick={handleConfirmCropLogo}
+                                onClick={handleConfirmCrop}
                                 disabled={uploading}
                             >
                                 {uploading ? <i className="pi pi-spin pi-spinner mr-2"></i> : null}
