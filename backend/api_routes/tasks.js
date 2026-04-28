@@ -69,4 +69,7 @@ router.put('/close-intern-task-main/:id', auth, taskController.closeInternTaskMa
 // --- 15. PUT /api/tasks/reopen-intern-task-main/:id (ยกเลิกการปิดงานหลักของนักศึกษา) ---
 router.put('/reopen-intern-task-main/:id', auth, taskController.reopenInternTaskMain);
 
+// --- 16. GET /api/tasks/intern-task-assignees/:id (ดึงรายละเอียดผู้ร่วมงานนักศึกษา) ---
+router.get('/intern-task-assignees/:id', auth, taskController.getInternTaskAssignees);
+
 module.exports = router;

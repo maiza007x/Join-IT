@@ -1218,3 +1218,46 @@ exports.reopenInternTaskMain = async (req, res) => {
         res.status(500).json({ success: false, message: "ยกเลิกการปิดงานล้มเหลว" });
     }
 };
+
+// --- 16. ดึงรายละเอียดผู้ร่วมงานนักศึกษา (Get Intern Task Assignees Details) ---
+exports.getInternTaskAssignees = async (req, res) => {
+    const taskId = req.params.id;
+
+    try {
+        const [taskRows] = await joinPool.query(
+            `SELECT i.id, i.closed_at 
+             FROM join_it.intern_tasks i 
+             WHERE i.id = ?`, 
+            [taskId]
+        );
+        
+        if (taskRows.length === 0) {
+            return res.status(404).json({ success: false, message: "ไม่พบข้อมูลงาน" });
+        }
+        
+        const isMainClosed = taskRows[0].closed_at !== null;
+
+        const [rows] = await joinPool.query(
+            `SELECT 
+                a.id, 
+                a.intern_id, 
+                u.full_name, 
+                u.avatar_url, 
+                a.contribution_detail, 
+                a.learning_outcome,
+                CASE 
+                    WHEN ? OR (a.close_date IS NOT NULL AND a.close_date != '0000-00-00') THEN 'closed' 
+                    ELSE 'working' 
+                END as status
+             FROM join_it.intern_task_assignees a
+             JOIN join_it.users u ON a.intern_id = u.id
+             WHERE a.intern_task_id = ?`,
+            [isMainClosed, taskId]
+        );
+
+        res.json({ success: true, assignees: rows });
+    } catch (err) {
+        console.error("❌ Get Intern Task Assignees Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงข้อมูลผู้ร่วมงานล้มเหลว" });
+    }
+};

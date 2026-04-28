@@ -3,6 +3,8 @@ import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
+import { Dialog } from "primereact/dialog";
+import api, { getImageUrl } from "../services/api";
 
 const InternTasksSection = ({
     internTasks,
@@ -16,6 +18,31 @@ const InternTasksSection = ({
     confirmCloseMain,
     confirmReopenMain
 }) => {
+    const [assigneesDialogVisible, setAssigneesDialogVisible] = React.useState(false);
+    const [selectedTaskForAssignees, setSelectedTaskForAssignees] = React.useState(null);
+    const [assigneesDetails, setAssigneesDetails] = React.useState([]);
+    const [loadingAssignees, setLoadingAssignees] = React.useState(false);
+
+    const fetchAssigneesDetails = async (taskId) => {
+        setLoadingAssignees(true);
+        try {
+            const response = await api.get(`/tasks/intern-task-assignees/${taskId}`);
+            if (response.data.success) {
+                setAssigneesDetails(response.data.assignees);
+            }
+        } catch (err) {
+            console.error("❌ Fetch Assignees Details Error:", err);
+        } finally {
+            setLoadingAssignees(false);
+        }
+    };
+
+    const openAssigneesDialog = (task) => {
+        setSelectedTaskForAssignees(task);
+        setAssigneesDialogVisible(true);
+        fetchAssigneesDetails(task.id);
+    };
+
     const myContributedTasks = internTasks.filter((t) => t.isContributedByMe).length;
     const noHelperTasks = internTasks.filter((t) => !t.interns || t.interns.length === 0).length;
 
@@ -36,7 +63,11 @@ const InternTasksSection = ({
     };
 
     const internTakerTemplate = (rowData) => (
-        <div className="flex flex-wrap gap-1.5">
+        <div 
+            className="flex flex-wrap gap-1.5 items-center cursor-pointer hover:opacity-80 transition-all"
+            onClick={() => openAssigneesDialog(rowData)}
+            title="คลิกเพื่อดูรายละเอียดการช่วยเหลือ"
+        >
             {rowData.interns && rowData.interns.length > 0 ? (
                 rowData.interns.map((internStr, index) => {
                     const parts = internStr.split('::');
@@ -49,7 +80,6 @@ const InternTasksSection = ({
                             icon={status === 'closed' ? "pi pi-check-circle" : "pi pi-clock"}
                             value={name}
                             rounded
-                            severity={status === 'closed' ? 'success' : 'warning'}
                             className={`px-2.5 py-1.5 text-[10px] font-bold border-none flex items-center gap-1.5 ${status === 'closed'
                                 ? 'bg-green-600 text-white'
                                 : 'bg-amber-500 text-white'
@@ -59,6 +89,9 @@ const InternTasksSection = ({
                 })
             ) : (
                 <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
+            )}
+            {rowData.interns && rowData.interns.length > 0 && (
+                <i className="pi pi-info-circle text-slate-400 text-[10px] ml-0.5" title="คลิกเพื่อดูรายละเอียดการร่วมงาน"></i>
             )}
         </div>
     );
@@ -334,7 +367,11 @@ const InternTasksSection = ({
                                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                                                 ผู้รับงาน
                                             </span>
-                                            <div className="flex flex-wrap gap-1">
+                                            <div 
+                                                className="flex flex-wrap gap-1.5 items-center cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() => openAssigneesDialog(row)}
+                                                title="คลิกเพื่อดูรายละเอียดการช่วยเหลือ"
+                                            >
                                                 {row.interns && row.interns.length > 0 ? (
                                                     row.interns.map((internStr, index) => {
                                                         const parts = internStr.split('::');
@@ -356,6 +393,9 @@ const InternTasksSection = ({
                                                     })
                                                 ) : (
                                                     <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
+                                                )}
+                                                {row.interns && row.interns.length > 0 && (
+                                                    <i className="pi pi-info-circle text-slate-400 text-[10px] ml-0.5" title="คลิกเพื่อดูรายละเอียดการร่วมงาน"></i>
                                                 )}
                                             </div>
                                         </div>
@@ -414,6 +454,90 @@ const InternTasksSection = ({
                     </div>
                 </div>
             </div>
+
+            <Dialog 
+                header={
+                    <div className="flex items-center gap-3 text-orange-950">
+                        <i className="pi pi-users text-xl bg-orange-100 p-2 rounded-xl text-orange-600"></i>
+                        <div>
+                            <span className="text-base font-black block leading-tight">ความคืบหน้าทีมผู้ร่วมงาน</span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5 uppercase tracking-widest font-bold">
+                                {selectedTaskForAssignees?.deviceName || 'รายละเอียดงาน'}
+                            </span>
+                        </div>
+                    </div>
+                }
+                visible={assigneesDialogVisible} 
+                onHide={() => setAssigneesDialogVisible(false)}
+                style={{ width: '90vw', maxWidth: '600px' }}
+                className="custom-luxury-dialog"
+                modal
+                dismissableMask
+                closeOnEscape
+            >
+                <div className="flex flex-col gap-4 py-2">
+                    {loadingAssignees ? (
+                        <div className="flex flex-col items-center justify-center py-10 gap-3">
+                            <i className="pi pi-spin pi-spinner text-3xl text-orange-500"></i>
+                            <span className="text-slate-400 text-xs font-bold">กำลังโหลดรายละเอียด...</span>
+                        </div>
+                    ) : assigneesDetails.length > 0 ? (
+                        assigneesDetails.map((item, idx) => (
+                            <div key={idx} className="bg-slate-50 rounded-2xl border border-slate-100 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md hover:border-slate-200 transition-all">
+                                <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 font-black text-sm overflow-hidden border border-orange-200/30 shadow-sm">
+                                            {item.avatar_url ? (
+                                                <img src={getImageUrl(item.avatar_url)} alt={item.full_name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                item.full_name?.substring(0, 2).toUpperCase()
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h5 className="m-0 font-bold text-slate-800 text-sm">{item.full_name}</h5>
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mt-0.5">ผู้ร่วมภารกิจ</span>
+                                        </div>
+                                    </div>
+                                    <Tag 
+                                        icon={item.status === 'closed' ? "pi pi-check-circle" : "pi pi-clock"}
+                                        value={item.status === 'closed' ? 'เสร็จสิ้น' : 'กำลังทำ'}
+                                        rounded
+                                        className={`px-2.5 py-1 text-[9px] font-extrabold border-none flex items-center gap-1 ${
+                                            item.status === 'closed' 
+                                            ? 'bg-green-600 text-white shadow-md shadow-green-100' 
+                                            : 'bg-amber-500 text-white shadow-md shadow-amber-100'
+                                        }`}
+                                    />
+                                </div>
+                                
+                                <div className="flex flex-col gap-3 text-xs leading-relaxed">
+                                    <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                                        <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                            <i className="pi pi-pencil text-[10px] text-blue-500"></i> รายละเอียดการช่วยเหลือ
+                                        </span>
+                                        <p className="m-0 text-slate-700 font-medium">
+                                            {item.contribution_detail || <span className="text-slate-300 italic">ยังไม่มีการบันทึกรายละเอียด</span>}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                                        <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                            <i className="pi pi-heart text-[10px] text-red-500"></i> สิ่งที่ได้เรียนรู้
+                                        </span>
+                                        <p className="m-0 text-slate-600 italic">
+                                            {item.learning_outcome || <span className="text-slate-300 italic">ยังไม่มีการบันทึกการเรียนรู้</span>}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100 text-slate-400 text-xs font-bold">
+                            ไม่พบรายละเอียดผู้ร่วมงาน
+                        </div>
+                    )}
+                </div>
+            </Dialog>
         </div>
     );
 };
