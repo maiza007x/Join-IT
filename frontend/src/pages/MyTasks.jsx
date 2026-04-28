@@ -485,7 +485,7 @@ function MyTasks() {
                 {/* Tab Selection Section */}
                 <div className="bg-white p-2 rounded-3xl shadow-sm border border-blue-50">
                     <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)} className="custom-luxury-tabs">
-                        <TabPanel header={<span><i className="pi pi-building mr-2"></i>งานเจ้าหน้าที่ ({pendingTasks.length})</span>}>
+                        <TabPanel header={<span><i className="pi pi-building mr-2"></i>งานเจ้าหน้าที่ ({tasks.length})</span>}>
                             <div className="flex flex-col gap-6 pt-4">
                                 {/* Segmented Control for Staff */}
                                 <div className="flex justify-center md:justify-start">
@@ -573,7 +573,7 @@ function MyTasks() {
                             </div>
                         </TabPanel>
 
-                        <TabPanel header={<span><i className="pi pi-user mr-2"></i>งานนักศึกษา ({pendingInternTasks.length})</span>}>
+                        <TabPanel header={<span><i className="pi pi-user mr-2"></i>งานนักศึกษา ({internTasks.length})</span>}>
                             <div className="flex flex-col gap-6 pt-4">
                                 {/* Segmented Control for Intern */}
                                 <div className="flex justify-center md:justify-start">

@@ -38,6 +38,7 @@ function Tasks() {
     });
 
     const reporters = Array.from(new Set(tasks.map(t => t.username).filter(Boolean)));
+    const incompleteInternTasksCount = internTasks.filter(t => Number(t.status) !== 3).length;
 
     const reporterFilterTemplate = (options) => {
         return (
@@ -402,6 +403,11 @@ function Tasks() {
                         <div className="flex items-center gap-2">
                             <i className="pi pi-star"></i>
                             งานสำหรับนักศึกษา
+                            {incompleteInternTasksCount > 0 && (
+                                <span className="ml-1 bg-red-500 text-white text-[9px] font-extrabold w-4 h-4 flex items-center justify-center rounded-full shadow-sm shadow-red-500/30">
+                                    {incompleteInternTasksCount}
+                                </span>
+                            )}
                         </div>
                         {activeTab === "intern" && (
                             <span className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-t-md"></span>
