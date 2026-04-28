@@ -256,7 +256,7 @@ const InternTasksSection = ({
                                 field="isContributedByMe"
                                 header="จัดการ"
                                 body={internActionTemplate}
-                                style={{ textAlign: "center", width: "13rem" }}
+                                style={{ textAlign: "center", width: "23rem" }}
                                 headerStyle={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
                                 sortable
                             />

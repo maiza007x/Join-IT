@@ -23,10 +23,7 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
         deviceName: null,
         number_device: "",
         ip_address: "",
-        work_type: "อุบัติการณ์",
-        priority: "ปกติ",
         report: "",
-        routine: "ไม่มี"
     });
 
     useEffect(() => {
@@ -55,10 +52,7 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                 deviceName: null,
                 number_device: "",
                 ip_address: "",
-                work_type: "อุบัติการณ์",
-                priority: "ปกติ",
                 report: "",
-                routine: "ไม่มี"
             });
         }
     }, [visible]);
@@ -93,9 +87,9 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
     };
 
     return (
-        <Dialog 
-            header="สร้างงาน (นักศึกษา)" 
-            visible={visible} 
+        <Dialog
+            header="สร้างงาน (นักศึกษา)"
+            visible={visible}
             onHide={onHide}
             style={{ width: '90vw', maxWidth: '800px' }}
             className="custom-dialog-radius"
@@ -112,7 +106,7 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                             onChange={(e) => setFormData({ ...formData, date_report: e.value })}
                             dateFormat="dd/mm/yy"
                             showIcon
-                            className="w-full custom-input"
+                            className="w-full"
                             placeholder="เลือกวันที่"
                         />
                     </div>
@@ -125,7 +119,7 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                             hourFormat="12"
                             showIcon
                             icon="pi pi-clock"
-                            className="w-full custom-input"
+                            className="w-full"
                             placeholder="เลือกเวลา"
                         />
                     </div>
@@ -133,16 +127,13 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                     {/* ผู้แจ้ง หน่วยงาน เบอร์โทร */}
                     <div className="flex flex-col gap-2">
                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest">ผู้แจ้ง</label>
-                        <span className="p-input-icon-left w-full">
-                            <i className="pi pi-user text-slate-400" />
-                            <InputText
-                                value={formData.reporter}
-                                onChange={(e) => setFormData({ ...formData, reporter: e.target.value })}
-                                className="w-full custom-input"
-                                placeholder="ชื่อผู้แจ้ง"
-                                required
-                            />
-                        </span>
+                        <InputText
+                            value={formData.reporter}
+                            onChange={(e) => setFormData({ ...formData, reporter: e.target.value })}
+                            className="w-full"
+                            placeholder="ชื่อผู้แจ้ง"
+                            required
+                        />
                     </div>
                     <div className="flex flex-col gap-2">
                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest">หน่วยงาน</label>
@@ -152,21 +143,18 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                             onChange={(e) => setFormData({ ...formData, department: e.value })}
                             placeholder="กรุณาเลือก..."
                             filter
-                            className="w-full custom-dropdown"
+                            className="w-full"
                             required
                         />
                     </div>
                     <div className="flex flex-col gap-2">
                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest">เบอร์โทร</label>
-                        <span className="p-input-icon-left w-full">
-                            <i className="pi pi-phone text-slate-400" />
                             <InputText
                                 value={formData.tel}
                                 onChange={(e) => setFormData({ ...formData, tel: e.target.value })}
-                                className="w-full custom-input"
+                                className="w-full"
                                 placeholder="เบอร์โทรติดต่อ"
                             />
-                        </span>
                     </div>
 
                     {/* อุปกรณ์ ครุภัณฑ์ IP */}
@@ -178,7 +166,7 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                             onChange={(e) => setFormData({ ...formData, deviceName: e.value })}
                             placeholder="กรุณาเลือก..."
                             filter
-                            className="w-full custom-dropdown"
+                            className="w-full"
                             required
                         />
                     </div>
@@ -187,7 +175,7 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                         <InputText
                             value={formData.number_device}
                             onChange={(e) => setFormData({ ...formData, number_device: e.target.value })}
-                            className="w-full custom-input"
+                            className="w-full"
                             placeholder="-"
                         />
                     </div>
@@ -196,7 +184,7 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                         <InputText
                             value={formData.ip_address}
                             onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
-                            className="w-full custom-input"
+                            className="w-full"
                             placeholder="-"
                         />
                     </div>
@@ -209,7 +197,7 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                         value={formData.report}
                         onChange={(e) => setFormData({ ...formData, report: e.target.value })}
                         rows={4}
-                        className="w-full custom-input"
+                        className="w-full"
                         placeholder="..."
                         required
                     />
@@ -274,9 +262,6 @@ const CreateInternTaskModal = ({ visible, onHide, onSuccess }) => {
                     font-weight: 600;
                     color: #334155;
                     padding: 0.75rem 1rem;
-                }
-                .p-calendar .p-inputtext {
-                    border-radius: 0.85rem !important;
                 }
             ` }} />
         </Dialog>

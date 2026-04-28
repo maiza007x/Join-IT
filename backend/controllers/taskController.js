@@ -34,7 +34,10 @@ exports.getTasksCollab = async (req, res) => {
         // ดึงงานนักศึกษา (Intern Tasks)
         let internSql = `
             SELECT 
-                i.*, 
+                i.id,
+                i.reporter,
+                i.report, i.time_report, i.date_report, i.tel,
+                 i.number_device, i.ip_address, i.status, i.created_by, i.created_at, i.closed_at, i.updated_at,
                 COALESCE(dev.device_name, i.deviceName) as deviceName,
                 d.depart_name as department_name,
                 GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
@@ -117,7 +120,7 @@ exports.getMyTasks = async (req, res) => {
                 a.id as assignee_id,
                 a.intern_task_id,
                 i.id,
-                i.deviceName,
+                COALESCE(dev.device_name, i.deviceName) as deviceName,
                 i.report,
                 DATE_FORMAT(i.date_report, '%Y-%m-%d') as date_report,
                 i.time_report,
@@ -129,6 +132,7 @@ exports.getMyTasks = async (req, res) => {
             FROM join_it.intern_task_assignees a
             JOIN join_it.intern_tasks i ON a.intern_task_id = i.id
             LEFT JOIN orderit.depart d ON i.department = d.depart_id
+            LEFT JOIN orderit.device dev ON i.deviceName = dev.device_id
             WHERE a.intern_id = ?
         `;
         const internParams = [userId];
