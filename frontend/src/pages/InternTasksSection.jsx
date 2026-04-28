@@ -13,7 +13,8 @@ const InternTasksSection = ({
     confirmAcceptIntern,
     confirmLeaveIntern,
     openEditModal,
-    confirmCloseMain
+    confirmCloseMain,
+    confirmReopenMain
 }) => {
     const myContributedTasks = internTasks.filter((t) => t.isContributedByMe).length;
     const noHelperTasks = internTasks.filter((t) => !t.interns || t.interns.length === 0).length;
@@ -35,16 +36,27 @@ const InternTasksSection = ({
     };
 
     const internTakerTemplate = (rowData) => (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5">
             {rowData.interns && rowData.interns.length > 0 ? (
-                rowData.interns.map((name, index) => (
-                    <Tag
-                        key={index}
-                        value={name}
-                        rounded
-                        className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold"
-                    />
-                ))
+                rowData.interns.map((internStr, index) => {
+                    const parts = internStr.split('::');
+                    const name = parts[0];
+                    const status = parts[1] || 'working';
+
+                    return (
+                        <Tag
+                            key={index}
+                            icon={status === 'closed' ? "pi pi-check-circle" : "pi pi-clock"}
+                            value={name}
+                            rounded
+                            severity={status === 'closed' ? 'success' : 'warning'}
+                            className={`px-2.5 py-1.5 text-[10px] font-bold border-none flex items-center gap-1.5 ${status === 'closed'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-amber-500 text-white'
+                                }`}
+                        />
+                    );
+                })
             ) : (
                 <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
             )}
@@ -60,7 +72,21 @@ const InternTasksSection = ({
         return (
             <div className="flex flex-wrap gap-2 justify-center items-center">
                 {isClosed ? (
-                    <Tag value="ปิดงานแล้ว" severity="danger" rounded className="px-3 py-1.5 text-[10px] bg-red-100 text-red-600 border-none font-bold" />
+                    <div className="flex items-center gap-2">
+                        <Tag value="ปิดงานแล้ว" severity="danger" rounded className="px-3 py-1.5 text-[10px] bg-red-100 text-red-600 border-none font-bold" />
+                        {isOwner && (
+                            <Button
+                                icon="pi pi-undo"
+                                rounded
+                                severity="help"
+                                tooltip="ยกเลิกการปิดงาน (เปิดงานใหม่)"
+                                tooltipOptions={{ position: 'top' }}
+                                className="w-7 h-7 p-0 bg-purple-500 hover:bg-purple-600 border-none shadow-md shadow-purple-100 text-white"
+                                onClick={() => confirmReopenMain(rowData.id)}
+                                loading={actionLoading === `intern-reopen-${rowData.id}`}
+                            />
+                        )}
+                    </div>
                 ) : (
                     <Button
                         label={isTaker ? "รับงานแล้ว" : "รับงาน"}
@@ -310,9 +336,24 @@ const InternTasksSection = ({
                                             </span>
                                             <div className="flex flex-wrap gap-1">
                                                 {row.interns && row.interns.length > 0 ? (
-                                                    row.interns.map((name, index) => (
-                                                        <Tag key={index} value={name} rounded className="px-2.5 py-1 text-[10px] bg-orange-50 text-orange-600 border border-orange-100 font-bold" />
-                                                    ))
+                                                    row.interns.map((internStr, index) => {
+                                                        const parts = internStr.split('::');
+                                                        const name = parts[0];
+                                                        const status = parts[1] || 'working';
+
+                                                        return (
+                                                            <Tag
+                                                                key={index}
+                                                                icon={status === 'closed' ? "pi pi-check-circle" : "pi pi-clock"}
+                                                                value={name}
+                                                                rounded
+                                                                className={`px-2.5 py-1.5 text-[10px] font-bold border-none flex items-center gap-1.5 ${status === 'closed'
+                                                                    ? 'bg-green-600 text-white shadow-md shadow-green-100'
+                                                                    : 'bg-amber-500 text-white shadow-md shadow-amber-100'
+                                                                    }`}
+                                                            />
+                                                        );
+                                                    })
                                                 ) : (
                                                     <span className="text-slate-300 text-[10px] italic">รอผู้รับงาน</span>
                                                 )}
@@ -321,8 +362,19 @@ const InternTasksSection = ({
 
                                         <div className="flex flex-col gap-2 mt-2 relative z-20">
                                             {isClosed ? (
-                                                <div className="w-full text-center py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs border border-red-100">
-                                                    <i className="pi pi-lock mr-2 text-[10px]"></i> ปิดงานแล้ว
+                                                <div className="flex flex-col gap-2 w-full">
+                                                    <div className="w-full text-center py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs border border-red-100">
+                                                        <i className="pi pi-lock mr-2 text-[10px]"></i> ปิดงานแล้ว
+                                                    </div>
+                                                    {isOwner && (
+                                                        <Button
+                                                            label="ยกเลิกการปิดงาน"
+                                                            icon="pi pi-undo"
+                                                            loading={actionLoading === `intern-reopen-${row.id}`}
+                                                            className="w-full h-10 p-button-sm bg-purple-500 hover:bg-purple-600 border-none rounded-xl text-xs font-bold shadow-md shadow-purple-100 text-white flex items-center justify-center gap-2"
+                                                            onClick={() => confirmReopenMain(row.id)}
+                                                        />
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <Button

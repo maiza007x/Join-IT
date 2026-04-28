@@ -12,8 +12,7 @@ import { Calendar } from "primereact/calendar";
 import { FilterMatchMode } from "primereact/api";
 import { MultiSelect } from "primereact/multiselect";
 import socket from "../services/socket";
-import EditInternTask from "./EditInternTask";
-import CreateInternTaskModal from "./CreateInternTaskModal";
+import InternTaskModal from "./InternTaskModal";
 import StaffTasksSection from "./StaffTasksSection";
 import InternTasksSection from "./InternTasksSection";
 import { useAuth } from "../context/AuthContext";
@@ -281,6 +280,39 @@ function Tasks() {
         });
     };
 
+    const handleReopenMainTask = async (taskId) => {
+        setActionLoading(`intern-reopen-${taskId}`);
+        try {
+            await api.put(`/tasks/reopen-intern-task-main/${taskId}`);
+            toast.current.show({
+                severity: "success",
+                summary: "สำเร็จ",
+                detail: "เปิดงานใหม่เรียบร้อย",
+                life: 2000,
+            });
+            fetchTasks();
+        } catch (err) {
+            toast.current.show({
+                severity: "error",
+                summary: "ผิดพลาด",
+                detail: "ไม่สามารถยกเลิกการปิดงานได้",
+            });
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const confirmReopenMain = (taskId) => {
+        confirmDialog({
+            message: "คุณต้องการยกเลิกการปิดงานนี้เพื่อเปิดรับการช่วยเหลือใหม่ใช่หรือไม่?",
+            header: "ยืนยันการเปิดงานใหม่",
+            icon: "pi pi-undo",
+            acceptClassName: "p-button-help rounded-xl px-4 bg-purple-600 hover:bg-purple-700 border-none",
+            rejectClassName: "p-button-text rounded-xl px-4",
+            accept: () => handleReopenMainTask(taskId),
+        });
+    };
+
 
     const handleDateChange = (direction) => {
         const current = selectedDate ? new Date(selectedDate) : new Date();
@@ -404,24 +436,24 @@ function Tasks() {
                             confirmLeaveIntern={confirmLeaveIntern}
                             openEditModal={openEditModal}
                             confirmCloseMain={confirmCloseMain}
+                            confirmReopenMain={confirmReopenMain}
                         />
                     )}
                 </div>
 
-                {/* Edit Intern Task Modal */}
-                <EditInternTask
-                    visible={editModalVisible}
-                    onHide={() => setEditModalVisible(false)}
-                    taskData={editingTask}
-                    onSuccess={handleEditSuccess}
-                />
-
-                {/* Create Intern Task Modal */}
-                <CreateInternTaskModal
-                    visible={createModalVisible}
-                    onHide={() => setCreateModalVisible(false)}
+                {/* Intern Task Modal (Create / Edit) */}
+                <InternTaskModal
+                    visible={createModalVisible || editModalVisible}
+                    onHide={() => {
+                        setCreateModalVisible(false);
+                        setEditModalVisible(false);
+                        setEditingTask(null);
+                    }}
+                    taskData={editModalVisible ? editingTask : null}
                     onSuccess={() => {
                         setCreateModalVisible(false);
+                        setEditModalVisible(false);
+                        setEditingTask(null);
                         fetchTasks();
                     }}
                 />

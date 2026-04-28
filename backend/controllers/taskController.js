@@ -40,7 +40,7 @@ exports.getTasksCollab = async (req, res) => {
                  i.number_device, i.ip_address, i.status, i.created_by, i.created_at, i.closed_at, i.updated_at,
                 COALESCE(dev.device_name, i.deviceName) as deviceName,
                 d.depart_name as department_name,
-                GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
+                GROUP_CONCAT(DISTINCT CONCAT(u.full_name, '::', CASE WHEN (i.closed_at IS NOT NULL) OR (a.close_date IS NOT NULL AND a.close_date != '0000-00-00') THEN 'closed' ELSE 'working' END) SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN a.intern_id = ? THEN 1 ELSE 0 END) as isContributedByMe
             FROM join_it.intern_tasks i
             LEFT JOIN orderit.depart d ON i.department = d.depart_id
@@ -1184,5 +1184,37 @@ exports.closeInternTaskMain = async (req, res) => {
     } catch (err) {
         console.error("❌ Close Main Intern Task Error:", err.message);
         res.status(500).json({ success: false, message: "ปิดงานหลักล้มเหลว" });
+    }
+};
+
+// --- 15. ยกเลิกการปิดงานหลักของนักศึกษา (Reopen Main Intern Task) ---
+exports.reopenInternTaskMain = async (req, res) => {
+    const taskId = req.params.id;
+    const userId = req.user.id;
+
+    try {
+        const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [userId]);
+        const fullName = userRows.length > 0 ? (userRows[0].full_name || userRows[0].username) : 'Unknown';
+
+        const [assignees] = await joinPool.query(
+            'SELECT id FROM join_it.intern_task_assignees WHERE intern_task_id = ?',
+            [taskId]
+        );
+        const newStatus = assignees.length > 0 ? 2 : 1;
+
+        const [result] = await joinPool.query(
+            `UPDATE join_it.intern_tasks 
+             SET closed_at = NULL, status = ?
+             WHERE id = ? AND created_by = ?`,
+            [newStatus, taskId, fullName]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(403).json({ success: false, message: "ไม่สามารถเปิดงานนี้ได้ (คุณอาจไม่ใช่ผู้สร้างงาน)" });
+        }
+        res.json({ success: true, message: "ยกเลิกการปิดงานเรียบร้อย" });
+    } catch (err) {
+        console.error("❌ Reopen Main Intern Task Error:", err.message);
+        res.status(500).json({ success: false, message: "ยกเลิกการปิดงานล้มเหลว" });
     }
 };
