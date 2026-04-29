@@ -72,4 +72,7 @@ router.put('/reopen-intern-task-main/:id', auth, taskController.reopenInternTask
 // --- 16. GET /api/tasks/intern-task-assignees/:id (ดึงรายละเอียดผู้ร่วมงานนักศึกษา) ---
 router.get('/intern-task-assignees/:id', auth, taskController.getInternTaskAssignees);
 
+// --- 17. GET /api/tasks/staff-detail/:id (ดึงรายละเอียดงานเจ้าหน้าที่อย่างละเอียด) ---
+router.get('/staff-detail/:id', auth, taskController.getStaffTaskDetail);
+
 module.exports = router;

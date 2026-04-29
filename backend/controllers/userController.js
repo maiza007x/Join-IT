@@ -290,12 +290,10 @@ exports.deleteUser = async (req, res) => {
     }
 };
 
-// 4. แอดมินเพิ่มผู้ใช้
 exports.addUser = async (req, res) => {
     try {
         const currentUserRole = req.user.role;
-        // ป้องกันสิทธิ์: admin หรือ sub_admin เท่านั้น
-        if (currentUserRole !== 'admin' && currentUserRole !== 'sub_admin') {
+        if (currentUserRole !== 'admin') {
             return res.status(403).json({ message: "คุณไม่มีสิทธิ์เพิ่มผู้ใช้งาน" });
         }
 
@@ -343,14 +341,12 @@ exports.addUser = async (req, res) => {
     }
 };
 
-// 5. เปลี่ยนบทบาทผู้ใช้
 exports.updateUserRole = async (req, res) => {
     try {
         const targetUserId = req.params.id;
-        const { role } = req.body; // 'admin', 'sub_admin', 'user'
+        const { role } = req.body;
         const currentUserRole = req.user.role;
-
-        if (currentUserRole !== 'admin' && currentUserRole !== 'sub_admin') {
+        if (currentUserRole !== 'admin') {
             return res.status(403).json({ message: "คุณไม่มีสิทธิ์ในการแก้ไขการตั้งค่านี้" });
         }
 
@@ -358,18 +354,6 @@ exports.updateUserRole = async (req, res) => {
         const [targetUserRows] = await joinPool.query("SELECT role FROM users WHERE id = ?", [targetUserId]);
         if (targetUserRows.length === 0) {
             return res.status(404).json({ message: "ไม่พบผู้ใช้งานเป้าหมาย" });
-        }
-
-        const targetUserCurrentRole = targetUserRows[0].role;
-
-        // ถ้าระบบอนุญาตให้ sub_admin จัดการได้ แต่ห้ามแก้ไข admin ให้เป็นค่าอื่น
-        if (currentUserRole === 'sub_admin' && targetUserCurrentRole === 'admin') {
-            return res.status(403).json({ message: "แอดมินรอง ไม่สามารถแก้ไขสิทธิ์ของแอดมินหลักได้" });
-        }
-
-        // ถ้า sub_admin จะตั้งคนอื่นเป็น admin? ปกติ sub_admin ไม่น่าจะตั้งคนเป็น admin ได้
-        if (currentUserRole === 'sub_admin' && role === 'admin') {
-            return res.status(403).json({ message: "แอดมินรอง ไม่สามารถตั้งค่าผู้อื่นเป็นแอดมินหลักได้" });
         }
 
         await joinPool.query("UPDATE users SET role = ? WHERE id = ?", [role, targetUserId]);
@@ -387,7 +371,7 @@ exports.resetPassword = async (req, res) => {
         const targetUserId = req.params.id;
         const currentUserRole = req.user.role;
 
-        if (currentUserRole !== 'admin' && currentUserRole !== 'sub_admin') {
+        if (currentUserRole !== 'admin') {
             return res.status(403).json({ message: "คุณไม่มีสิทธิ์รีเซ็ตรหัสผ่าน" });
         }
 
@@ -398,11 +382,6 @@ exports.resetPassword = async (req, res) => {
         }
 
         const targetUsername = userRows[0].username;
-        const targetRole = userRows[0].role;
-
-        if (currentUserRole === 'sub_admin' && targetRole === 'admin') {
-            return res.status(403).json({ message: "แอดมินรอง ไม่สามารถรีเซ็ตรหัสผ่านของแอดมินหลักได้" });
-        }
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(targetUsername, salt);

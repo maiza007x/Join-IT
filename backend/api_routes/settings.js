@@ -43,9 +43,8 @@ router.get('/', (req, res) => {
 // อัปโหลด Website Logo (ต้องเป็น Admin เท่านั้น)
 router.post('/upload-logo', authMiddleware, upload.single('logo'), (req, res) => {
     try {
-        // ตรวจสอบสิทธิ์ (Admin หรือ Sub-admin ก็ได้ตามที่คุณอนุญาตในจัดการสมาชิก แต่ควรเป็น Role ที่ไว้ใจได้)
-        // เพื่อความยืดหยุ่น ยอมให้ admin และ sub_admin แก้ไขได้ เหมือนการจัดการสมาชิก
-        if (req.user.role !== 'admin' && req.user.role !== 'sub_admin') {
+        // ตรวจสอบสิทธิ์ (Admin เท่านั้น)
+        if (req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์เข้าถึง (Admin only)' });
         }
 

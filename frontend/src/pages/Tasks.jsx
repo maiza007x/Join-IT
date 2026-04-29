@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
@@ -20,6 +20,7 @@ import { useAuth } from "../context/AuthContext";
 function Tasks() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [tasks, setTasks] = useState([]);
     const [internTasks, setInternTasks] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -32,6 +33,15 @@ function Tasks() {
     const [editingTask, setEditingTask] = useState(null);
     const [createModalVisible, setCreateModalVisible] = useState(false);
     const [activeTab, setActiveTab] = useState("staff");
+    const [highlightTaskId, setHighlightTaskId] = useState(null);
+
+    useEffect(() => {
+        if (location.state?.highlightTaskId) {
+            setHighlightTaskId(Number(location.state.highlightTaskId));
+            // ลบ state ออกเพื่อไม่ให้ค้าง
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
 
     const [filters, setFilters] = useState({
         username: { value: null, matchMode: FilterMatchMode.IN }
@@ -76,26 +86,24 @@ function Tasks() {
     };
 
     useEffect(() => {
-        fetchTasks();
+        const timer = setTimeout(() => {
+            fetchTasks(selectedDate, searchQuery);
+        }, 300);
 
-        // ฟัง Socket เพื่อรีเฟรชข้อมูลเมื่อมีงานใหม่
-        let debounceTimer;
+        return () => clearTimeout(timer);
+    }, [selectedDate, searchQuery]);
+
+    useEffect(() => {
         const handleNewTask = () => {
-            console.log("🔄 [Tasks]: Task update received. Scheduling refresh...");
-            clearTimeout(debounceTimer);
-            // Debounce การดึงข้อมูลเพื่อป้องกันการยิง API ซ้ำซ้อนเมื่อมีหลาย socket events เข้ามาพร้อมกัน
-            debounceTimer = setTimeout(() => {
-                fetchTasks();
-            }, 1000);
+            fetchTasks(selectedDate, searchQuery);
         };
 
         socket.on("new-task", handleNewTask);
 
         return () => {
             socket.off("new-task", handleNewTask);
-            clearTimeout(debounceTimer);
         };
-    }, [selectedDate]);
+    }, [selectedDate, searchQuery]);
 
     const handleJoin = async (taskId) => {
         setActionLoading(taskId);
@@ -370,13 +378,7 @@ function Tasks() {
                                 />
                             </div>
                         </div>
-                        <Button
-                            label="ค้นหา"
-                            icon="pi pi-filter"
-                            className="rounded-2xl px-8 bg-blue-600 border-none font-bold h-12 shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
-                            onClick={() => fetchTasks()}
-                            loading={loading}
-                        />
+
                     </div>
                 </div>
 
@@ -428,6 +430,7 @@ function Tasks() {
                             fetchTasks={fetchTasks}
                             confirmJoin={confirmJoin}
                             confirmLeave={confirmLeave}
+                            highlightTaskId={highlightTaskId}
                         />
                     )}
 

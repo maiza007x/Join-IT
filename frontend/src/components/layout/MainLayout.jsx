@@ -24,7 +24,7 @@ const MainLayout = () => {
             <div className="text-xs text-slate-500 line-clamp-1">{data.report}</div>
             <button
               className="mt-2 bg-blue-600 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-blue-700 shadow-sm self-start"
-              onClick={() => navigate("/tasks")}
+              onClick={() => navigate("/tasks", { state: { highlightTaskId: data.id } })}
             >
               ดูรายการงาน
             </button>

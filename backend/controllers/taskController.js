@@ -1261,3 +1261,28 @@ exports.getInternTaskAssignees = async (req, res) => {
         res.status(500).json({ success: false, message: "ดึงข้อมูลผู้ร่วมงานล้มเหลว" });
     }
 };
+
+// --- 17. GET /api/tasks/staff-detail/:id (ดึงรายละเอียดงานเจ้าหน้าที่อย่างละเอียด) ---
+exports.getStaffTaskDetail = async (req, res) => {
+    const taskId = req.params.id;
+    try {
+        const sql = `
+            SELECT 
+                r.*,
+                d.depart_name as department_name
+            FROM orderit.data_report r
+            LEFT JOIN orderit.depart d ON r.department = d.depart_id
+            WHERE r.id = ?
+        `;
+        const [rows] = await joinPool.query(sql, [taskId]);
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: "ไม่พบข้อมูลงานเจ้าหน้าที่" });
+        }
+        
+        res.json({ success: true, data: rows[0] });
+    } catch (err) {
+        console.error("❌ Get Staff Task Detail Error:", err.message);
+        res.status(500).json({ success: false, message: "ดึงรายละเอียดงานล้มเหลว" });
+    }
+};

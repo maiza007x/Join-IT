@@ -43,18 +43,18 @@ function MyTasks() {
     const location = useLocation();
     const toast = useRef(null);
 
-    const fetchMyTasks = useCallback(async () => {
+    const fetchMyTasks = useCallback(async (date = selectedDate, query = searchQuery) => {
         setLoading(true);
         try {
             let formattedDate = '';
-            if (selectedDate) {
-                const offset = selectedDate.getTimezoneOffset();
-                const adjustedDate = new Date(selectedDate.getTime() - (offset * 60 * 1000));
+            if (date) {
+                const offset = date.getTimezoneOffset();
+                const adjustedDate = new Date(date.getTime() - (offset * 60 * 1000));
                 formattedDate = adjustedDate.toISOString().split('T')[0];
             }
 
             const res = await API.get('/tasks/my-tasks', {
-                params: { date: formattedDate, q: searchQuery }
+                params: { date: formattedDate, q: query }
             });
             setTasks(res.data.tasks || []);
             setInternTasks(res.data.internTasks || []);
@@ -66,8 +66,12 @@ function MyTasks() {
     }, [selectedDate, searchQuery]);
 
     useEffect(() => {
-        fetchMyTasks();
-    }, [fetchMyTasks, location.search]);
+        const timer = setTimeout(() => {
+            fetchMyTasks(selectedDate, searchQuery);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [fetchMyTasks, selectedDate, searchQuery]);
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -461,18 +465,11 @@ function MyTasks() {
                             <InputText
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && fetchMyTasks()}
                                 placeholder="ค้นหาชื่องาน..."
                                 style={{ paddingLeft: '2.5rem' }}
                                 className="rounded-xl border-blue-50 bg-blue-50/30 text-sm py-2"
                             />
                         </div>
-                        <Button
-                            icon="pi pi-filter"
-                            onClick={fetchMyTasks}
-                            className="bg-blue-600 border-none rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100"
-                            loading={loading}
-                        />
                         <Button
                             icon="pi pi-file-word"
                             label="Export Word"

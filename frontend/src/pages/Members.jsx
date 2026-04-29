@@ -8,6 +8,7 @@ import { Tag } from 'primereact/tag';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
+import { confirmDialog } from 'primereact/confirmdialog';
 import { Dropdown } from 'primereact/dropdown';
 import { useAuth } from '../context/AuthContext';
 function Members() {
@@ -27,7 +28,6 @@ function Members() {
 
     const roleOptions = [
         { label: 'แอดมินหลัก (admin)', value: 'admin' },
-        { label: 'แอดมินรอง (sub_admin)', value: 'sub_admin' },
         { label: 'ผู้ใช้ทั่วไป (user)', value: 'user' }
     ];
     const { isAdmin } = useAuth();
@@ -57,26 +57,35 @@ function Members() {
     };
 
     // 2. ฟังก์ชันการลบสมาชิก
-    const handleDeleteUser = async (id, username) => {
+    const handleDeleteUser = (id, username) => {
         if (!isAdmin) {
             alert("คุณไม่มีสิทธิ์ลบผู้ใช้งานระบบ (สิทธิ์เฉพาะแอดมินเท่านั้น)");
             return;
         }
 
-        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${username}" ?`)) {
-            try {
-                const response = await api.delete(`/users/${id}`);
+        confirmDialog({
+            message: `คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${username}" ?`,
+            header: 'ยืนยันการลบผู้ใช้',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger rounded-xl font-bold px-4 py-2',
+            rejectClassName: 'p-button-text text-slate-500 rounded-xl font-bold px-4 py-2',
+            acceptLabel: 'ลบผู้ใช้',
+            rejectLabel: 'ยกเลิก',
+            accept: async () => {
+                try {
+                    const response = await api.delete(`/users/${id}`);
 
-                if (response.data.status === "success") {
-                    alert("ลบผู้ใช้สำเร็จ!");
-                    // อัปเดต UI หน้าบ้านทันทีโดยไม่ต้อง Refresh
-                    setUsers(users.filter((user) => user.id !== id));
+                    if (response.data.status === "success") {
+                        alert("ลบผู้ใช้สำเร็จ!");
+                        // อัปเดต UI หน้าบ้านทันทีโดยไม่ต้อง Refresh
+                        setUsers(users.filter((user) => user.id !== id));
+                    }
+                } catch (error) {
+                    console.error("เกิดข้อผิดพลาดในการลบ:", error);
+                    alert(error.response?.data?.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
                 }
-            } catch (error) {
-                console.error("เกิดข้อผิดพลาดในการลบ:", error);
-                alert(error.response?.data?.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
             }
-        }
+        });
     };
 
     // 3. ฟังก์ชันเพิ่มผู้ใช้
@@ -113,16 +122,25 @@ function Members() {
     };
 
     // 5. ฟังก์ชันรีเซ็ตรหัสผ่าน
-    const handleResetPassword = async (id, username) => {
-        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตรหัสผ่านของ "${username}" ?\nรหัสผ่านจะถูกตั้งให้เหมือนกับ username`)) {
-            try {
-                await api.put(`/users/${id}/reset-password`);
-                alert(`รีเซ็ตรหัสผ่านสำเร็จ รหัสผ่านใหม่ของคนนี้คือ: ${username}`);
-            } catch (error) {
-                console.error("เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน:", error);
-                alert(error.response?.data?.message || "เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน");
+    const handleResetPassword = (id, username) => {
+        confirmDialog({
+            message: `คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตรหัสผ่านของ "${username}" ?\nรหัสผ่านจะถูกตั้งให้เหมือนกับ username`,
+            header: 'ยืนยันการรีเซ็ตรหัสผ่าน',
+            icon: 'pi pi-key',
+            acceptClassName: 'p-button-primary rounded-xl font-bold px-4 py-2',
+            rejectClassName: 'p-button-text text-slate-500 rounded-xl font-bold px-4 py-2',
+            acceptLabel: 'รีเซ็ตรหัสผ่าน',
+            rejectLabel: 'ยกเลิก',
+            accept: async () => {
+                try {
+                    await api.put(`/users/${id}/reset-password`);
+                    alert(`รีเซ็ตรหัสผ่านสำเร็จ รหัสผ่านใหม่ของคนนี้คือ: ${username}`);
+                } catch (error) {
+                    console.error("เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน:", error);
+                    alert(error.response?.data?.message || "เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน");
+                }
             }
-        }
+        });
     };
 
 
@@ -193,7 +211,7 @@ function Members() {
                                 </div>
                             )} />
                             <Column field="role" header="บทบาท ↑↓" body={(row) => (
-                                <Tag value={row.role === 'sub_admin' ? 'แอดมินรอง' : row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : row.role === 'sub_admin' ? 'bg-indigo-500 text-white' : 'bg-blue-500 text-white'}`} />
+                                <Tag value={row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'}`} />
                             )} />
                             <Column field="university_name" header="มหาวิทยาลัย" sortable body={(row) => (
                                 <span className="text-sm font-medium">{row.university_name || '-'}</span>

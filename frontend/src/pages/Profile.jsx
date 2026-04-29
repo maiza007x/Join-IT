@@ -62,7 +62,7 @@ const Profile = () => {
             }
 
             // ถ้าเป็นผู้ดูแลระบบ ให้พยายามดึงโลโก้ปัจจุบันมาแสดง
-            if (data && (data.role === 'admin' || data.role === 'sub_admin')) {
+            if (data && data.role === 'admin') {
                 api.get('/settings').then(setRes => {
                     if (setRes.data?.data?.siteLogo) {
                         setSiteLogo(setRes.data.data.siteLogo);
@@ -588,7 +588,7 @@ const Profile = () => {
                         </div>
 
                         {/* ⚙️ การตั้งค่าระบบ (เฉพาะแอดมิน) */}
-                        {(userData.role === 'admin' || userData.role === 'sub_admin') && (
+                        {userData.role === 'admin' && (
                             <div className="mt-8">
                                 <div className="border-l-4 border-indigo-500 pl-3 mb-4">
                                     <h5 className="m-0 font-bold text-slate-800 tracking-tight">การตั้งค่าระบบส่วนกลาง (Admin Only)</h5>
