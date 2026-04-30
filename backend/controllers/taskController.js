@@ -323,9 +323,45 @@ exports.getWorkloadChartData = async (req, res) => {
             staff: 'r.username'
         };
 
-        const groupColumn = categoryMap[groupingCategory] || 'r.work_type';
+        const internCategoryMap = {
+            workingList: 'it.deviceName',
+            problemList: 'it.report',
+            device: 'COALESCE(dev.device_name, it.deviceName)',
+            depart: 'd_it.depart_name',
+            staff: 'it.created_by'
+        };
 
-        let sql = `
+        const groupColumn = categoryMap[groupingCategory] || 'r.work_type';
+        const internGroupColumn = internCategoryMap[groupingCategory] || 'it.report';
+
+        const dayThSql = (dateCol) => `
+            CONCAT(
+                CASE DAYNAME(${dateCol})
+                    WHEN 'Monday' THEN 'จันทร์'
+                    WHEN 'Tuesday' THEN 'อังคาร'
+                    WHEN 'Wednesday' THEN 'พุธ'
+                    WHEN 'Thursday' THEN 'พฤหัสบดี'
+                    WHEN 'Friday' THEN 'ศุกร์'
+                    WHEN 'Saturday' THEN 'เสาร์'
+                    WHEN 'Sunday' THEN 'อาทิตย์'
+                END,
+                ' (', DAY(${dateCol}), ')'
+            )
+        `;
+
+        // Base filter for students
+        let studentFilter = "";
+        const studentParams = [];
+        if (academicYear && academicYear !== 'all') { studentFilter += ` AND u.academic_year = ?`; studentParams.push(academicYear); }
+        if (term && term !== 'all') { studentFilter += ` AND u.term = ?`; studentParams.push(term); }
+        if (university && university !== 'all') { studentFilter += ` AND u.university_name = ?`; studentParams.push(university); }
+        if (studentMode === 'individual' && studentId && studentId !== 'all') {
+            studentFilter += ` AND u.id = ?`;
+            studentParams.push(studentId);
+        }
+
+        // 1. Staff Tasks Part
+        let staffSql = `
             SELECT 
                 u.full_name as student_name,
                 r.date_report,
@@ -335,58 +371,52 @@ exports.getWorkloadChartData = async (req, res) => {
                 r.id as task_id,
                 ${groupColumn} as category_val,
                 DAYNAME(r.date_report) as day_en,
-                CONCAT(
-                    CASE DAYNAME(r.date_report)
-                        WHEN 'Monday' THEN 'จันทร์'
-                        WHEN 'Tuesday' THEN 'อังคาร'
-                        WHEN 'Wednesday' THEN 'พุธ'
-                        WHEN 'Thursday' THEN 'พฤหัสบดี'
-                        WHEN 'Friday' THEN 'ศุกร์'
-                        WHEN 'Saturday' THEN 'เสาร์'
-                        WHEN 'Sunday' THEN 'อาทิตย์'
-                    END,
-                    ' (', DAY(r.date_report), ')'
-                ) as day_th_with_date
+                ${dayThSql('r.date_report')} as day_th_with_date,
+                0 as is_intern_task
             FROM join_it.tasks t
             JOIN join_it.users u ON t.intern_id = u.id
             JOIN orderit.data_report r ON t.task_staff_id = r.id
             JOIN orderit.depart d ON r.department = d.depart_id
-            WHERE t.deleted_at IS NULL
+            WHERE t.deleted_at IS NULL ${studentFilter}
         `;
+        const staffParams = [...studentParams];
+        if (startDate && endDate) { staffSql += ` AND r.date_report BETWEEN ? AND ?`; staffParams.push(startDate, endDate); }
+        if (workingList && workingList !== 'all') { staffSql += ` AND r.work_type = ?`; staffParams.push(workingList); }
+        if (problemList && problemList !== 'all') { staffSql += ` AND r.problem = ?`; staffParams.push(problemList); }
+        if (device && device !== 'all') { staffSql += ` AND r.device = ?`; staffParams.push(device); }
+        if (depart && depart !== 'all') { staffSql += ` AND r.department = ?`; staffParams.push(depart); }
+        if (staff && staff !== 'all') { staffSql += ` AND r.username = ?`; staffParams.push(staff); }
 
-        const params = [];
+        // 2. Intern Tasks Part
+        let internSql = `
+            SELECT 
+                u.full_name as student_name,
+                it.date_report,
+                it.time_report,
+                ita.close_time as end_time,
+                it.report as title,
+                it.id as task_id,
+                ${internGroupColumn} as category_val,
+                DAYNAME(it.date_report) as day_en,
+                ${dayThSql('it.date_report')} as day_th_with_date,
+                1 as is_intern_task
+            FROM join_it.intern_task_assignees ita
+            JOIN join_it.users u ON ita.intern_id = u.id
+            JOIN join_it.intern_tasks it ON ita.intern_task_id = it.id
+            LEFT JOIN orderit.depart d_it ON it.department = d_it.depart_id
+            LEFT JOIN orderit.device dev ON it.deviceName = dev.device_id
+            WHERE 1=1 ${studentFilter}
+        `;
+        const internParams = [...studentParams];
+        if (startDate && endDate) { internSql += ` AND it.date_report BETWEEN ? AND ?`; internParams.push(startDate, endDate); }
+        // Intern tasks don't have all filters but we can apply department/device if they match
+        if (device && device !== 'all') { internSql += ` AND (it.deviceName = ? OR dev.device_name = ?)`; internParams.push(device, device); }
+        if (depart && depart !== 'all') { internSql += ` AND (it.department = ? OR d_it.depart_name = ?)`; internParams.push(depart, depart); }
 
-        // Global Filters
-        if (academicYear && academicYear !== 'all') { sql += ` AND u.academic_year = ?`; params.push(academicYear); }
-        if (term && term !== 'all') { sql += ` AND u.term = ?`; params.push(term); }
-        if (university && university !== 'all') { sql += ` AND u.university_name = ?`; params.push(university); }
+        const finalSql = `(${staffSql}) UNION ALL (${internSql}) ORDER BY date_report ASC, time_report ASC`;
+        const finalParams = [...staffParams, ...internParams];
 
-        // Date Range
-        if (startDate && endDate) {
-            sql += ` AND r.date_report BETWEEN ? AND ?`;
-            params.push(startDate, endDate);
-        }
-
-        // Student Mode
-        if (studentMode === 'individual' && studentId && studentId !== 'all') {
-            sql += ` AND u.id = ?`;
-            params.push(studentId);
-        }
-
-        // Local Filters (Legends)
-        if (workingList && workingList !== 'all') { sql += ` AND r.work_type = ?`; params.push(workingList); }
-        if (problemList && problemList !== 'all') { sql += ` AND r.problem = ?`; params.push(problemList); }
-        if (device && device !== 'all') { sql += ` AND r.device = ?`; params.push(device); }
-        if (depart && depart !== 'all') { sql += ` AND r.department = ?`; params.push(depart); }
-        if (staff && staff !== 'all') { sql += ` AND r.username = ?`; params.push(staff); }
-
-        sql += ` ORDER BY r.date_report ASC, r.time_report ASC`;
-
-        // console.log("🔍 Workload SQL:", sql);
-        // console.log("📦 Params:", params);
-
-        const [rows] = await joinPool.query(sql, params);
-        // console.log("✅ Query Result Count:", rows.length);
+        const [rows] = await joinPool.query(finalSql, finalParams);
 
         // Transform data for Gantt
         const ganttData = rows.map(row => {
@@ -395,8 +425,9 @@ exports.getWorkloadChartData = async (req, res) => {
 
             const getDecimalHour = (timeStr) => {
                 if (!timeStr) return null;
-                const [h, m] = timeStr.split(':').map(Number);
-                return h + (m / 60);
+                const parts = timeStr.split(':').map(Number);
+                if (parts.length < 2) return null;
+                return parts[0] + (parts[1] / 60);
             };
 
             const start = getDecimalHour(startTimeStr);
@@ -433,6 +464,7 @@ exports.getWorkloadChartData = async (req, res) => {
                 start: start,
                 duration: end - start,
                 type: 'join',
+                isInternTask: row.is_intern_task,
                 date: row.date_report,
                 category: row.category_val
             };
@@ -462,7 +494,6 @@ exports.getWorkloadChartData = async (req, res) => {
                 labels = [...new Set(ganttData.map(item => item.yLabel))];
             }
         } else {
-            // For All Students or when no dates, use data-driven labels but they will be sorted due to SQL ORDER BY
             labels = [...new Set(ganttData.map(item => item.yLabel))];
         }
         const categories = [...new Set(ganttData.map(item => item.category))];
@@ -1227,14 +1258,14 @@ exports.getInternTaskAssignees = async (req, res) => {
         const [taskRows] = await joinPool.query(
             `SELECT i.id, i.closed_at 
              FROM join_it.intern_tasks i 
-             WHERE i.id = ?`, 
+             WHERE i.id = ?`,
             [taskId]
         );
-        
+
         if (taskRows.length === 0) {
             return res.status(404).json({ success: false, message: "ไม่พบข้อมูลงาน" });
         }
-        
+
         const isMainClosed = taskRows[0].closed_at !== null;
 
         const [rows] = await joinPool.query(
@@ -1275,11 +1306,11 @@ exports.getStaffTaskDetail = async (req, res) => {
             WHERE r.id = ?
         `;
         const [rows] = await joinPool.query(sql, [taskId]);
-        
+
         if (rows.length === 0) {
             return res.status(404).json({ success: false, message: "ไม่พบข้อมูลงานเจ้าหน้าที่" });
         }
-        
+
         res.json({ success: true, data: rows[0] });
     } catch (err) {
         console.error("❌ Get Staff Task Detail Error:", err.message);

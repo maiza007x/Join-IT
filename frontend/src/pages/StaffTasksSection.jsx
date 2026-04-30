@@ -98,13 +98,7 @@ const StaffTasksSection = ({
         const isLoading = actionLoading === rowData.id;
         return (
             <div className="flex gap-2 items-center justify-center">
-                <Button
-                    label="ดูรายละเอียด"
-                    icon="pi pi-eye"
-                    rounded
-                    className="px-3 py-1.5 text-[10px] font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
-                    onClick={() => showDetailDialog(rowData)}
-                />
+
                 <Button
                     label={isJoined ? "ยกเลิก" : "ผูกงาน"}
                     icon={isJoined ? "pi pi-times" : "pi pi-plus"}
@@ -115,6 +109,13 @@ const StaffTasksSection = ({
                     onClick={() =>
                         isJoined ? confirmLeave(rowData.id) : confirmJoin(rowData.id)
                     }
+                />
+                <Button
+                    icon="pi pi-eye"
+                    rounded
+                    text
+                    className="px-3 py-1.5 text-[10px] font-bold text-slate-700"
+                    onClick={() => showDetailDialog(rowData)}
                 />
             </div>
         );
@@ -289,7 +290,7 @@ const StaffTasksSection = ({
                                 field="isContributedByMe"
                                 header="จัดการ"
                                 body={actionTemplate}
-                                style={{ textAlign: "center", width: "13rem" }}
+                                style={{ textAlign: "center", width: "14rem" }}
                                 sortable
                             />
                         </DataTable>
@@ -304,8 +305,8 @@ const StaffTasksSection = ({
                                     <div
                                         key={i}
                                         className={`bg-white border rounded-2xl p-5 flex flex-col gap-3 relative transition-all duration-500 ${row.id === highlightTaskId
-                                                ? 'border-blue-500 bg-blue-50/40 shadow-lg shadow-blue-100 animate-pulse'
-                                                : 'border-slate-100 shadow-sm'
+                                            ? 'border-blue-500 bg-blue-50/40 shadow-lg shadow-blue-100 animate-pulse'
+                                            : 'border-slate-100 shadow-sm'
                                             }`}
                                     >
                                         <div className="flex justify-between items-center border-b border-slate-50 pb-3">

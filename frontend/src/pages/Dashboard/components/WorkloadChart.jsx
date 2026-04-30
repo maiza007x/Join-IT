@@ -394,22 +394,35 @@ const WorkloadChart = ({ globalFilter }) => {
                         const catIndex = [...new Set(data.ganttData.map(t => t.category))].indexOf(task.category);
                         const bgColor = colors[catIndex % colors.length];
 
+                        // หาบล็อกนี้ (ประมาณบรรทัดที่ 256) แล้วเปลี่ยนใหม่ทั้งหมดตามนี้
                         return (
                           <div
                             key={task.id}
-                            className="absolute h-8 rounded-md shadow-sm border px-2 flex items-center overflow-hidden cursor-pointer hover:brightness-95 transition-all text-white"
+                            // 🟢 1. เอากลับมาใส่ overflow-hidden ได้เลยครับ!
+                            className="absolute h-8 rounded-md shadow-sm border px-2 flex items-center overflow-hidden cursor-pointer hover:brightness-95 transition-all text-white group"
                             style={{
                               ...getGanttStyle(task.start, task.duration),
                               backgroundColor: bgColor,
                               borderColor: bgColor,
-                              // 🟢 หัวใจสำคัญ: กำหนดตำแหน่งบนแกน Y (top) ตามเลนที่มันอยู่
                               top: `${(task.lane * laneHeight) + 4}px`
                             }}
                             onMouseEnter={(e) => handleMouseEnter(task, bgColor, e)}
                             onMouseMove={handleMouseMove}
                             onMouseLeave={handleMouseLeave}
                           >
-                            <span className="text-[9px] font-semibold truncate leading-none drop-shadow-sm">{task.title}</span>
+                            {/* ดันตัวหนังสือให้อยู่เหนือแถบสี (z-10) */}
+                            <span className="text-[9px] font-semibold truncate leading-none drop-shadow-sm z-10 w-full relative">
+                              {task.title}
+                            </span>
+
+                            {/* 🟢 2. Inner Border Bottom: แถบขอบล่าง */}
+                            {task.isInternTask === 1 && (
+                              <div
+                                // ใช้สีขาวโปร่งใส (bg-white/40) เพื่อให้เข้ากับทุกสีพื้นหลังของแท่งกราฟ
+                                className="absolute top-0 left-0 w-full h-[5px] bg-orange-400"
+                                title="งานที่ทำเอง (Self Task)"
+                              ></div>
+                            )}
                           </div>
                         );
                       })}
@@ -465,6 +478,13 @@ const WorkloadChart = ({ globalFilter }) => {
                   {formatDecimalTime(tooltip.data.start)} - {formatDecimalTime(tooltip.data.start + tooltip.data.duration)} น.
                 </span>
               </div>
+              {tooltip.data.isInternTask === 1 && (
+                <div className="mt-2 pt-2 border-t border-white/5">
+                  <span className="text-[10px] text-orange-400 font-bold flex items-center gap-1">
+                    <i className="pi pi-info-circle"></i> เป็นงานของนักศึกษาฝึกงาน
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           {/* Arrow */}
