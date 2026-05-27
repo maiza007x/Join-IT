@@ -91,3 +91,9 @@ drawCheckmark(page1, 213, 329); //Low Hemoglobin
 drawCheckmark(page1, 394, 329); //Others04
 drawText(page1, 'Anurakanurak', 442, 345, 10); //Others
 drawText(page1, 'Duanduanduan', 442, 325, 10); //Others
+หากเป็นชาวต่างชาติ ให้กรอกเลข 0 ทั้งหมด 13 หลัก
+กรุณาระบุเพศสภาพ
+กรุณาระบุสถานที่ที่ติดต่อได้
+กรุณาระบุอาชีพ
+ดาวน์โหลดใบสมัครสำเร็จ!
+ระบบจัดทำเอกสาร PDF ตรงตามใบสมัครของสภากาชาดไทยเรียบร้อยแล้ว
