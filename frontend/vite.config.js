@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react(), 
+    react(),
     tailwindcss(),
     // VitePWA({
     //   registerType: 'autoUpdate',
@@ -34,10 +34,10 @@ export default defineConfig({
     //     ]
     //   }
     // })
-  ], 
+  ],
   server: {
     host: '0.0.0.0',
-    port: 5173,
+    port: 5177,
     strictPort: true,
     proxy: {
       '/api': 'http://localhost:5000'

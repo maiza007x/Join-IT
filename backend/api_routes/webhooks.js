@@ -8,7 +8,7 @@ router.post('/task-created', async (req, res) => {
     const incomingSecret = req.headers['x-webhook-secret'];
 
     // ตรวจสอบความปลอดภัย (Shared Secret)
-    const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || "join-it-secret-2026";
+    const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
     if (incomingSecret !== WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) {
         return res.status(401).json({ success: false, message: "Unauthorized: Invalid Secret Key" });

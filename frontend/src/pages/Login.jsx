@@ -37,7 +37,7 @@ function Login() {
       const res = await API.post("/auth/login", { username, password });
       const user = res.data.data;
       login(user, res.data.token);
-      
+
       // ✅ ถ้ายังไม่ได้ยืนยันตัวตน (verified = 0) ให้ไปหน้าโปรไฟล์เพื่อตั้งค่าก่อน
       if (user.verified === 0) {
         navigate("/profile");

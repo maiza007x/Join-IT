@@ -7,13 +7,23 @@ const { joinPool, orderPool } = require("../mysql");
  */
 async function query(sql, params = [], dbType = 'join') {
   const pool = dbType === 'order' ? orderPool : joinPool;
-  try {
-    return await pool.query(sql, params);
-  } catch (err) {
-    if (err.code === "ECONNRESET") {
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    try {
       return await pool.query(sql, params);
+    } catch (err) {
+      attempts++;
+      if (err.code === "ECONNRESET" && attempts < maxAttempts) {
+        console.warn(`⚠️ Database connection reset. Retrying... (Attempt ${attempts}/${maxAttempts})`);
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+        continue;
+      }
+      console.error(`❌ Database Error after ${attempts} attempts:`, err);
+      throw err;
     }
-    throw err;
   }
 }
 

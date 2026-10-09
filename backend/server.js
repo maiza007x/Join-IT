@@ -1,6 +1,13 @@
 require("dotenv").config();
 const { createServer } = require("node:http");
 const { joinPool, orderPool } = require("./mysql");
+
+for (const key of ["SECRET_ACCESS_TOKEN", "WEBHOOK_SECRET"]) {
+  if (!process.env[key]) {
+    console.error(`🔴 [Config]: Missing required env variable: ${key}`);
+    process.exit(1);
+  }
+}
 const app = require("./app");
 
 async function startServer() {

@@ -1,5 +1,5 @@
 const joinPool = require('../helper/db'); // ใช้ตัวแปรนี้เป็นหลักในการเชื่อมต่อ DB
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 

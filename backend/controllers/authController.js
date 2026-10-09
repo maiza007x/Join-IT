@@ -3,7 +3,7 @@ const db = require('../helper/db.js');
 const jwt = require('jsonwebtoken');
 
 // ใช้รหัสลับจาก env หรือค่า default
-const JWT_SECRET = process.env.SECRET_ACCESS_TOKEN || "secret_key";
+const JWT_SECRET = process.env.SECRET_ACCESS_TOKEN;
 
 exports.login = async (req, res) => {
   try {

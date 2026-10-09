@@ -18,6 +18,9 @@ const commonConfig = {
   dateStrings: true,
   decimalNumbers: true,
   enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+  idleTimeout: 60000, // 60 seconds
+  maxIdle: 10, // max idle connections, the same as connectionLimit
 };
 
 // สร้าง Pool แบบดัก Error ตั้งแต่ตอนสร้าง
