@@ -2,8 +2,18 @@ const bcrypt = require('bcryptjs');
 const db = require('../helper/db.js');
 const jwt = require('jsonwebtoken');
 
-// ใช้รหัสลับจาก env หรือค่า default
 const JWT_SECRET = process.env.SECRET_ACCESS_TOKEN;
+
+const ACCOUNT_STATUS_MESSAGES = {
+  pending: "บัญชีของคุณรอแอดมินอนุมัติ",
+  rejected: "คำขอสมัครของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อเจ้าหน้าที่",
+  closed: "บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อเจ้าหน้าที่",
+};
+
+const TERMS = ["เทอม 1", "เทอม 2", "ภาคฤดูร้อน"];
+
+const isValidDate = (value) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
 
 exports.login = async (req, res) => {
   try {
@@ -27,6 +37,11 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "รหัสผ่านไม่ถูกต้อง" });
+    }
+
+    // ตรวจสถานะบัญชีหลังตรวจรหัสผ่านแล้ว เพื่อไม่เปิดเผยสถานะให้คนที่ไม่รู้รหัสผ่าน
+    if (user.status !== 'approved') {
+      return res.status(403).json({ message: ACCOUNT_STATUS_MESSAGES[user.status] });
     }
 
     // ✅ แก้ไขจุดนี้: เปลี่ยนจาก 'secret' เป็นตัวแปร JWT_SECRET
@@ -79,39 +94,48 @@ exports.getMe = async (req, res) => {
 };
 
 exports.register = async (req, res) => {
-  const { username, password } = req.body;
+  const {
+    username, password, full_name, nickname, university_name,
+    term, academic_year, internship_start_date, internship_end_date,
+  } = req.body;
 
-  // ตรวจสอบเบื้องต้นว่าส่งข้อมูลมาครบไหม
-  if (!username || !password) {
-    return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+  if (![username, password, full_name, nickname, university_name, academic_year].every(Boolean)) {
+    return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
   }
 
-  let conn;
+  if (!TERMS.includes(term)) {
+    return res.status(400).json({ message: "เทอมไม่ถูกต้อง" });
+  }
+
+  if (!isValidDate(internship_start_date) || !isValidDate(internship_end_date)) {
+    return res.status(400).json({ message: "วันที่ฝึกงานไม่ถูกต้อง" });
+  }
+
+  if (internship_end_date < internship_start_date) {
+    return res.status(400).json({ message: "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มฝึกงาน" });
+  }
+
   try {
-    // ดึง Connection จาก Pool
-    conn = await db.getConnection();
-
-    // เช็คว่ามี Username นี้ในระบบหรือยัง
-    const [rows] = await conn.execute('SELECT * FROM users WHERE username = ?', [username]);
-
-    if (rows.length > 0) {
-      return res.status(400).json({ message: 'ชื่อผู้ใช้งานนี้ถูกใช้ไปแล้ว' });
+    const [existing] = await db.query("SELECT id FROM users WHERE username = ?", [username]);
+    if (existing.length > 0) {
+      return res.status(400).json({ message: "ชื่อผู้ใช้งานนี้ถูกใช้ไปแล้ว" });
     }
 
-    // ถ้ายังไม่มี ให้เข้ารหัส Password (ห้ามเซฟรหัสเป็นข้อความตรงๆ เพื่อความปลอดภัย)
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // บันทึกข้อมูลลงฐานข้อมูล MySQL
-    await conn.execute('INSERT INTO users (username, password, verified) VALUES (?, ?, ?)', [username, hashedPassword, 0]);
+    // role และ status กำหนดที่ backend เสมอ ไม่รับจาก request
+    await db.query(
+      `INSERT INTO users
+        (username, password, full_name, nickname, university_name, term, academic_year,
+         internship_start_date, internship_end_date, role, status, verified)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 'pending', 0)`,
+      [username, hashedPassword, full_name, nickname, university_name, term, academic_year,
+       internship_start_date, internship_end_date]
+    );
 
-    return res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ!' });
-
+    return res.status(201).json({ message: "สมัครสมาชิกสำเร็จ กรุณารอแอดมินอนุมัติ" });
   } catch (error) {
     console.error("🔴 Register Error:", error);
-    return res.status(500).json({ message: 'เกิดข้อผิดพลาดที่ระบบหลังบ้าน' });
-  } finally {
-    // คืน Connection กลับเข้า Pool เสมอ
-    if (conn) conn.release();
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดที่ระบบหลังบ้าน" });
   }
-}
+};
