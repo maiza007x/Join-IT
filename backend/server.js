@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./helper/dbNames"); // ตรวจว่าตั้งชื่อ DB ใน .env ครบก่อนเริ่มระบบ
 const { createServer } = require("node:http");
 const { joinPool, orderPool } = require("./mysql");
 
