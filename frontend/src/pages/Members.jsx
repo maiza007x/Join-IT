@@ -14,6 +14,7 @@ import { Calendar } from 'primereact/calendar';
 import { TERM_OPTIONS } from '../constants/terms';
 import { toDateString, fromDateString, formatThaiDate, dateToAcademicYear, academicYearToDate, formatAcademicYear } from '../utils/dateString';
 import { useAuth } from '../context/AuthContext';
+import { getImageUrl } from '../services/api';
 function Members() {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
@@ -298,7 +299,7 @@ function Members() {
                             <Column field="full_name" header="ชื่อและรูปโปรไฟล์" sortable body={(row) => (
                                 <div className="flex items-center gap-3">
                                     {row.avatar_url ? (
-                                        <img src={`http://localhost:5000${row.avatar_url}`} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                                        <img src={getImageUrl(row.avatar_url)} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
                                     ) : (
                                         <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs">
                                             {row.full_name ? row.full_name.charAt(0).toUpperCase() : '?'}

@@ -24,7 +24,7 @@ import CreateTask from "./pages/CreateTask";
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <ConfirmDialog />
 
