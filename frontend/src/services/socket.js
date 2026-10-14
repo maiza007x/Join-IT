@@ -9,7 +9,9 @@ const socket = io(SOCKET_URL, {
     reconnection: true,
     reconnectionAttempts: 10, // จำกัดจำนวนครั้งที่พยายามเชื่อมต่อใหม่
     reconnectionDelay: 1000,
-    transports: ["websocket", "polling"], // บังคับใช้ WebSocket ก่อนเพื่อลด Overhead
+    // ใช้ polling อย่างเดียว เหมือน Order-IT: WebSocket ผ่าน IIS/ARR บนเซิร์ฟเวอร์นี้ handshake ไม่ผ่าน
+    // (Incorrect Sec-WebSocket-Accept) polling ผ่าน HTTP ปกติและพอสำหรับการแจ้งงานใหม่
+    transports: ["polling"],
 });
 
 export default socket;
