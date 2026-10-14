@@ -38,8 +38,8 @@ router.get('/pending', authMiddleware, adminOnly, userController.getPendingUsers
 // ดึงรายชื่อนักศึกษาสำหรับตัวกรอง
 router.get('/students', authMiddleware, userController.getStudentList); 
 
-// [NEW] ลบสมาชิกรายบุคคล (รับ ID ผ่าน URL)
-router.delete('/:id', authMiddleware, userController.deleteUser);
+// ปิดบัญชีสมาชิก (admin)
+router.put('/:id/close', authMiddleware, adminOnly, userController.closeUser);
 
 // [NEW] แอดมินเพิ่มผู้ใช้
 router.post('/add', authMiddleware, userController.addUser);

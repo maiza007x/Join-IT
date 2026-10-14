@@ -39,9 +39,10 @@ function Members() {
         { label: 'แอดมินหลัก (admin)', value: 'admin' },
         { label: 'ผู้ใช้ทั่วไป (user)', value: 'user' }
     ];
-    const { isAdmin } = useAuth();
-    // คำขอที่รออนุมัติแสดงแยกด้านบน
-    const memberList = users.filter((user) => user.status !== 'pending');
+    const { isAdmin, user: currentUser } = useAuth();
+    const [showClosed, setShowClosed] = useState(false);
+    // คำขอที่รออนุมัติแสดงแยกด้านบน และซ่อนบัญชีที่ปิดแล้วเป็นค่าเริ่มต้น
+    const memberList = users.filter((user) => user.status !== 'pending' && (showClosed || user.status !== 'closed'));
 
     useEffect(() => {
         fetchUsers();
@@ -127,33 +128,22 @@ function Members() {
         }
     };
 
-    // 2. ฟังก์ชันการลบสมาชิก
-    const handleDeleteUser = (id, username) => {
-        if (!isAdmin) {
-            alert("คุณไม่มีสิทธิ์ลบผู้ใช้งานระบบ (สิทธิ์เฉพาะแอดมินเท่านั้น)");
-            return;
-        }
-
+    // 2. ฟังก์ชันปิดบัญชีสมาชิก (ไม่ลบ เพื่อให้ประวัติงานยังอยู่ในรายงาน)
+    const handleCloseUser = (row) => {
         confirmDialog({
-            message: `คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${username}" ?`,
-            header: 'ยืนยันการลบผู้ใช้',
+            message: `ต้องการปิดบัญชี "${row.username}" ?\nผู้ใช้จะเข้าสู่ระบบไม่ได้ แต่ประวัติงานยังอยู่ในรายงาน`,
+            header: 'ยืนยันการปิดบัญชี',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger rounded-xl font-bold px-4 py-2',
             rejectClassName: 'p-button-text text-slate-500 rounded-xl font-bold px-4 py-2',
-            acceptLabel: 'ลบผู้ใช้',
+            acceptLabel: 'ปิดบัญชี',
             rejectLabel: 'ยกเลิก',
             accept: async () => {
                 try {
-                    const response = await api.delete(`/users/${id}`);
-
-                    if (response.data.status === "success") {
-                        alert("ลบผู้ใช้สำเร็จ!");
-                        // อัปเดต UI หน้าบ้านทันทีโดยไม่ต้อง Refresh
-                        setUsers(users.filter((user) => user.id !== id));
-                    }
+                    await api.put(`/users/${row.id}/close`);
+                    fetchUsers();
                 } catch (error) {
-                    console.error("เกิดข้อผิดพลาดในการลบ:", error);
-                    alert(error.response?.data?.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
+                    alert(error.response?.data?.message || "ปิดบัญชีไม่สำเร็จ");
                 }
             }
         });
@@ -281,8 +271,14 @@ function Members() {
                                 <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold mt-1">Real-time data synchronization</p>
                             </div>
                         </div>
-                        <div className="bg-white/10 px-5 py-2 rounded-2xl text-white font-black text-sm border border-white/5 backdrop-blur-sm">
-                            แสดงผล {memberList.length} สมาชิก
+                        <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2 text-slate-300 text-xs font-bold cursor-pointer">
+                                <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />
+                                แสดงบัญชีที่ปิดแล้ว
+                            </label>
+                            <div className="bg-white/10 px-5 py-2 rounded-2xl text-white font-black text-sm border border-white/5 backdrop-blur-sm">
+                                แสดงผล {memberList.length} สมาชิก
+                            </div>
                         </div>
                     </div>
 
@@ -370,13 +366,15 @@ function Members() {
                                         }}
                                         tooltip="ตั้งค่าบทบาท" tooltipOptions={{ position: 'top' }}
                                     />
-                                    <Button
-                                        icon="pi pi-trash"
-                                        rounded
-                                        className={`p-button-danger p-button-sm border-none ${isAdmin ? 'bg-red-500' : 'bg-slate-300 cursor-not-allowed'}`}
-                                        onClick={() => handleDeleteUser(row.id, row.username)}
-                                        tooltip="ลบผู้ใช้" tooltipOptions={{ position: 'top' }}
-                                    />
+                                    {row.status === 'approved' && row.id !== currentUser?.id && (
+                                        <Button
+                                            icon="pi pi-ban"
+                                            rounded
+                                            className="p-button-danger p-button-sm border-none bg-red-500"
+                                            onClick={() => handleCloseUser(row)}
+                                            tooltip="ปิดบัญชี" tooltipOptions={{ position: 'top' }}
+                                        />
+                                    )}
                                 </div>
                             )} style={{ width: '15rem' }} />
                         </DataTable>

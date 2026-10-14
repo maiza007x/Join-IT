@@ -73,7 +73,8 @@ exports.getStudentList = async (req, res) => {
     try {
         const [students] = await joinPool.query(`
             SELECT id as value, full_name as label 
-            FROM users 
+            FROM users
+            WHERE status IN ('approved', 'closed')
             ORDER BY full_name ASC
         `);
         res.json({ success: true, data: students });
@@ -211,34 +212,27 @@ exports.addTaskContribution = async (req, res) => {
 
 //จบเทส
 
-// 3. ฟังก์ชันลบยูสเซอร์ (ล็อกสิทธิ์เฉพาะ admin)
-exports.deleteUser = async (req, res) => {
+// 3. ปิดบัญชี (แทนการลบ เพื่อไม่ให้ประวัติงานในรายงานกำพร้า) - admin
+exports.closeUser = async (req, res) => {
+    const userId = Number(req.params.id);
+
+    if (userId === req.user.id) {
+        return res.status(400).json({ message: "คุณไม่สามารถปิดบัญชีตัวเองได้" });
+    }
+
     try {
-        const userIdToDelete = req.params.id;
-        console.log("👉 ข้อมูล req.user ที่แกะมาจาก Token:", req.user);
-        console.log("👉 Role ที่ระบบเห็น:", req.user?.role);
-        const currentUserRole = req.user.role; // ข้อมูลบทบาทที่แกะมาจาก Token ตอน Login
+        const [result] = await joinPool.query(
+            "UPDATE users SET status = 'closed' WHERE id = ? AND status = 'approved'",
+            [userId]
+        );
 
-        // 🔒 ล็อกสิทธิ์ขั้นสุด: ถ้าไม่ใช่แอดมิน ห้ามลบเด็ดขาด!
-        if (currentUserRole !== 'admin') {
-            return res.status(403).json({ message: "คุณไม่มีสิทธิ์ลบผู้ใช้งานระบบ" });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "ไม่พบบัญชีที่ใช้งานอยู่" });
         }
-
-        // ป้องกันแอดมินเผลอกดลบตัวเอง
-        if (parseInt(userIdToDelete) === req.user.id) {
-            return res.status(400).json({ message: "คุณไม่สามารถลบตัวเองได้นะ" });
-        }
-
-        const [result] = await joinPool.query("DELETE FROM users WHERE id = ?", [userIdToDelete]);
-
-        if (result.affectedRows > 0) {
-            return res.json({ status: "success", message: "ลบผู้ใช้สำเร็จ" });
-        } else {
-            return res.status(404).json({ message: "ไม่พบผู้ใช้งานนี้ในระบบ" });
-        }
+        res.json({ success: true, message: "ปิดบัญชีเรียบร้อย" });
     } catch (error) {
-        console.error("🔴 [Error] Failed to delete user:", error);
-        return res.status(500).json({ message: "เกิดข้อผิดพลาดในการลบข้อมูล" });
+        console.error("Close User Error:", error);
+        res.status(500).json({ message: "ปิดบัญชีไม่สำเร็จ" });
     }
 };
 
