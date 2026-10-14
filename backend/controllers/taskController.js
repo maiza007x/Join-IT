@@ -1,4 +1,5 @@
 const joinPool = require('../helper/db');
+const { ORDER_DB } = require('../helper/dbNames');
 
 // --- 1. ดึงงานหน้าหลัก - Tasks.jsx ---
 exports.getTasksCollab = async (req, res) => {
@@ -16,10 +17,10 @@ exports.getTasksCollab = async (req, res) => {
                 d.depart_name as department_name,
                 GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN t.intern_id = ? AND t.deleted_at IS NULL THEN 1 ELSE 0 END) as isContributedByMe
-            FROM orderit.data_report r
-            LEFT JOIN orderit.depart d ON r.department = d.depart_id
-            LEFT JOIN join_it.tasks t ON r.id = t.task_staff_id AND t.deleted_at IS NULL
-            LEFT JOIN join_it.users u ON t.intern_id = u.id
+            FROM ${ORDER_DB}.data_report r
+            LEFT JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
+            LEFT JOIN tasks t ON r.id = t.task_staff_id AND t.deleted_at IS NULL
+            LEFT JOIN users u ON t.intern_id = u.id
             WHERE DATE(r.date_report) = ?
         `;
         const staffParams = [userId, targetDate];
@@ -42,11 +43,11 @@ exports.getTasksCollab = async (req, res) => {
                 d.depart_name as department_name,
                 GROUP_CONCAT(DISTINCT CONCAT(u.full_name, '::', CASE WHEN (i.closed_at IS NOT NULL) OR (a.close_date IS NOT NULL AND a.close_date != '0000-00-00') THEN 'closed' ELSE 'working' END) SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN a.intern_id = ? THEN 1 ELSE 0 END) as isContributedByMe
-            FROM join_it.intern_tasks i
-            LEFT JOIN orderit.depart d ON i.department = d.depart_id
-            LEFT JOIN orderit.device dev ON i.deviceName = dev.device_id
-            LEFT JOIN join_it.intern_task_assignees a ON i.id = a.intern_task_id
-            LEFT JOIN join_it.users u ON a.intern_id = u.id
+            FROM intern_tasks i
+            LEFT JOIN ${ORDER_DB}.depart d ON i.department = d.depart_id
+            LEFT JOIN ${ORDER_DB}.device dev ON i.deviceName = dev.device_id
+            LEFT JOIN intern_task_assignees a ON i.id = a.intern_task_id
+            LEFT JOIN users u ON a.intern_id = u.id
             WHERE DATE(i.date_report) = ?
         `;
         const internParams = [userId, targetDate];
@@ -103,9 +104,9 @@ exports.getMyTasks = async (req, res) => {
                 r.report,
                 d.depart_name as department_name,
                 'staff' as type
-            FROM join_it.tasks t
-            LEFT JOIN orderit.data_report r ON t.task_staff_id = r.id
-            LEFT JOIN orderit.depart d ON r.department = d.depart_id
+            FROM tasks t
+            LEFT JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
+            LEFT JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE t.intern_id = ? AND t.deleted_at IS NULL
         `;
         const staffParams = [userId];
@@ -129,10 +130,10 @@ exports.getMyTasks = async (req, res) => {
                 CASE WHEN a.close_date IS NOT NULL AND a.close_date != '0000-00-00' THEN 3 ELSE 2 END as status,
                 d.depart_name as department_name,
                 'intern' as type
-            FROM join_it.intern_task_assignees a
-            JOIN join_it.intern_tasks i ON a.intern_task_id = i.id
-            LEFT JOIN orderit.depart d ON i.department = d.depart_id
-            LEFT JOIN orderit.device dev ON i.deviceName = dev.device_id
+            FROM intern_task_assignees a
+            JOIN intern_tasks i ON a.intern_task_id = i.id
+            LEFT JOIN ${ORDER_DB}.depart d ON i.department = d.depart_id
+            LEFT JOIN ${ORDER_DB}.device dev ON i.deviceName = dev.device_id
             WHERE a.intern_id = ?
         `;
         const internParams = [userId];
@@ -160,7 +161,7 @@ exports.updateContribution = async (req, res) => {
 
     try {
         const [result] = await joinPool.query(
-            `UPDATE join_it.tasks 
+            `UPDATE tasks 
              SET contribution_detail = ?, 
                  learning_outcome = ?, 
                  mentor_feedback = ?,
@@ -180,13 +181,13 @@ exports.joinTask = async (req, res) => {
     const intern_id = req.user.id;
     try {
         // ดึงชื่อผู้ใช้มาเก็บใน created_by (เพื่อเก็บ Snapshot ชื่อ ณ ตอนบันทึก)
-        const [userRows] = await joinPool.query('SELECT full_name FROM join_it.users WHERE id = ?', [intern_id]);
+        const [userRows] = await joinPool.query('SELECT full_name FROM users WHERE id = ?', [intern_id]);
         if (userRows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
 
         const creatorName = userRows[0].full_name;
 
         await joinPool.query(
-            `INSERT INTO join_it.tasks (task_staff_id, intern_id, created_by, created_at) 
+            `INSERT INTO tasks (task_staff_id, intern_id, created_by, created_at) 
              VALUES (?, ?, ?, NOW())
              ON DUPLICATE KEY UPDATE deleted_at = NULL, updated_at = NOW()`,
             [task_staff_id, intern_id, creatorName]
@@ -204,7 +205,7 @@ exports.leaveTask = async (req, res) => {
     const intern_id = req.user.id;
     try {
         await joinPool.query(
-            'UPDATE join_it.tasks SET deleted_at = NOW() WHERE task_staff_id = ? AND intern_id = ?',
+            'UPDATE tasks SET deleted_at = NOW() WHERE task_staff_id = ? AND intern_id = ?',
             [task_staff_id, intern_id]
         );
         res.json({ success: true, message: "ยกเลิกเรียบร้อย" });
@@ -232,7 +233,7 @@ exports.getAnalyticsStats = async (req, res) => {
         const dateFilter = getDateFilter(range);
 
         // 2. สร้าง Filter สำหรับ Global Filters (Year, Term, University, Person)
-        // สำหรับ Join Tasks และ Top Skill (ใช้ join_it.users และ join_it.tasks)
+        // สำหรับ Join Tasks และ Top Skill (ใช้ users และ tasks)
         let globalJoinFilter = '1=1';
         const globalJoinParams = [];
 
@@ -243,28 +244,28 @@ exports.getAnalyticsStats = async (req, res) => {
 
         // --- 📊 คำนวณ KPI Data ---
 
-        // A. ภารกิจทั้งหมด (Total Tasks ในช่วงเวลาที่เลือก) จาก orderit.data_report
+        // A. ภารกิจทั้งหมด (Total Tasks ในช่วงเวลาที่เลือก) จาก data_report ของ Order-IT
         const [totalRows] = await joinPool.query(`
             SELECT COUNT(*) as total 
-            FROM orderit.data_report r 
+            FROM ${ORDER_DB}.data_report r 
             WHERE ${dateFilter}
         `);
 
         // B. จำนวนงานที่เข้าร่วม (Join Tasks) กรองตามช่วงเวลา + Global Filter
         const [joinRows] = await joinPool.query(`
             SELECT COUNT(DISTINCT t.task_staff_id) as total
-            FROM join_it.tasks t
-            INNER JOIN join_it.users u ON t.intern_id = u.id
-            INNER JOIN orderit.data_report r ON t.task_staff_id = r.id
+            FROM tasks t
+            INNER JOIN users u ON t.intern_id = u.id
+            INNER JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
             WHERE ${dateFilter} AND t.deleted_at IS NULL AND ${globalJoinFilter}
         `, globalJoinParams);
 
         // C. ทักษะหลัก (Top Skill) - หา Keyword ที่ซ้ำกันมากที่สุดจาก Description
         const [categoryRows] = await joinPool.query(`
     SELECT r.problem, COUNT(*) as count
-    FROM join_it.tasks t
-    INNER JOIN join_it.users u ON t.intern_id = u.id
-    INNER JOIN orderit.data_report r ON t.task_staff_id = r.id
+    FROM tasks t
+    INNER JOIN users u ON t.intern_id = u.id
+    INNER JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
     WHERE ${dateFilter} AND t.deleted_at IS NULL AND ${globalJoinFilter}
     GROUP BY r.problem
     ORDER BY count DESC
@@ -373,10 +374,10 @@ exports.getWorkloadChartData = async (req, res) => {
                 DAYNAME(r.date_report) as day_en,
                 ${dayThSql('r.date_report')} as day_th_with_date,
                 0 as is_intern_task
-            FROM join_it.tasks t
-            JOIN join_it.users u ON t.intern_id = u.id
-            JOIN orderit.data_report r ON t.task_staff_id = r.id
-            JOIN orderit.depart d ON r.department = d.depart_id
+            FROM tasks t
+            JOIN users u ON t.intern_id = u.id
+            JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
+            JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE t.deleted_at IS NULL ${studentFilter}
         `;
         const staffParams = [...studentParams];
@@ -400,11 +401,11 @@ exports.getWorkloadChartData = async (req, res) => {
                 DAYNAME(it.date_report) as day_en,
                 ${dayThSql('it.date_report')} as day_th_with_date,
                 1 as is_intern_task
-            FROM join_it.intern_task_assignees ita
-            JOIN join_it.users u ON ita.intern_id = u.id
-            JOIN join_it.intern_tasks it ON ita.intern_task_id = it.id
-            LEFT JOIN orderit.depart d_it ON it.department = d_it.depart_id
-            LEFT JOIN orderit.device dev ON it.deviceName = dev.device_id
+            FROM intern_task_assignees ita
+            JOIN users u ON ita.intern_id = u.id
+            JOIN intern_tasks it ON ita.intern_task_id = it.id
+            LEFT JOIN ${ORDER_DB}.depart d_it ON it.department = d_it.depart_id
+            LEFT JOIN ${ORDER_DB}.device dev ON it.deviceName = dev.device_id
             WHERE 1=1 ${studentFilter}
         `;
         const internParams = [...studentParams];
@@ -529,16 +530,16 @@ exports.getWorkloadFilters = async (req, res) => {
     try {
         const { academicYear, term, university } = req.query;
 
-        const [workingList] = await joinPool.query('SELECT workingName as label, workingName as value FROM orderit.workinglist');
-        const [problemList] = await joinPool.query('SELECT problemName as label, problemName as value FROM orderit.problemlist');
-        const [device] = await joinPool.query('SELECT device_name as label, device_name as value FROM orderit.device');
-        const [depart] = await joinPool.query('SELECT depart_name as label, depart_name as value FROM orderit.depart');
-        const [staff] = await joinPool.query('SELECT username as value, CONCAT(fname, " ", lname) as label FROM orderit.admin');
+        const [workingList] = await joinPool.query(`SELECT workingName as label, workingName as value FROM ${ORDER_DB}.workinglist`);
+        const [problemList] = await joinPool.query(`SELECT problemName as label, problemName as value FROM ${ORDER_DB}.problemlist`);
+        const [device] = await joinPool.query(`SELECT device_name as label, device_name as value FROM ${ORDER_DB}.device`);
+        const [depart] = await joinPool.query(`SELECT depart_name as label, depart_name as value FROM ${ORDER_DB}.depart`);
+        const [staff] = await joinPool.query(`SELECT username as value, CONCAT(fname, " ", lname) as label FROM ${ORDER_DB}.admin`);
 
         // Fetch Universities with User Counts filtered by year and term
         let uniSql = `
             SELECT university_name as label, university_name as value, COUNT(*) as user_count 
-            FROM join_it.users 
+            FROM users 
             WHERE university_name IS NOT NULL AND university_name <> ""
         `;
         const uniParams = [];
@@ -550,7 +551,7 @@ exports.getWorkloadFilters = async (req, res) => {
         // Fetch Students filtered by year, term, and university
         let studentSql = `
             SELECT full_name as label, id as value 
-            FROM join_it.users 
+            FROM users 
             WHERE 1=1
         `;
         const studentParams = [];
@@ -607,10 +608,10 @@ exports.getWorkTypeData = async (req, res) => {
             SELECT 
                 ${groupColumn} as label,
                 COUNT(*) as count
-            FROM join_it.tasks t
-            JOIN join_it.users u ON t.intern_id = u.id
-            JOIN orderit.data_report r ON t.task_staff_id = r.id
-            JOIN orderit.depart d ON r.department = d.depart_id
+            FROM tasks t
+            JOIN users u ON t.intern_id = u.id
+            JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
+            JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE t.deleted_at IS NULL
         `;
 
@@ -684,23 +685,23 @@ exports.getHeatmapData = async (req, res) => {
         let masterLabels = [];
         try {
             if (category === 'workingList') {
-                const [rows] = await joinPool.query('SELECT workingName as label FROM orderit.workinglist ORDER BY workingName ASC');
+                const [rows] = await joinPool.query(`SELECT workingName as label FROM ${ORDER_DB}.workinglist ORDER BY workingName ASC`);
                 masterLabels = rows.map(r => r.label);
             } else if (category === 'problemList') {
-                const [rows] = await joinPool.query('SELECT problemName as label FROM orderit.problemlist ORDER BY problemName ASC');
+                const [rows] = await joinPool.query(`SELECT problemName as label FROM ${ORDER_DB}.problemlist ORDER BY problemName ASC`);
                 masterLabels = rows.map(r => r.label);
             } else if (category === 'device') {
-                const [rows] = await joinPool.query('SELECT device_name as label FROM orderit.device ORDER BY device_name ASC');
+                const [rows] = await joinPool.query(`SELECT device_name as label FROM ${ORDER_DB}.device ORDER BY device_name ASC`);
                 masterLabels = rows.map(r => r.label);
             } else if (category === 'depart') {
-                const [rows] = await joinPool.query('SELECT depart_name as label FROM orderit.depart ORDER BY depart_name ASC');
+                const [rows] = await joinPool.query(`SELECT depart_name as label FROM ${ORDER_DB}.depart ORDER BY depart_name ASC`);
                 masterLabels = rows.map(r => r.label);
             } else if (category === 'staff') {
-                const [rows] = await joinPool.query('SELECT username as label FROM orderit.admin ORDER BY username ASC');
+                const [rows] = await joinPool.query(`SELECT username as label FROM ${ORDER_DB}.admin ORDER BY username ASC`);
                 masterLabels = rows.map(r => r.label);
             } else {
                 // Fallback for work_type if not specified
-                const [rows] = await joinPool.query('SELECT DISTINCT work_type as label FROM orderit.data_report WHERE work_type IS NOT NULL AND work_type <> "" ORDER BY work_type ASC');
+                const [rows] = await joinPool.query(`SELECT DISTINCT work_type as label FROM ${ORDER_DB}.data_report WHERE work_type IS NOT NULL AND work_type <> "" ORDER BY work_type ASC`);
                 masterLabels = rows.map(r => r.label);
             }
         } catch (err) {
@@ -715,8 +716,8 @@ exports.getHeatmapData = async (req, res) => {
                 ${groupColumn} as category_val,
                 HOUR(r.time_report) as hour_val,
                 COUNT(*) as count
-            FROM orderit.data_report r
-            JOIN orderit.depart d ON r.department = d.depart_id
+            FROM ${ORDER_DB}.data_report r
+            JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE r.status != '1'
         `;
 
@@ -797,9 +798,9 @@ exports.getCollaborationData = async (req, res) => {
             SELECT 
                 r.username as staff_name,
                 COUNT(*) as count
-            FROM join_it.tasks t
-            JOIN join_it.users u ON t.intern_id = u.id
-            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            FROM tasks t
+            JOIN users u ON t.intern_id = u.id
+            JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
             WHERE t.deleted_at IS NULL
         `;
 
@@ -864,9 +865,9 @@ exports.getLearningKeywordsData = async (req, res) => {
             SELECT 
                 r.problem as keyword,
                 COUNT(*) as count
-            FROM join_it.tasks t
-            JOIN join_it.users u ON t.intern_id = u.id
-            JOIN orderit.data_report r ON t.task_staff_id = r.id
+            FROM tasks t
+            JOIN users u ON t.intern_id = u.id
+            JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
             WHERE t.deleted_at IS NULL
         `;
 
@@ -957,9 +958,9 @@ exports.getHeatmapDetails = async (req, res) => {
                 r.username as staff_name,
                 r.work_type,
                 r.description,
-                (SELECT COUNT(*) FROM join_it.tasks t2 WHERE t2.task_staff_id = r.id AND t2.deleted_at IS NULL) as intern_count
-            FROM orderit.data_report r
-            JOIN orderit.depart d ON r.department = d.depart_id
+                (SELECT COUNT(*) FROM tasks t2 WHERE t2.task_staff_id = r.id AND t2.deleted_at IS NULL) as intern_count
+            FROM ${ORDER_DB}.data_report r
+            JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE HOUR(r.time_report) = ?
         `;
 
@@ -996,8 +997,8 @@ exports.getHeatmapDetails = async (req, res) => {
 // --- 7. ดึงข้อมูลสำหรับตัวเลือกในฟอร์ม (แผนก และ อุปกรณ์) ---
 exports.getFormOptions = async (req, res) => {
     try {
-        const [departs] = await joinPool.query('SELECT depart_id as value, depart_name as label FROM orderit.depart ORDER BY depart_name ASC');
-        const [devices] = await joinPool.query('SELECT device_id as value, device_name as label FROM orderit.device ORDER BY device_name ASC');
+        const [departs] = await joinPool.query(`SELECT depart_id as value, depart_name as label FROM ${ORDER_DB}.depart ORDER BY depart_name ASC`);
+        const [devices] = await joinPool.query(`SELECT device_id as value, device_name as label FROM ${ORDER_DB}.device ORDER BY device_name ASC`);
 
         res.json({
             success: true,
@@ -1032,10 +1033,10 @@ exports.createInternTask = async (req, res) => {
         const [userRows] = await joinPool.query('SELECT full_name, username FROM users WHERE id = ?', [userId]);
         const fullName = userRows.length > 0 ? (userRows[0].full_name || userRows[0].username) : 'Unknown';
 
-        // ใช้ joinPool เพื่อบันทึกลง join_it.intern_task
+        // ใช้ joinPool เพื่อบันทึกลง intern_task
         // Mapping ฟิลด์ตาม Schema ที่ผู้ใช้แจ้งมา
         const sql = `
-            INSERT INTO join_it.intern_tasks (
+            INSERT INTO intern_tasks (
                 date_report, time_report, reporter, department, 
                 tel, deviceName, number_device, ip_address, 
                 report, status, created_by, created_at
@@ -1073,16 +1074,16 @@ exports.acceptInternTask = async (req, res) => {
     const userId = req.user.id;
     try {
         // เช็คก่อนว่างานถูกปิดไปหรือยัง
-        const [taskRows] = await joinPool.query('SELECT closed_at FROM join_it.intern_tasks WHERE id = ?', [taskId]);
+        const [taskRows] = await joinPool.query('SELECT closed_at FROM intern_tasks WHERE id = ?', [taskId]);
         if (taskRows.length === 0) return res.status(404).json({ success: false, message: "ไม่พบงานนี้" });
         if (taskRows[0].closed_at !== null) return res.status(400).json({ success: false, message: "งานนี้เสร็จสิ้นแล้ว ไม่สามารถรับได้" });
 
         // เช็คว่ารับงานไปแล้วหรือยัง
-        const [existing] = await joinPool.query('SELECT id FROM join_it.intern_task_assignees WHERE intern_task_id = ? AND intern_id = ?', [taskId, userId]);
+        const [existing] = await joinPool.query('SELECT id FROM intern_task_assignees WHERE intern_task_id = ? AND intern_id = ?', [taskId, userId]);
         if (existing.length > 0) return res.status(400).json({ success: false, message: "คุณได้รับงานนี้ไปแล้ว" });
 
         await joinPool.query(
-            `INSERT INTO join_it.intern_task_assignees (intern_task_id, intern_id, take_date, take_time, contribution_detail, learning_outcome) 
+            `INSERT INTO intern_task_assignees (intern_task_id, intern_id, take_date, take_time, contribution_detail, learning_outcome) 
              VALUES (?, ?, CURDATE(), CURTIME(), '', '')`,
             [taskId, userId]
         );
@@ -1099,7 +1100,7 @@ exports.leaveInternTask = async (req, res) => {
     const userId = req.user.id;
     try {
         await joinPool.query(
-            'DELETE FROM join_it.intern_task_assignees WHERE intern_task_id = ? AND intern_id = ?',
+            'DELETE FROM intern_task_assignees WHERE intern_task_id = ? AND intern_id = ?',
             [taskId, userId]
         );
         res.json({ success: true, message: "ยกเลิกการรับงานเรียบร้อย" });
@@ -1117,7 +1118,7 @@ exports.updateInternTaskDetails = async (req, res) => {
 
     try {
         await joinPool.query(
-            `UPDATE join_it.intern_task_assignees 
+            `UPDATE intern_task_assignees 
              SET contribution_detail = ?, 
                  learning_outcome = ?
              WHERE intern_task_id = ? AND intern_id = ?`,
@@ -1138,7 +1139,7 @@ exports.closeInternTask = async (req, res) => {
 
     try {
         await joinPool.query(
-            `UPDATE join_it.intern_task_assignees 
+            `UPDATE intern_task_assignees 
              SET contribution_detail = ?, 
                  learning_outcome = ?,
                  close_date = CURDATE(),
@@ -1174,7 +1175,7 @@ exports.editInternTask = async (req, res) => {
         const fullName = userRows.length > 0 ? (userRows[0].full_name || userRows[0].username) : 'Unknown';
 
         const [result] = await joinPool.query(
-            `UPDATE join_it.intern_tasks 
+            `UPDATE intern_tasks 
              SET date_report = ?, time_report = ?, reporter = ?, department = ?, 
                  tel = ?, deviceName = ?, number_device = ?, ip_address = ?, 
                  report = ?
@@ -1202,7 +1203,7 @@ exports.closeInternTaskMain = async (req, res) => {
         const fullName = userRows.length > 0 ? (userRows[0].full_name || userRows[0].username) : 'Unknown';
 
         const [result] = await joinPool.query(
-            `UPDATE join_it.intern_tasks 
+            `UPDATE intern_tasks 
              SET closed_at = NOW(), status = 3
              WHERE id = ? AND created_by = ?`,
             [taskId, fullName]
@@ -1228,13 +1229,13 @@ exports.reopenInternTaskMain = async (req, res) => {
         const fullName = userRows.length > 0 ? (userRows[0].full_name || userRows[0].username) : 'Unknown';
 
         const [assignees] = await joinPool.query(
-            'SELECT id FROM join_it.intern_task_assignees WHERE intern_task_id = ?',
+            'SELECT id FROM intern_task_assignees WHERE intern_task_id = ?',
             [taskId]
         );
         const newStatus = assignees.length > 0 ? 2 : 1;
 
         const [result] = await joinPool.query(
-            `UPDATE join_it.intern_tasks 
+            `UPDATE intern_tasks 
              SET closed_at = NULL, status = ?
              WHERE id = ? AND created_by = ?`,
             [newStatus, taskId, fullName]
@@ -1257,7 +1258,7 @@ exports.getInternTaskAssignees = async (req, res) => {
     try {
         const [taskRows] = await joinPool.query(
             `SELECT i.id, i.closed_at 
-             FROM join_it.intern_tasks i 
+             FROM intern_tasks i 
              WHERE i.id = ?`,
             [taskId]
         );
@@ -1280,8 +1281,8 @@ exports.getInternTaskAssignees = async (req, res) => {
                     WHEN ? OR (a.close_date IS NOT NULL AND a.close_date != '0000-00-00') THEN 'closed' 
                     ELSE 'working' 
                 END as status
-             FROM join_it.intern_task_assignees a
-             JOIN join_it.users u ON a.intern_id = u.id
+             FROM intern_task_assignees a
+             JOIN users u ON a.intern_id = u.id
              WHERE a.intern_task_id = ?`,
             [isMainClosed, taskId]
         );
@@ -1301,8 +1302,8 @@ exports.getStaffTaskDetail = async (req, res) => {
             SELECT 
                 r.*,
                 d.depart_name as department_name
-            FROM orderit.data_report r
-            LEFT JOIN orderit.depart d ON r.department = d.depart_id
+            FROM ${ORDER_DB}.data_report r
+            LEFT JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE r.id = ?
         `;
         const [rows] = await joinPool.query(sql, [taskId]);
