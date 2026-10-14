@@ -16,6 +16,7 @@ import InternTaskModal from "./InternTaskModal";
 import StaffTasksSection from "./StaffTasksSection";
 import InternTasksSection from "./InternTasksSection";
 import { useAuth } from "../context/AuthContext";
+import { fromDateString } from "../utils/dateString";
 
 function Tasks() {
     const { user } = useAuth();
@@ -27,6 +28,8 @@ function Tasks() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [actionLoading, setActionLoading] = useState(null);
+    // ช่วงวันที่ที่ดูงานได้ (นักศึกษา) null = ไม่จำกัด
+    const [allowedRange, setAllowedRange] = useState(null);
     const toast = useRef(null);
 
     const [editModalVisible, setEditModalVisible] = useState(false);
@@ -71,6 +74,15 @@ function Tasks() {
             const response = await api.get(`/tasks/tasks_collab`, {
                 params: { date: formattedDate, q: query },
             });
+            const range = response.data.allowedRange;
+            setAllowedRange(range);
+
+            // วันที่ที่เลือกอยู่นอกช่วงฝึกงาน (เช่น เปิดหน้าตอนฝึกจบแล้ว) ให้เลื่อนมาวันที่ใกล้ที่สุดในช่วง
+            if (range && (formattedDate < range.start || formattedDate > range.end)) {
+                setSelectedDate(fromDateString(formattedDate < range.start ? range.start : range.end));
+                return;
+            }
+
             setTasks(response.data.tasks || []);
             setInternTasks(response.data.internTasks || []);
         } catch (err) {
@@ -326,6 +338,8 @@ function Tasks() {
     const handleDateChange = (direction) => {
         const current = selectedDate ? new Date(selectedDate) : new Date();
         current.setDate(current.getDate() + direction);
+        const target = current.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+        if (allowedRange && (target < allowedRange.start || target > allowedRange.end)) return;
         setSelectedDate(current);
     };
 
@@ -351,6 +365,8 @@ function Tasks() {
                                 <Calendar
                                     value={selectedDate}
                                     onChange={(e) => setSelectedDate(e.value)}
+                                    minDate={fromDateString(allowedRange?.start) ?? undefined}
+                                    maxDate={fromDateString(allowedRange?.end) ?? undefined}
                                     dateFormat="yy-mm-dd"
                                     showIcon
                                     className="w-full md:w-56"

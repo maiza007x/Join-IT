@@ -3,11 +3,17 @@ import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Toast } from "primereact/toast";
 import Navbar from "../Navbar";
 import socket from "../../services/socket";
+import { useAuth } from "../../context/AuthContext";
+import { getInternshipStatus } from "../../utils/internship";
+import { formatThaiDate } from "../../utils/dateString";
 
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const globalToast = useRef(null);
+  const { user } = useAuth();
+  const internship = getInternshipStatus(user);
+  const outOfInternship = internship && (internship.ended || internship.notStarted);
 
   const noNavbarPaths = ["/", "/login", "/register", "/forgot-password"];
   const shouldShowNavbar = !noNavbarPaths.includes(location.pathname);
@@ -15,6 +21,9 @@ const MainLayout = () => {
   // --- Real-time Notification Listener ---
   useEffect(() => {
     const handleNewTaskNotification = (data) => {
+      // นอกช่วงฝึกงานไม่แจ้งเตือนงานใหม่ เพราะดูงานไม่ได้อยู่แล้ว
+      if (outOfInternship) return;
+
       globalToast.current?.show({
         severity: "info",
         summary: "📥 มีงานใหม่ในระบบ!",
@@ -39,12 +48,19 @@ const MainLayout = () => {
     return () => {
       socket.off("new-task", handleNewTaskNotification);
     };
-  }, [navigate]);
+  }, [navigate, outOfInternship]);
 
   return (
     <>
       <Toast ref={globalToast} position="top-right" />
       {shouldShowNavbar && <Navbar />}
+      {shouldShowNavbar && outOfInternship && (
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-sm font-semibold px-4 py-3 text-center">
+          <i className="pi pi-info-circle mr-2"></i>
+          {internship.ended ? "สิ้นสุดฝึกงานแล้ว" : "ยังไม่ถึงช่วงฝึกงาน"} จะดูงานได้เฉพาะช่วงเวลาที่ฝึกงานเท่านั้น
+          ({formatThaiDate(internship.start)} - {formatThaiDate(internship.end)})
+        </div>
+      )}
       <main>
         <Outlet />
       </main>

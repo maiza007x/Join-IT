@@ -1,5 +1,6 @@
 const joinPool = require('../helper/db');
 const { ORDER_DB } = require('../helper/dbNames');
+const { getInternshipRange, isWithinRange } = require('../helper/internshipRange');
 
 // --- 1. ดึงงานหน้าหลัก - Tasks.jsx ---
 exports.getTasksCollab = async (req, res) => {
@@ -10,6 +11,12 @@ exports.getTasksCollab = async (req, res) => {
     const userId = req.user.id;
 
     try {
+        // นักศึกษาดูงานได้เฉพาะช่วงวันที่ฝึกงานของตัวเอง
+        const allowedRange = await getInternshipRange(req.user);
+        if (!isWithinRange(allowedRange, targetDate)) {
+            return res.json({ success: true, tasks: [], internTasks: [], allowedRange });
+        }
+
         // ดึงงานหลัก (Staff Tasks)
         let staffSql = `
             SELECT 
@@ -76,7 +83,8 @@ exports.getTasksCollab = async (req, res) => {
         res.json({
             success: true,
             tasks: formattedStaffTasks,
-            internTasks: formattedInternTasks
+            internTasks: formattedInternTasks,
+            allowedRange
         });
     } catch (err) {
         console.error("❌ Tasks Collab Error:", err.message);
@@ -186,6 +194,12 @@ exports.joinTask = async (req, res) => {
         if (userRows.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
 
         const creatorName = userRows[0].full_name;
+
+        const [taskRows] = await joinPool.query(`SELECT date_report FROM ${ORDER_DB}.data_report WHERE id = ?`, [task_staff_id]);
+        if (taskRows.length === 0) return res.status(404).json({ message: "ไม่พบงานนี้" });
+        if (!isWithinRange(await getInternshipRange(req.user), taskRows[0].date_report)) {
+            return res.status(403).json({ message: "งานนี้อยู่นอกช่วงเวลาฝึกงานของคุณ" });
+        }
 
         await joinPool.query(
             `INSERT INTO tasks (task_staff_id, intern_id, created_by, created_at) 
@@ -1314,6 +1328,10 @@ exports.getStaffTaskDetail = async (req, res) => {
 
         if (rows.length === 0) {
             return res.status(404).json({ success: false, message: "ไม่พบข้อมูลงานเจ้าหน้าที่" });
+        }
+
+        if (!isWithinRange(await getInternshipRange(req.user), rows[0].date_report)) {
+            return res.status(403).json({ success: false, message: "งานนี้อยู่นอกช่วงเวลาฝึกงานของคุณ" });
         }
 
         res.json({ success: true, data: rows[0] });

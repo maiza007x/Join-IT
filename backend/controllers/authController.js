@@ -52,9 +52,12 @@ exports.login = async (req, res) => {
         id: user.id,
         username: user.username,
         full_name: user.full_name,
+        nickname: user.nickname,
         role: user.role,
         verified: user.verified,
-        avatar_url: user.avatar_url
+        avatar_url: user.avatar_url,
+        internship_start_date: user.internship_start_date,
+        internship_end_date: user.internship_end_date
       },
       token,
     });
