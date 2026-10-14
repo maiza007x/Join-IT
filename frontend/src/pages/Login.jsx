@@ -38,12 +38,7 @@ function Login() {
       const user = res.data.data;
       login(user, res.data.token);
 
-      // ✅ ถ้ายังไม่ได้ยืนยันตัวตน (verified = 0) ให้ไปหน้าโปรไฟล์เพื่อตั้งค่าก่อน
-      if (user.verified === 0) {
-        navigate("/profile");
-      } else {
-        navigate("/tasks");
-      }
+      navigate("/tasks");
     } catch (err) {
       // 403 = บัญชีรออนุมัติ / ถูกปฏิเสธ / ถูกปิด backend ส่งข้อความที่อธิบายสถานะมาให้
       if (err.response?.status === 403) {

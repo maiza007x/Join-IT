@@ -8,7 +8,9 @@ const { validateInternshipInfo } = require('../helper/userFields');
 exports.getProfile = async (req, res) => {
     try {
         const [rows] = await joinPool.query(
-            'SELECT id, username, full_name, university_name, academic_year, term, faculty, role, avatar_url, verified FROM users WHERE id = ?',
+            `SELECT id, username, full_name, nickname, university_name, academic_year, term, faculty, role, avatar_url, verified,
+                    internship_start_date, internship_end_date
+             FROM users WHERE id = ?`,
             [req.user.id]
         );
 
@@ -81,28 +83,6 @@ exports.getStudentList = async (req, res) => {
     }
 };
 
-// --- 3. PUT /api/users/me (อัปเดตข้อมูลส่วนตัว) ---
-exports.updateProfile = async (req, res) => {
-    const { fullName, full_name, university_name, academic_year, term, faculty } = req.body;
-    const finalName = fullName || full_name;
-
-    if (!finalName || finalName.trim() === "") {
-        return res.status(400).json({ success: false, message: "ชื่อ-นามสกุล ห้ามว่าง" });
-    }
-
-    try {
-        await joinPool.query(
-            'UPDATE users SET full_name = ?, university_name = ?, academic_year = ?, term = ?, faculty = ? WHERE id = ?',
-            [finalName, university_name, academic_year, term, faculty, req.user.id]
-        );
-        res.json({ success: true, message: "อัปเดตข้อมูลโปรไฟล์สำเร็จ" });
-    } catch (err) {
-        console.error("Update Profile Error:", err);
-        res.status(500).json({ success: false, message: "ไม่สามารถอัปเดตข้อมูลได้" });
-    }
-};
-
-
 // --- 4. PUT /api/users/me/password (เปลี่ยนรหัสผ่าน) ---
 exports.changePassword = async (req, res) => {
     const { currentPassword, newPassword, confirmNewPassword } = req.body;
@@ -134,39 +114,6 @@ exports.changePassword = async (req, res) => {
     } catch (err) {
         console.error("Change Password Error:", err);
         res.status(500).json({ success: false, message: "เปลี่ยนรหัสผ่านล้มเหลว" });
-    }
-};
-
-// --- 4.1 POST /api/users/verify-profile (ยืนยันตัวตนครั้งแรก) ---
-exports.verifyProfile = async (req, res) => {
-    const { full_name, university_name, academic_year, term, faculty, password } = req.body;
-
-    if (!full_name || !university_name || !academic_year || !term || !faculty || !password) {
-        return res.status(400).json({ success: false, message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
-    }
-
-    try {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const sql = `
-            UPDATE users 
-            SET full_name = ?, 
-                university_name = ?, 
-                academic_year = ?, 
-                term = ?, 
-                faculty = ?, 
-                password = ?, 
-                verified = 1 
-            WHERE id = ?
-        `;
-
-        await joinPool.query(sql, [full_name, university_name, academic_year, term, faculty, hashedPassword, req.user.id]);
-
-        res.json({ success: true, message: "ตั้งค่าโปรไฟล์สำเร็จ พร้อมเริ่มใช้งานระบบ" });
-    } catch (err) {
-        console.error("Verify Profile Error:", err);
-        res.status(500).json({ success: false, message: "ไม่สามารถบันทึกข้อมูลการยืนยันตัวตนได้" });
     }
 };
 

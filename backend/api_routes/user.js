@@ -57,12 +57,6 @@ router.put('/:id/reject', authMiddleware, adminOnly, userController.rejectUser);
 // ดูข้อมูลโปรไฟล์ตัวเอง
 router.get('/me', authMiddleware, userController.getProfile);
 
-// ยืนยันตัวตนครั้งแรก
-router.post('/verify-profile', authMiddleware, userController.verifyProfile);
-
-// แก้ไขข้อมูลส่วนตัว
-router.put('/me', authMiddleware, userController.updateProfile);
-
 // เปลี่ยนรหัสผ่าน
 router.put('/me/password', authMiddleware, userController.changePassword);
 

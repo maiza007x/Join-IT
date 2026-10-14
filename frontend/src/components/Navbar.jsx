@@ -57,9 +57,7 @@ const Navbar = () => {
 
                 {/* --- ฝั่งขวา: กลุ่มปุ่มเมนู --- */}
                 <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                    {user?.verified !== 0 && (
-                        <>
-                            {/* ปุ่มแดชบอร์ด */}
+                    {/* ปุ่มแดชบอร์ด */}
                             <PrimaryBtn icon="pi-th-large" label="แดชบอร์ด" path="/dashboard" />
 
                             {/* ปุ่มงานวันนี้ */}
@@ -71,9 +69,7 @@ const Navbar = () => {
                             {/* ปุ่มจัดการสมาชิก - แสดงเฉพาะ Admin */}
                             {isAdmin && <PrimaryBtn icon="pi-users" label="จัดการสมาชิก" path="/members" />}
 
-                            <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
-                        </>
-                    )}
+                    <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
 
                     {/* โปรไฟล์ดึงจาก AuthContext */}
                     <div className="flex items-center gap-2 md:gap-3 bg-slate-50 p-1 md:pr-4 rounded-full border border-slate-100 cursor-pointer hover:bg-white transition-all shadow-sm"
