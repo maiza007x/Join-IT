@@ -10,10 +10,14 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { Dropdown } from 'primereact/dropdown';
+import { Calendar } from 'primereact/calendar';
+import { TERM_OPTIONS } from '../constants/terms';
+import { toDateString, fromDateString, formatThaiDate, dateToAcademicYear, academicYearToDate, formatAcademicYear } from '../utils/dateString';
 import { useAuth } from '../context/AuthContext';
 function Members() {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
+    const [pendingUsers, setPendingUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Add User State
@@ -26,11 +30,18 @@ function Members() {
     const [selectedUserForRole, setSelectedUserForRole] = useState(null);
     const [newRole, setNewRole] = useState('user');
 
+    // Edit User State (แอดมินแก้ข้อมูลนักศึกษา)
+    const [editingUser, setEditingUser] = useState(null);
+    const [editForm, setEditForm] = useState({});
+    const setEditField = (name) => (e) => setEditForm((prev) => ({ ...prev, [name]: e.target?.value ?? e.value }));
+
     const roleOptions = [
         { label: 'แอดมินหลัก (admin)', value: 'admin' },
         { label: 'ผู้ใช้ทั่วไป (user)', value: 'user' }
     ];
     const { isAdmin } = useAuth();
+    // คำขอที่รออนุมัติแสดงแยกด้านบน
+    const memberList = users.filter((user) => user.status !== 'pending');
 
     useEffect(() => {
         fetchUsers();
@@ -44,6 +55,11 @@ function Members() {
             const response = await api.get("/users/all");
 
             setUsers(response.data);
+
+            if (isAdmin) {
+                const pending = await api.get("/users/pending");
+                setPendingUsers(pending.data.data);
+            }
         } catch (error) {
             console.error("Error fetching users:", error);
             // ถ้า Token หมดอายุ (401) อาจจะเด้งไปหน้า Login
@@ -53,6 +69,61 @@ function Members() {
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    // อนุมัติ / ปฏิเสธคำขอสมัคร
+    const decideRegistration = async (id, action) => {
+        try {
+            await api.put(`/users/${id}/${action}`);
+            fetchUsers();
+        } catch (error) {
+            alert(error.response?.data?.message || "ดำเนินการไม่สำเร็จ");
+        }
+    };
+
+    const handleReject = (row) => {
+        confirmDialog({
+            message: `ต้องการปฏิเสธคำขอสมัครของ "${row.full_name}" ?`,
+            header: 'ยืนยันการปฏิเสธ',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger rounded-xl font-bold px-4 py-2',
+            rejectClassName: 'p-button-text text-slate-500 rounded-xl font-bold px-4 py-2',
+            acceptLabel: 'ปฏิเสธ',
+            rejectLabel: 'ยกเลิก',
+            accept: () => decideRegistration(row.id, 'reject'),
+        });
+    };
+
+    // แก้ข้อมูลสมาชิก (ส่งเฉพาะช่องที่มีค่า เพราะบัญชีเดิมบางช่องยังว่าง)
+    const openEditDialog = (row) => {
+        setEditingUser(row);
+        setEditForm({
+            full_name: row.full_name || '',
+            nickname: row.nickname || '',
+            university_name: row.university_name || '',
+            term: row.term || null,
+            academic_year: academicYearToDate(row.academic_year),
+            internship_start_date: fromDateString(row.internship_start_date),
+            internship_end_date: fromDateString(row.internship_end_date),
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        const { internship_start_date, internship_end_date, academic_year, ...fields } = editForm;
+        const body = Object.fromEntries(Object.entries({
+            ...fields,
+            academic_year: dateToAcademicYear(academic_year),
+            internship_start_date: toDateString(internship_start_date),
+            internship_end_date: toDateString(internship_end_date),
+        }).filter(([, value]) => value));
+
+        try {
+            await api.put(`/users/${editingUser.id}`, body);
+            setEditingUser(null);
+            fetchUsers();
+        } catch (error) {
+            alert(error.response?.data?.message || "แก้ไขข้อมูลไม่สำเร็จ");
         }
     };
 
@@ -170,6 +241,36 @@ function Members() {
                     />
                 </div>
 
+                {/* ⏳ คำขอสมัครที่รออนุมัติ */}
+                {isAdmin && pendingUsers.length > 0 && (
+                    <div className="bg-white rounded-[2.5rem] shadow-sm border border-amber-100 overflow-hidden mb-8">
+                        <div className="p-6 bg-amber-50 flex items-center gap-3">
+                            <i className="pi pi-clock text-amber-500 text-xl"></i>
+                            <h3 className="m-0 font-bold text-slate-800 text-lg">รออนุมัติ ({pendingUsers.length})</h3>
+                        </div>
+                        <div className="p-4">
+                            <DataTable value={pendingUsers} className="p-datatable-sm custom-luxury-table">
+                                <Column header="ชื่อ" body={(row) => (
+                                    <div>
+                                        <span className="font-semibold">{row.full_name}</span>
+                                        <div className="text-xs text-slate-400">ชื่อเล่น: {row.nickname}</div>
+                                    </div>
+                                )} />
+                                <Column field="username" header="Username" />
+                                <Column field="university_name" header="มหาวิทยาลัย" />
+                                <Column header="เทอม / ปีการศึกษา" body={(row) => `${row.term} / ${row.academic_year}`} />
+                                <Column header="ช่วงฝึกงาน" body={(row) => `${formatThaiDate(row.internship_start_date)} - ${formatThaiDate(row.internship_end_date)}`} />
+                                <Column header="ดำเนินการ" style={{ width: '12rem' }} body={(row) => (
+                                    <div className="flex gap-2">
+                                        <Button label="อนุมัติ" icon="pi pi-check" size="small" className="p-button-success border-none" onClick={() => decideRegistration(row.id, 'approve')} />
+                                        <Button label="ปฏิเสธ" icon="pi pi-times" size="small" className="p-button-danger border-none" onClick={() => handleReject(row)} />
+                                    </div>
+                                )} />
+                            </DataTable>
+                        </div>
+                    </div>
+                )}
+
                 {/* 📋 ตารางรายชื่อสมาชิก */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-50 overflow-hidden">
                     <div className="p-7 flex items-center justify-between bg-slate-900">
@@ -181,13 +282,13 @@ function Members() {
                             </div>
                         </div>
                         <div className="bg-white/10 px-5 py-2 rounded-2xl text-white font-black text-sm border border-white/5 backdrop-blur-sm">
-                            แสดงผล {users.length} สมาชิก
+                            แสดงผล {memberList.length} สมาชิก
                         </div>
                     </div>
 
                     <div className="p-4">
                         <DataTable
-                            value={users}
+                            value={memberList}
                             paginator
                             rows={10}
                             loading={loading}
@@ -210,6 +311,9 @@ function Members() {
                                     <span className="font-semibold">{row.full_name || 'ไม่ได้ระบุชื่อ'}</span>
                                 </div>
                             )} />
+                            <Column field="nickname" header="ชื่อเล่น" sortable body={(row) => (
+                                <span className="text-sm font-medium">{row.nickname || '-'}</span>
+                            )} />
                             <Column field="role" header="บทบาท ↑↓" body={(row) => (
                                 <Tag value={row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'}`} />
                             )} />
@@ -225,6 +329,14 @@ function Members() {
                             <Column field="term" header="เทอม" sortable body={(row) => (
                                 <span className="text-sm font-medium">{row.term || '-'}</span>
                             )} />
+                            <Column header="ช่วงฝึกงาน" body={(row) => (
+                                <span className="text-sm font-medium">
+                                    {row.internship_start_date ? `${formatThaiDate(row.internship_start_date)} - ${formatThaiDate(row.internship_end_date)}` : '-'}
+                                </span>
+                            )} />
+                            <Column field="status" header="สถานะ" body={(row) => row.status !== 'approved' && (
+                                <Tag value={row.status === 'rejected' ? 'ถูกปฏิเสธ' : 'ปิดบัญชี'} severity={row.status === 'rejected' ? 'danger' : 'secondary'} />
+                            )} />
                             <Column field="updated_at" header="วันที่อัปเดตล่าสุด ↑↓" body={(row) => {
                                 if (!row.updated_at) return '-';
                                 const d = new Date(row.updated_at);
@@ -239,6 +351,13 @@ function Members() {
                                         className="p-button-warning p-button-sm border-none bg-orange-400"
                                         onClick={() => handleResetPassword(row.id, row.username)}
                                         tooltip="รีเซ็ตรหัสผ่าน" tooltipOptions={{ position: 'top' }}
+                                    />
+                                    <Button
+                                        icon="pi pi-pencil"
+                                        rounded
+                                        className="p-button-sm bg-emerald-500 border-none"
+                                        onClick={() => openEditDialog(row)}
+                                        tooltip="แก้ไขข้อมูล" tooltipOptions={{ position: 'top' }}
                                     />
                                     <Button
                                         icon="pi pi-cog"
@@ -259,7 +378,7 @@ function Members() {
                                         tooltip="ลบผู้ใช้" tooltipOptions={{ position: 'top' }}
                                     />
                                 </div>
-                            )} style={{ width: '12rem' }} />
+                            )} style={{ width: '15rem' }} />
                         </DataTable>
                     </div>
                 </div>
@@ -278,6 +397,46 @@ function Members() {
                         <Dropdown value={newUserRole} options={roleOptions} onChange={(e) => setNewUserRole(e.value)} placeholder="เลือกบทบาท" className="w-full" />
                     </div>
                     <Button label="ยืนยันการเพิ่มผู้ใช้" onClick={handleAddUser} className="mt-4 bg-blue-600 border-none hover:bg-blue-700" />
+                </div>
+            </Dialog>
+
+            {/* Dialog แก้ไขข้อมูลสมาชิก */}
+            <Dialog header={`แก้ไขข้อมูล: ${editingUser?.username || ''}`} visible={!!editingUser} style={{ width: '440px' }} onHide={() => setEditingUser(null)}>
+                <div className="flex flex-col gap-4 mt-2">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">ชื่อ - นามสกุล</label>
+                        <InputText value={editForm.full_name} onChange={setEditField('full_name')} />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">ชื่อเล่น</label>
+                        <InputText value={editForm.nickname} onChange={setEditField('nickname')} />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">มหาวิทยาลัย</label>
+                        <InputText value={editForm.university_name} onChange={setEditField('university_name')} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-slate-700">เทอม</label>
+                            <Dropdown value={editForm.term} options={TERM_OPTIONS} onChange={setEditField('term')} placeholder="เลือกเทอม" className="w-full" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-slate-700">ปีการศึกษา</label>
+                            <Calendar value={editForm.academic_year} onChange={setEditField('academic_year')} view="year" dateFormat="yy" showIcon placeholder="เลือกปี" className="w-full" />
+                            <small className="text-slate-400">{formatAcademicYear(editForm.academic_year)}</small>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-slate-700">เริ่มฝึกงาน</label>
+                            <Calendar value={editForm.internship_start_date} onChange={setEditField('internship_start_date')} dateFormat="dd/mm/yy" showIcon className="w-full" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-slate-700">สิ้นสุดฝึกงาน</label>
+                            <Calendar value={editForm.internship_end_date} onChange={setEditField('internship_end_date')} minDate={editForm.internship_start_date ?? undefined} dateFormat="dd/mm/yy" showIcon className="w-full" />
+                        </div>
+                    </div>
+                    <Button label="บันทึก" onClick={handleSaveEdit} className="mt-4 bg-blue-600 border-none hover:bg-blue-700" />
                 </div>
             </Dialog>
 

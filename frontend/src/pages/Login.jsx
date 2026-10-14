@@ -45,7 +45,12 @@ function Login() {
         navigate("/tasks");
       }
     } catch (err) {
-      toast.current.show({ severity: 'error', summary: 'Login Failed', detail: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง', life: 3000 });
+      // 403 = บัญชีรออนุมัติ / ถูกปฏิเสธ / ถูกปิด backend ส่งข้อความที่อธิบายสถานะมาให้
+      if (err.response?.status === 403) {
+        toast.current.show({ severity: 'warn', summary: 'ยังเข้าสู่ระบบไม่ได้', detail: err.response.data.message, life: 5000 });
+      } else {
+        toast.current.show({ severity: 'error', summary: 'Login Failed', detail: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง', life: 3000 });
+      }
     } finally {
       setLoading(false);
     }
@@ -126,6 +131,18 @@ function Login() {
               loading={loading}
               className="w-full py-4 bg-slate-900 border-none rounded-2xl text-white font-bold text-sm shadow-xl shadow-slate-200 hover:bg-slate-800 hover:-translate-y-0.5 active:scale-95 transition-all"
             />
+          </div>
+
+          <div className="mt-8 text-center">
+            <p className="text-slate-400 text-xs font-medium">
+              ยังไม่มีบัญชี?
+              <button
+                onClick={() => navigate("/register")}
+                className="ml-1 text-blue-600 font-bold hover:underline bg-transparent border-none p-0 cursor-pointer"
+              >
+                สมัครสมาชิก
+              </button>
+            </p>
           </div>
         </div>
 

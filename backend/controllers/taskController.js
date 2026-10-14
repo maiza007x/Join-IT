@@ -15,7 +15,7 @@ exports.getTasksCollab = async (req, res) => {
             SELECT 
                 r.id as id, r.deviceName, r.report, r.time_report, r.date_report, r.username,
                 d.depart_name as department_name,
-                GROUP_CONCAT(DISTINCT u.full_name SEPARATOR '||') as intern_names,
+                GROUP_CONCAT(DISTINCT COALESCE(u.nickname, u.full_name) SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN t.intern_id = ? AND t.deleted_at IS NULL THEN 1 ELSE 0 END) as isContributedByMe
             FROM ${ORDER_DB}.data_report r
             LEFT JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
@@ -42,7 +42,7 @@ exports.getTasksCollab = async (req, res) => {
                  i.number_device, i.ip_address, i.status, i.created_by, i.created_at, i.closed_at, i.updated_at,
                 COALESCE(dev.device_name, i.deviceName) as deviceName,
                 d.depart_name as department_name,
-                GROUP_CONCAT(DISTINCT CONCAT(u.full_name, '::', CASE WHEN (i.closed_at IS NOT NULL) OR (a.close_date IS NOT NULL AND a.close_date != '0000-00-00') THEN 'closed' ELSE 'working' END) SEPARATOR '||') as intern_names,
+                GROUP_CONCAT(DISTINCT CONCAT(COALESCE(u.nickname, u.full_name), '::', CASE WHEN (i.closed_at IS NOT NULL) OR (a.close_date IS NOT NULL AND a.close_date != '0000-00-00') THEN 'closed' ELSE 'working' END) SEPARATOR '||') as intern_names,
                 MAX(CASE WHEN a.intern_id = ? THEN 1 ELSE 0 END) as isContributedByMe
             FROM intern_tasks i
             LEFT JOIN ${ORDER_DB}.depart d ON i.department = d.depart_id
