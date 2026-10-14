@@ -28,7 +28,7 @@ async function checkForNewTasks() {
     try {
         // เช็ครายการงานที่ใหม่กว่า lastId
         const [rows] = await query(
-            "SELECT id, deviceName, report, username, time_report FROM data_report WHERE id > ? ORDER BY id ASC",
+            "SELECT id, deviceName, report, username, time_report FROM data_report WHERE id > ? AND parent_report_id IS NULL ORDER BY id ASC",
             [lastId],
             'order'
         );

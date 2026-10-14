@@ -22,6 +22,7 @@ exports.getTasksCollab = async (req, res) => {
             LEFT JOIN tasks t ON r.id = t.task_staff_id AND t.deleted_at IS NULL
             LEFT JOIN users u ON t.intern_id = u.id
             WHERE DATE(r.date_report) = ?
+            AND r.parent_report_id IS NULL
         `;
         const staffParams = [userId, targetDate];
         if (q) {
@@ -249,6 +250,7 @@ exports.getAnalyticsStats = async (req, res) => {
             SELECT COUNT(*) as total 
             FROM ${ORDER_DB}.data_report r 
             WHERE ${dateFilter}
+            AND r.parent_report_id IS NULL
         `);
 
         // B. จำนวนงานที่เข้าร่วม (Join Tasks) กรองตามช่วงเวลา + Global Filter
@@ -530,11 +532,11 @@ exports.getWorkloadFilters = async (req, res) => {
     try {
         const { academicYear, term, university } = req.query;
 
-        const [workingList] = await joinPool.query(`SELECT workingName as label, workingName as value FROM ${ORDER_DB}.workinglist`);
-        const [problemList] = await joinPool.query(`SELECT problemName as label, problemName as value FROM ${ORDER_DB}.problemlist`);
-        const [device] = await joinPool.query(`SELECT device_name as label, device_name as value FROM ${ORDER_DB}.device`);
-        const [depart] = await joinPool.query(`SELECT depart_name as label, depart_name as value FROM ${ORDER_DB}.depart`);
-        const [staff] = await joinPool.query(`SELECT username as value, CONCAT(fname, " ", lname) as label FROM ${ORDER_DB}.admin`);
+        const [workingList] = await joinPool.query(`SELECT workingName as label, workingName as value FROM ${ORDER_DB}.workinglist WHERE deleted_at IS NULL`);
+        const [problemList] = await joinPool.query(`SELECT problemName as label, problemName as value FROM ${ORDER_DB}.problemlist WHERE deleted_at IS NULL`);
+        const [device] = await joinPool.query(`SELECT device_name as label, device_name as value FROM ${ORDER_DB}.device WHERE deleted_at IS NULL`);
+        const [depart] = await joinPool.query(`SELECT depart_name as label, depart_name as value FROM ${ORDER_DB}.depart WHERE deleted_at IS NULL`);
+        const [staff] = await joinPool.query(`SELECT username as value, CONCAT(fname, " ", lname) as label FROM ${ORDER_DB}.admin WHERE is_active = 1`);
 
         // Fetch Universities with User Counts filtered by year and term
         let uniSql = `
@@ -685,19 +687,19 @@ exports.getHeatmapData = async (req, res) => {
         let masterLabels = [];
         try {
             if (category === 'workingList') {
-                const [rows] = await joinPool.query(`SELECT workingName as label FROM ${ORDER_DB}.workinglist ORDER BY workingName ASC`);
+                const [rows] = await joinPool.query(`SELECT workingName as label FROM ${ORDER_DB}.workinglist WHERE deleted_at IS NULL ORDER BY workingName ASC`);
                 masterLabels = rows.map(r => r.label);
             } else if (category === 'problemList') {
-                const [rows] = await joinPool.query(`SELECT problemName as label FROM ${ORDER_DB}.problemlist ORDER BY problemName ASC`);
+                const [rows] = await joinPool.query(`SELECT problemName as label FROM ${ORDER_DB}.problemlist WHERE deleted_at IS NULL ORDER BY problemName ASC`);
                 masterLabels = rows.map(r => r.label);
             } else if (category === 'device') {
-                const [rows] = await joinPool.query(`SELECT device_name as label FROM ${ORDER_DB}.device ORDER BY device_name ASC`);
+                const [rows] = await joinPool.query(`SELECT device_name as label FROM ${ORDER_DB}.device WHERE deleted_at IS NULL ORDER BY device_name ASC`);
                 masterLabels = rows.map(r => r.label);
             } else if (category === 'depart') {
-                const [rows] = await joinPool.query(`SELECT depart_name as label FROM ${ORDER_DB}.depart ORDER BY depart_name ASC`);
+                const [rows] = await joinPool.query(`SELECT depart_name as label FROM ${ORDER_DB}.depart WHERE deleted_at IS NULL ORDER BY depart_name ASC`);
                 masterLabels = rows.map(r => r.label);
             } else if (category === 'staff') {
-                const [rows] = await joinPool.query(`SELECT username as label FROM ${ORDER_DB}.admin ORDER BY username ASC`);
+                const [rows] = await joinPool.query(`SELECT username as label FROM ${ORDER_DB}.admin WHERE is_active = 1 ORDER BY username ASC`);
                 masterLabels = rows.map(r => r.label);
             } else {
                 // Fallback for work_type if not specified
@@ -719,6 +721,7 @@ exports.getHeatmapData = async (req, res) => {
             FROM ${ORDER_DB}.data_report r
             JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE r.status != '1'
+            AND r.parent_report_id IS NULL
         `;
 
         const params = [];
@@ -962,6 +965,7 @@ exports.getHeatmapDetails = async (req, res) => {
             FROM ${ORDER_DB}.data_report r
             JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE HOUR(r.time_report) = ?
+            AND r.parent_report_id IS NULL
         `;
 
         const params = [hour];
@@ -997,8 +1001,8 @@ exports.getHeatmapDetails = async (req, res) => {
 // --- 7. ดึงข้อมูลสำหรับตัวเลือกในฟอร์ม (แผนก และ อุปกรณ์) ---
 exports.getFormOptions = async (req, res) => {
     try {
-        const [departs] = await joinPool.query(`SELECT depart_id as value, depart_name as label FROM ${ORDER_DB}.depart ORDER BY depart_name ASC`);
-        const [devices] = await joinPool.query(`SELECT device_id as value, device_name as label FROM ${ORDER_DB}.device ORDER BY device_name ASC`);
+        const [departs] = await joinPool.query(`SELECT depart_id as value, depart_name as label FROM ${ORDER_DB}.depart WHERE deleted_at IS NULL ORDER BY depart_name ASC`);
+        const [devices] = await joinPool.query(`SELECT device_id as value, device_name as label FROM ${ORDER_DB}.device WHERE deleted_at IS NULL ORDER BY device_name ASC`);
 
         res.json({
             success: true,
