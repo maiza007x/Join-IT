@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const userController = require('../controllers/userController');
 const authMiddleware = require('../middleware/auth');
+const adminOnly = require('../middleware/adminOnly');
 
 // --- 1. การตั้งค่า Multer (รูปโปรไฟล์) ---
 const uploadDir = 'uploads/';
@@ -31,6 +32,9 @@ const upload = multer({
 // ดึงข้อมูลผู้ใช้ทั้งหมดเพื่อแสดงในหน้าจัดการสมาชิก
 router.get('/all', authMiddleware, userController.getAllUsers); 
 
+// รายการสมัครที่รออนุมัติ (admin)
+router.get('/pending', authMiddleware, adminOnly, userController.getPendingUsers);
+
 // ดึงรายชื่อนักศึกษาสำหรับตัวกรอง
 router.get('/students', authMiddleware, userController.getStudentList); 
 
@@ -45,6 +49,10 @@ router.put('/:id/role', authMiddleware, userController.updateUserRole);
 
 // [NEW] รีเซ็ตรหัสผ่านของผู้ใช้
 router.put('/:id/reset-password', authMiddleware, userController.resetPassword);
+
+// อนุมัติ / ปฏิเสธคำขอสมัคร (admin)
+router.put('/:id/approve', authMiddleware, adminOnly, userController.approveUser);
+router.put('/:id/reject', authMiddleware, adminOnly, userController.rejectUser);
 
 // ดูข้อมูลโปรไฟล์ตัวเอง
 router.get('/me', authMiddleware, userController.getProfile);
@@ -63,5 +71,8 @@ router.post('/upload-avatar', authMiddleware, upload.single('avatar'), userContr
 
 // บันทึกรายละเอียดการปฏิบัติงาน (Task Contribution)
 router.post('/contributions', authMiddleware, userController.addTaskContribution);
+
+// แอดมินแก้ข้อมูลนักศึกษา (ต้องอยู่หลัง /me และ /me/password เพื่อไม่ให้ /:id ดัก "me")
+router.put('/:id', authMiddleware, adminOnly, userController.updateUserInfo);
 
 module.exports = router;

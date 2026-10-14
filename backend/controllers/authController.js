@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const db = require('../helper/db.js');
 const jwt = require('jsonwebtoken');
+const { validateInternshipInfo } = require('../helper/userFields');
 
 const JWT_SECRET = process.env.SECRET_ACCESS_TOKEN;
 
@@ -9,11 +10,6 @@ const ACCOUNT_STATUS_MESSAGES = {
   rejected: "คำขอสมัครของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อเจ้าหน้าที่",
   closed: "บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อเจ้าหน้าที่",
 };
-
-const TERMS = ["เทอม 1", "เทอม 2", "ภาคฤดูร้อน"];
-
-const isValidDate = (value) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
 
 exports.login = async (req, res) => {
   try {
@@ -99,20 +95,14 @@ exports.register = async (req, res) => {
     term, academic_year, internship_start_date, internship_end_date,
   } = req.body;
 
-  if (![username, password, full_name, nickname, university_name, academic_year].every(Boolean)) {
+  const required = [username, password, full_name, nickname, university_name, term, academic_year, internship_start_date, internship_end_date];
+  if (!required.every(Boolean)) {
     return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
   }
 
-  if (!TERMS.includes(term)) {
-    return res.status(400).json({ message: "เทอมไม่ถูกต้อง" });
-  }
-
-  if (!isValidDate(internship_start_date) || !isValidDate(internship_end_date)) {
-    return res.status(400).json({ message: "วันที่ฝึกงานไม่ถูกต้อง" });
-  }
-
-  if (internship_end_date < internship_start_date) {
-    return res.status(400).json({ message: "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มฝึกงาน" });
+  const infoError = validateInternshipInfo({ term, internship_start_date, internship_end_date });
+  if (infoError) {
+    return res.status(400).json({ message: infoError });
   }
 
   try {
