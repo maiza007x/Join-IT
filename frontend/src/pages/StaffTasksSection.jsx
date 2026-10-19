@@ -9,6 +9,18 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Dropdown } from "primereact/dropdown";
 import api from "../services/api";
 
+const PRIORITIES = {
+    1: { label: "⏰งานประจำวัน", className: "text-cyan-600" },
+    2: { label: "🔵 ปกติ", className: "text-emerald-600" },
+    3: { label: "🟡กลาง", className: "text-amber-600" },
+    4: { label: "🔴 เร่งด่วน", className: "text-rose-600" },
+};
+
+const getPriorityText = (priority) => PRIORITIES[priority]?.label ?? "-";
+
+// เจ้าหน้าที่รับงาน: แสดงชื่อเล่น ถ้ายังไม่มีให้แสดง @username
+const getStaffName = (task) => task.staff_nickname || (task.username ? `@${task.username}` : "-");
+
 const StaffTasksSection = ({
     tasks,
     loading,
@@ -26,13 +38,6 @@ const StaffTasksSection = ({
     const [selectedTask, setSelectedTask] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
 
-    const getPriorityText = (p) => {
-        if (p === 1 || p === '1') return 'งานประจำวัน';
-        if (p === 2 || p === '2') return 'ต่ำ';
-        if (p === 3 || p === '3') return 'ปานกลาง';
-        if (p === 4 || p === '4') return 'เร่งด่วน';
-        return p || '-';
-    };
 
     const getCloseTimeText = (t) => {
         if (!t || t.startsWith('00:00') || t === '00:000') return '-';
@@ -65,6 +70,12 @@ const StaffTasksSection = ({
         }));
     }, [tasks]);
 
+    const priorityTemplate = (rowData) => {
+        const priority = PRIORITIES[rowData.priority];
+        if (!priority) return <span className="text-slate-300">-</span>;
+        return <span className={`text-xs font-bold whitespace-nowrap ${priority.className}`}>{priority.label}</span>;
+    };
+
     const timeTemplate = (rowData) => {
         if (!rowData.time_report) return "-";
         return (
@@ -86,7 +97,7 @@ const StaffTasksSection = ({
                     />
                 ))
             ) : (
-                <span className="text-slate-300 text-[10px] italic">
+                <span className="text-slate-300 text-[10px]">
                     ยังไม่มีคนช่วย
                 </span>
             )}
@@ -210,7 +221,7 @@ const StaffTasksSection = ({
                             scrollable
                             rowsPerPageOptions={[10, 25, 50]}
                             stripedRows
-                            sortField="id"
+                            sortField="time_report"
                             sortOrder={-1}
                             removableSort
                             emptyMessage="ไม่พบรายการงานที่ตรงตามเงื่อนไข"
@@ -237,6 +248,13 @@ const StaffTasksSection = ({
                                 header="เวลาแจ้ง"
                                 body={timeTemplate}
                                 style={{ width: "8rem" }}
+                                sortable
+                            />
+                            <Column
+                                field="priority"
+                                header="ความเร่งด่วน"
+                                body={priorityTemplate}
+                                style={{ width: "9rem" }}
                                 sortable
                             />
                             <Column
@@ -269,8 +287,8 @@ const StaffTasksSection = ({
                                 field="username"
                                 header="เจ้าหน้าที่รับงาน"
                                 body={(row) => (
-                                    <span className="text-slate-500 font-semibold italic">
-                                        {row.username ? `@${row.username}` : "-"}
+                                    <span title={row.username} className="text-slate-500 font-semibold">
+                                        {getStaffName(row)}
                                     </span>
                                 )}
                                 style={{ width: "13rem" }}
@@ -318,8 +336,8 @@ const StaffTasksSection = ({
                                                         : "-"}
                                                 </span>
                                             </div>
-                                            <span className="text-slate-500 font-semibold italic text-xs bg-slate-50 px-2 py-1 rounded-md">
-                                                @{row.username}
+                                            <span className="text-slate-500 font-semibold text-xs bg-slate-50 px-2 py-1 rounded-md">
+                                                {getStaffName(row)}
                                             </span>
                                         </div>
                                         <div className="flex flex-col gap-1">
@@ -333,6 +351,9 @@ const StaffTasksSection = ({
                                                 </span>
                                             </div>
                                         </div>
+                                        {PRIORITIES[row.priority] && (
+                                            <div>{priorityTemplate(row)}</div>
+                                        )}
                                         <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                                             {row.report}
                                         </p>
@@ -352,7 +373,7 @@ const StaffTasksSection = ({
                                                         />
                                                     ))
                                                 ) : (
-                                                    <span className="text-slate-300 text-[10px] italic">
+                                                    <span className="text-slate-300 text-[10px]">
                                                         ยังไม่มีคนช่วย
                                                     </span>
                                                 )}

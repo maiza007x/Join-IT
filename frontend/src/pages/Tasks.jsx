@@ -50,7 +50,9 @@ function Tasks() {
         username: { value: null, matchMode: FilterMatchMode.IN }
     });
 
-    const reporters = Array.from(new Set(tasks.map(t => t.username).filter(Boolean)));
+    const reporters = Array.from(
+        new Map(tasks.filter(t => t.username).map(t => [t.username, { label: t.staff_nickname || `@${t.username}`, value: t.username }])).values()
+    );
     const incompleteInternTasksCount = internTasks.filter(t => Number(t.status) !== 3).length;
 
     const reporterFilterTemplate = (options) => {
@@ -58,6 +60,8 @@ function Tasks() {
             <MultiSelect
                 value={options.value}
                 options={reporters}
+                optionLabel="label"
+                optionValue="value"
                 onChange={(e) => options.filterCallback(e.value)}
                 placeholder="เลือกผู้แจ้ง"
                 className="p-column-filter"
