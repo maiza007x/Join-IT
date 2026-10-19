@@ -8,10 +8,11 @@ import { Toast } from "primereact/toast";
 import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
 import { TERM_OPTIONS } from "../constants/terms";
+import EducationLevelInput from "../components/EducationLevelInput";
 import { toDateString, dateToAcademicYear, formatAcademicYear } from "../utils/dateString";
 
 const REQUIRED_FIELDS = [
-  "first_name", "last_name", "nickname", "university_name", "term", "academic_year",
+  "first_name", "last_name", "nickname", "university_name", "education_level", "term", "academic_year",
   "internship_start_date", "internship_end_date", "username", "password", "confirmPassword",
 ];
 
@@ -58,7 +59,7 @@ function Field({ label, hint, error, children }) {
 }
 
 const EMPTY_FORM = {
-  first_name: "", last_name: "", nickname: "", university_name: "",
+  first_name: "", last_name: "", nickname: "", university_name: "", education_level: "",
   term: null, academic_year: null, internship_start_date: null, internship_end_date: null,
   username: "", password: "", confirmPassword: "",
 };
@@ -90,6 +91,7 @@ function Register() {
         full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
         nickname: form.nickname.trim(),
         university_name: form.university_name.trim(),
+        education_level: form.education_level.trim(),
         term: form.term,
         academic_year: dateToAcademicYear(form.academic_year),
         internship_start_date: toDateString(form.internship_start_date),
@@ -155,8 +157,11 @@ function Register() {
               </Field>
 
               <Section title="ข้อมูลการฝึกงาน" />
-              <Field label="มหาวิทยาลัย" error={errors.university_name}>
+              <Field label="มหาวิทยาลัย / สถานศึกษา" error={errors.university_name}>
                 <InputText value={form.university_name} onChange={setField("university_name")} invalid={!!errors.university_name} />
+              </Field>
+              <Field label="ระดับการศึกษา" error={errors.education_level}>
+                <EducationLevelInput value={form.education_level} onChange={(level) => setForm((prev) => ({ ...prev, education_level: level }))} invalid={!!errors.education_level} />
               </Field>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="เทอม" error={errors.term}>

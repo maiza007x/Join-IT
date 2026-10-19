@@ -259,6 +259,7 @@ const Profile = () => {
                             <InfoField icon="pi-user" color="text-blue-500" label="ชื่อและนามสกุลเต็ม" value={userData.full_name} />
                             <InfoField icon="pi-heart" color="text-pink-500" label="ชื่อเล่น" value={userData.nickname} />
                             <InfoField icon="pi-building" color="text-red-500" label="สถานศึกษา / มหาวิทยาลัย" value={userData.university_name} />
+                            <InfoField icon="pi-graduation-cap" color="text-teal-500" label="ระดับการศึกษา" value={userData.education_level} />
                             <InfoField icon="pi-calendar" color="text-green-500" label="ปีการศึกษา" value={userData.academic_year} />
                             <InfoField icon="pi-clock" color="text-amber-500" label="เทอมการศึกษา" value={userData.term} />
                             <InfoField

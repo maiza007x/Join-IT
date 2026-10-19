@@ -2,13 +2,13 @@ const joinPool = require('../helper/db'); // ใช้ตัวแปรนี�
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
-const { validateInternshipInfo } = require('../helper/userFields');
+const { validateStudentInfo } = require('../helper/userFields');
 
 // --- 1. GET /api/users/me (ดึงข้อมูลโปรไฟล์ตัวเอง) ---
 exports.getProfile = async (req, res) => {
     try {
         const [rows] = await joinPool.query(
-            `SELECT id, username, full_name, nickname, university_name, academic_year, term, faculty, role, avatar_url, verified,
+            `SELECT id, username, full_name, nickname, university_name, education_level, academic_year, term, faculty, role, avatar_url, verified,
                     internship_start_date, internship_end_date
              FROM users WHERE id = ?`,
             [req.user.id]
@@ -47,6 +47,7 @@ exports.getAllUsers = async (req, res) => {
                 nickname,
                 status,
                 university_name,
+                education_level,
                 faculty,
                 academic_year,
                 term,
@@ -243,13 +244,13 @@ exports.addUser = async (req, res) => {
             return res.status(403).json({ message: "คุณไม่มีสิทธิ์เพิ่มผู้ใช้งาน" });
         }
 
-        const { full_name, role, nickname, university_name, term, academic_year, internship_start_date, internship_end_date } = req.body;
+        const { full_name, role, nickname, university_name, education_level, term, academic_year, internship_start_date, internship_end_date } = req.body;
 
         if (!full_name || !role) {
             return res.status(400).json({ message: "กรุณากรอกชื่อและบทบาทให้ครบถ้วน" });
         }
 
-        const infoError = validateInternshipInfo({ term, internship_start_date, internship_end_date });
+        const infoError = validateStudentInfo({ education_level, term, internship_start_date, internship_end_date });
         if (infoError) {
             return res.status(400).json({ message: infoError });
         }
@@ -278,11 +279,11 @@ exports.addUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(plainPassword, salt);
 
         const sql = `INSERT INTO users
-            (username, password, full_name, role, verified, status, nickname, university_name, term, academic_year, internship_start_date, internship_end_date)
-            VALUES (?, ?, ?, ?, 0, 'approved', ?, ?, ?, ?, ?, ?)`;
+            (username, password, full_name, role, verified, status, nickname, university_name, education_level, term, academic_year, internship_start_date, internship_end_date)
+            VALUES (?, ?, ?, ?, 0, 'approved', ?, ?, ?, ?, ?, ?, ?)`;
         const [result] = await joinPool.query(sql, [
             username, hashedPassword, full_name, role,
-            nickname ?? null, university_name ?? null, term ?? null, academic_year ?? null,
+            nickname ?? null, university_name ?? null, education_level ?? null, term ?? null, academic_year ?? null,
             internship_start_date ?? null, internship_end_date ?? null,
         ]);
 
@@ -356,7 +357,7 @@ exports.resetPassword = async (req, res) => {
 exports.getPendingUsers = async (req, res) => {
     try {
         const [users] = await joinPool.query(`
-            SELECT id, username, full_name, nickname, university_name, term, academic_year,
+            SELECT id, username, full_name, nickname, university_name, education_level, term, academic_year,
                    internship_start_date, internship_end_date
             FROM users
             WHERE status = 'pending'
@@ -394,7 +395,7 @@ exports.rejectUser = decideRegistration('rejected');
 
 // --- 9. PUT /api/users/:id (แอดมินแก้ข้อมูลนักศึกษา) ---
 const EDITABLE_USER_FIELDS = [
-    'full_name', 'nickname', 'university_name', 'term', 'academic_year',
+    'full_name', 'nickname', 'university_name', 'education_level', 'term', 'academic_year',
     'internship_start_date', 'internship_end_date',
 ];
 
@@ -417,7 +418,8 @@ exports.updateUserInfo = async (req, res) => {
         }
 
         // ตรวจวันเริ่ม/สิ้นสุดโดยรวมค่าเดิมที่ไม่ได้ส่งมาแก้
-        const infoError = validateInternshipInfo({
+        const infoError = validateStudentInfo({
+            education_level: req.body.education_level,
             term: req.body.term,
             internship_start_date: req.body.internship_start_date ?? rows[0].internship_start_date,
             internship_end_date: req.body.internship_end_date ?? rows[0].internship_end_date,

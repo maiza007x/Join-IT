@@ -4,10 +4,14 @@ const isValidDate = (value) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
 
 /**
- * ตรวจข้อมูลเทอมและช่วงวันที่ฝึกงาน (ข้ามค่าที่เป็น undefined/null)
+ * ตรวจข้อมูลการศึกษา/ฝึกงานของนักศึกษา (ข้ามค่าที่เป็น undefined/null)
+ * ระดับการศึกษาเป็นข้อความอิสระ เพราะมีตัวเลือก "อื่นๆ" ให้พิมพ์เอง (ตัวเลือกมาตรฐานอยู่ที่ frontend)
  * @returns {string|null} ข้อความ error หรือ null ถ้าถูกต้อง
  */
-function validateInternshipInfo({ term, internship_start_date: start, internship_end_date: end }) {
+function validateStudentInfo({ education_level: education, term, internship_start_date: start, internship_end_date: end }) {
+  if (education != null && (typeof education !== "string" || !education.trim() || education.length > 50)) {
+    return "ระดับการศึกษาไม่ถูกต้อง";
+  }
   if (term != null && !TERMS.includes(term)) {
     return "เทอมไม่ถูกต้อง";
   }
@@ -20,4 +24,4 @@ function validateInternshipInfo({ term, internship_start_date: start, internship
   return null;
 }
 
-module.exports = { validateInternshipInfo };
+module.exports = { validateStudentInfo };

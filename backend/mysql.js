@@ -20,7 +20,7 @@ const commonConfig = {
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
   idleTimeout: 60000, // 60 seconds
-  maxIdle: 10, // max idle connections, the same as connectionLimit
+  maxIdle: 5, // ต้องน้อยกว่า connectionLimit ไม่งั้น mysql2 จะไม่ล้าง connection ที่ idle เกิน idleTimeout (เหลือ connection ที่ถูกตัดไปแล้ว ทำให้ query แรกหลังว่างนานล้มเหลว)
 };
 
 // สร้าง Pool แบบดัก Error ตั้งแต่ตอนสร้าง

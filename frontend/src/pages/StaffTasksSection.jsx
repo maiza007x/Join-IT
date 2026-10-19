@@ -267,7 +267,7 @@ const StaffTasksSection = ({
                             />
                             <Column
                                 field="username"
-                                header="ผู้แจ้ง"
+                                header="เจ้าหน้าที่รับงาน"
                                 body={(row) => (
                                     <span className="text-slate-500 font-semibold italic">
                                         {row.username ? `@${row.username}` : "-"}

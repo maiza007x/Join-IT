@@ -12,9 +12,16 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { TERM_OPTIONS } from '../constants/terms';
+import EducationLevelInput from '../components/EducationLevelInput';
 import { toDateString, fromDateString, formatThaiDate, dateToAcademicYear, academicYearToDate, formatAcademicYear } from '../utils/dateString';
 import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../services/api';
+const ACCOUNT_STATUS_TAGS = {
+    approved: { label: 'ใช้งานอยู่', severity: 'success' },
+    rejected: { label: 'ถูกปฏิเสธ', severity: 'danger' },
+    closed: { label: 'ปิดบัญชี', severity: 'secondary' },
+};
+
 function Members() {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
@@ -104,6 +111,7 @@ function Members() {
             full_name: row.full_name || '',
             nickname: row.nickname || '',
             university_name: row.university_name || '',
+            education_level: row.education_level || '',
             term: row.term || null,
             academic_year: academicYearToDate(row.academic_year),
             internship_start_date: fromDateString(row.internship_start_date),
@@ -249,6 +257,7 @@ function Members() {
                                 )} />
                                 <Column field="username" header="Username" />
                                 <Column field="university_name" header="มหาวิทยาลัย" />
+                                <Column field="education_level" header="ระดับ" />
                                 <Column header="เทอม / ปีการศึกษา" body={(row) => `${row.term} / ${row.academic_year}`} />
                                 <Column header="ช่วงฝึกงาน" body={(row) => `${formatThaiDate(row.internship_start_date)} - ${formatThaiDate(row.internship_end_date)}`} />
                                 <Column header="ดำเนินการ" style={{ width: '12rem' }} body={(row) => (
@@ -317,6 +326,9 @@ function Members() {
                             <Column field="university_name" header="มหาวิทยาลัย" sortable body={(row) => (
                                 <span className="text-sm font-medium">{row.university_name || '-'}</span>
                             )} />
+                            <Column field="education_level" header="ระดับการศึกษา" sortable body={(row) => (
+                                <span className="text-sm font-medium">{row.education_level || '-'}</span>
+                            )} />
                             <Column field="faculty" header="คณะ" sortable body={(row) => (
                                 <span className="text-sm font-medium">{row.faculty || '-'}</span>
                             )} />
@@ -331,9 +343,10 @@ function Members() {
                                     {row.internship_start_date ? `${formatThaiDate(row.internship_start_date)} - ${formatThaiDate(row.internship_end_date)}` : '-'}
                                 </span>
                             )} />
-                            <Column field="status" header="สถานะ" body={(row) => row.status !== 'approved' && (
-                                <Tag value={row.status === 'rejected' ? 'ถูกปฏิเสธ' : 'ปิดบัญชี'} severity={row.status === 'rejected' ? 'danger' : 'secondary'} />
-                            )} />
+                            <Column field="status" header="สถานะ" body={(row) => {
+                                const { label, severity } = ACCOUNT_STATUS_TAGS[row.status];
+                                return <Tag value={label} severity={severity} />;
+                            }} />
                             <Column field="updated_at" header="วันที่อัปเดตล่าสุด ↑↓" body={(row) => {
                                 if (!row.updated_at) return '-';
                                 const d = new Date(row.updated_at);
@@ -413,6 +426,10 @@ function Members() {
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-bold text-slate-700">มหาวิทยาลัย</label>
                         <InputText value={editForm.university_name} onChange={setEditField('university_name')} />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">ระดับการศึกษา</label>
+                        <EducationLevelInput value={editForm.education_level} onChange={(level) => setEditForm((prev) => ({ ...prev, education_level: level }))} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-2">
