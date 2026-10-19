@@ -30,7 +30,7 @@ const upload = multer({
 // --- 2. Routes ---
 
 // ดึงข้อมูลผู้ใช้ทั้งหมดเพื่อแสดงในหน้าจัดการสมาชิก
-router.get('/all', authMiddleware, userController.getAllUsers); 
+router.get('/all', authMiddleware, adminOnly, userController.getAllUsers); 
 
 // รายการสมัครที่รออนุมัติ (admin)
 router.get('/pending', authMiddleware, adminOnly, userController.getPendingUsers);

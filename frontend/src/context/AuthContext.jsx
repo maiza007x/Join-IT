@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     // เช็กว่าคนนี้เป็นแอดมินไหมจาก State user
-    const isAdmin = user?.role?.toLowerCase() === 'admin' || user?.username?.toLowerCase() === 'admin';
+    const isAdmin = user?.role?.toLowerCase() === 'admin';
 
     useEffect(() => {
         // ทุกครั้งที่เปิดเว็บขึ้นมาใหม่ หรือกด Refresh ให้มายิง API ตัวนี้
