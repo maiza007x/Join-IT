@@ -1,5 +1,6 @@
 // src/services/api.js
 import axios from 'axios';
+import { TOKEN_KEY } from '../constants/auth';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_REACT_APP_API, // ดึงค่าจาก .env
@@ -7,7 +8,7 @@ const api = axios.create({
 
 // ใส่ Interceptor เพื่อดึง Token มาแนบอัตโนมัติ (ลดการ Hardcode ในหน้า Tasks)
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }

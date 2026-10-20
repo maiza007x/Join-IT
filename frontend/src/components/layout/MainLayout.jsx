@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Toast } from "primereact/toast";
 import Navbar from "../Navbar";
+import BugReportWidget from "../BugReportWidget";
 import socket from "../../services/socket";
 import { useAuth } from "../../context/AuthContext";
 import { getInternshipStatus } from "../../utils/internship";
@@ -64,6 +65,7 @@ const MainLayout = () => {
       <main>
         <Outlet />
       </main>
+      {shouldShowNavbar && user && <BugReportWidget />}
     </>
   );
 };

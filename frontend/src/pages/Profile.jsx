@@ -8,6 +8,7 @@ import { Divider } from 'primereact/divider';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 import { formatThaiDate } from '../utils/dateString';
+import { TOKEN_KEY } from '../constants/auth';
 
 function InfoField({ icon, color, label, value }) {
     return (
@@ -99,7 +100,7 @@ const Profile = () => {
             toast.current.show({ severity: 'success', summary: 'สำเร็จ', detail: 'เปลี่ยนรหัสผ่านเรียบร้อย ระบบกำลังนำคุณไปเข้าสู่ระบบใหม่...', life: 2000 });
 
             setTimeout(() => {
-                localStorage.removeItem('token');
+                localStorage.removeItem(TOKEN_KEY);
                 navigate('/login');
             }, 2000);
 

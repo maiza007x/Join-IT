@@ -10,6 +10,7 @@ const userRoutes = require("./api_routes/user");
 const taskRoutes = require("./api_routes/tasks"); // รวมงานทั้งหมดไว้ที่นี่
 const settingRoutes = require("./api_routes/settings");
 const webhooksRoutes = require("./api_routes/webhooks");
+const bugReportRoutes = require("./api_routes/bugReports");
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/tasks", taskRoutes); 
 app.use("/api/settings", settingRoutes);
 app.use("/api/webhooks", webhooksRoutes);
+app.use("/api/bug-reports", bugReportRoutes);
 
 // ✅ 4. Error Handler
 app.use((err, req, res, next) => {

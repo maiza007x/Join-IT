@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
+import { TOKEN_KEY } from '../constants/auth';
 
 const AuthContext = createContext(null);
 
@@ -13,7 +14,7 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         // ทุกครั้งที่เปิดเว็บขึ้นมาใหม่ หรือกด Refresh ให้มายิง API ตัวนี้
         const getMe = async () => {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem(TOKEN_KEY);
 
             if (!token) {
                 setLoading(false);
@@ -29,7 +30,7 @@ export const AuthProvider = ({ children }) => {
             } catch (error) {
                 console.error("Error fetching getMe:", error);
                 // ถ้า Token หมดอายุ หรือมีปัญหา ให้เคลียร์ค่าทิ้ง
-                localStorage.removeItem("token");
+                localStorage.removeItem(TOKEN_KEY);
                 setUser(null);
             } finally {
                 setLoading(false);
@@ -41,13 +42,13 @@ export const AuthProvider = ({ children }) => {
 
     // ฟังก์ชันตอน Login สำเร็จ (ให้เรียกใช้ในหน้า Login.jsx)
     const login = (userData, token) => {
-        localStorage.setItem("token", token);
+        localStorage.setItem(TOKEN_KEY, token);
         setUser(userData);
     };
 
     // ฟังก์ชันตอน Logout
     const logout = () => {
-        localStorage.removeItem("token");
+        localStorage.removeItem(TOKEN_KEY);
         setUser(null);
     };
 
