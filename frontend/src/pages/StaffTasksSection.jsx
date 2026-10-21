@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -21,6 +21,12 @@ const getPriorityText = (priority) => PRIORITIES[priority]?.label ?? "-";
 // เจ้าหน้าที่รับงาน: แสดงชื่อเล่น ถ้ายังไม่มีให้แสดง @username
 const getStaffName = (task) => task.staff_nickname || (task.username ? `@${task.username}` : "-");
 
+// จำตัวกรอง "เฉพาะงานที่ยังไม่มีคนช่วย" ไว้ในเบราว์เซอร์ (ขึ้นต้น joinit_ เพราะใช้ localStorage ร่วมกับ Order-IT)
+const ONLY_NO_HELPER_KEY = "joinit_staffTasksOnlyNoHelper";
+
+// งานที่ยังไม่มีนักศึกษาช่วย
+const hasNoHelper = (task) => !task.interns || task.interns.length === 0;
+
 const StaffTasksSection = ({
     tasks,
     loading,
@@ -37,6 +43,12 @@ const StaffTasksSection = ({
     const [detailDialogVisible, setDetailDialogVisible] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
+    // กรองเฉพาะงานที่ยังไม่มีนักศึกษาช่วย (กดการ์ดส้มหรือปุ่มในหัวตาราง)
+    const [onlyNoHelper, setOnlyNoHelper] = useState(() => localStorage.getItem(ONLY_NO_HELPER_KEY) === "true");
+
+    useEffect(() => {
+        localStorage.setItem(ONLY_NO_HELPER_KEY, onlyNoHelper);
+    }, [onlyNoHelper]);
 
 
     const getCloseTimeText = (t) => {
@@ -63,12 +75,16 @@ const StaffTasksSection = ({
         }
     };
 
+    const noHelperCount = tasks.filter(hasNoHelper).length;
+
     const processedTasks = React.useMemo(() => {
-        return tasks.map((t) => ({
-            ...t,
-            interns_str: t.interns && t.interns.length > 0 ? t.interns.join(", ") : "",
-        }));
-    }, [tasks]);
+        return tasks
+            .filter((t) => !onlyNoHelper || hasNoHelper(t))
+            .map((t) => ({
+                ...t,
+                interns_str: t.interns && t.interns.length > 0 ? t.interns.join(", ") : "",
+            }));
+    }, [tasks, onlyNoHelper]);
 
     const priorityTemplate = (rowData) => {
         const priority = PRIORITIES[rowData.priority];
@@ -164,23 +180,25 @@ const StaffTasksSection = ({
                         </h2>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-orange-400">
+                <button
+                    type="button"
+                    onClick={() => setOnlyNoHelper((value) => !value)}
+                    title="กดเพื่อแสดงเฉพาะงานที่ยังไม่มีคนช่วย"
+                    className={`text-left bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4 border-l-4 border-l-orange-400 cursor-pointer transition-all ${onlyNoHelper ? "border-orange-300 ring-2 ring-orange-300" : "border-slate-50 hover:shadow-md"}`}
+                >
                     <i className="pi pi-user text-3xl text-orange-400 bg-orange-50 p-4 rounded-3xl" />
                     <div>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                             ยังไม่มีคนช่วย
                         </span>
                         <h2 className="text-3xl font-black text-orange-950 mt-1">
-                            {
-                                tasks.filter((t) => !t.interns || t.interns.length === 0)
-                                    .length
-                            }{" "}
+                            {noHelperCount}{" "}
                             <span className="text-sm font-medium text-slate-400">
                                 รายการ
                             </span>
                         </h2>
                     </div>
-                </div>
+                </button>
             </div>
 
             {/* Main Data Table */}
@@ -197,7 +215,15 @@ const StaffTasksSection = ({
                             </p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setOnlyNoHelper((value) => !value)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border-none text-xs font-bold cursor-pointer transition-all ${onlyNoHelper ? "bg-orange-400 text-white" : "bg-white/10 text-slate-200 hover:bg-white/20"}`}
+                        >
+                            <i className={`pi ${onlyNoHelper ? "pi-check-square" : "pi-stop"} text-xs`}></i>
+                            เฉพาะงานที่ยังไม่มีคนช่วย ({noHelperCount})
+                        </button>
                         <Button
                             icon="pi pi-refresh"
                             className="p-button-rounded p-button-text text-white hover:bg-white/10"
@@ -315,8 +341,8 @@ const StaffTasksSection = ({
                     </div>
                     {/* Mobile Cards (Tasks) */}
                     <div className="md:hidden flex flex-col gap-4">
-                        {tasks.length > 0 ? (
-                            tasks.map((row, i) => {
+                        {processedTasks.length > 0 ? (
+                            processedTasks.map((row, i) => {
                                 const isJoined = row.isContributedByMe;
                                 const isLoading = actionLoading === row.id;
                                 return (

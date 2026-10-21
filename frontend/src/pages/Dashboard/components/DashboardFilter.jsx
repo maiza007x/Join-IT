@@ -3,7 +3,7 @@ import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
 import { Button } from "primereact/button";
 
-const DashboardFilter = ({ filters, options, onChange, onApply, loading }) => {
+const DashboardFilter = ({ filters, options, onChange, onApply, onReset, loading }) => {
   return (
     <div className="xl:sticky xl:top-22">
       <div className="w-full flex items-center bg-white px-5 py-3 rounded-xl shadow-sm border border-white gap-4 mb-4">
@@ -30,15 +30,18 @@ const DashboardFilter = ({ filters, options, onChange, onApply, loading }) => {
               <Calendar
                 value={filters.year && filters.year !== "all" ? (filters.year > 2400 ? new Date(filters.year - 543, 0, 1) : new Date(filters.year, 0, 1)) : null}
                 onChange={(e) => {
-                  if (e.value) {
-                    const year = e.value.getFullYear();
-                    const beYear = year < 2400 ? year + 543 : year;
-                    onChange("year", beYear.toString());
+                  if (!e.value) {
+                    onChange("year", "all");
+                    return;
                   }
+                  const year = e.value.getFullYear();
+                  const beYear = year < 2400 ? year + 543 : year;
+                  onChange("year", beYear.toString());
                 }}
                 view="year"
                 dateFormat="yy"
-                placeholder="เลือกปี"
+                showButtonBar
+                placeholder="ทุกปีการศึกษา"
                 className="grow h-10"
                 inputClassName="text-sm border-slate-200 bg-white hover:border-indigo-300 focus:border-indigo-500 rounded-lg transition-colors"
               />
@@ -114,6 +117,7 @@ const DashboardFilter = ({ filters, options, onChange, onApply, loading }) => {
             <Button
               label="รีเซ็ตกลับค่าเริ่มต้น"
               icon="pi pi-refresh"
+              onClick={onReset}
               className="w-full justify-center text-slate-500 bg-transparent hover:bg-slate-100 border-none text-xs py-2.5 rounded-lg font-bold transition-all focus:ring-2 focus:ring-slate-100"
             />
           </div>

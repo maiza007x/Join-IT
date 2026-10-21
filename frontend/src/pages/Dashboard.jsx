@@ -10,38 +10,45 @@ import ActivityHeatmap from "./Dashboard/components/ActivityHeatmap";
 import CollaborationChart from "./Dashboard/components/CollaborationChart";
 import LearningKeywordsChart from "./Dashboard/components/LearningKeywordsChart";
 import api from "../services/api";
+import { TERM_OPTIONS } from "../constants/terms";
+import { getTimeRangeBounds } from "./Dashboard/utils/timeRange";
+
+// ค่าภาคเรียนต้องตรงกับที่เก็บใน users.term ("เทอม 1", "เทอม 2", "ภาคฤดูร้อน")
+const getDefaultTerm = () => {
+  const month = new Date().getMonth() + 1; // 1-12
+  if (month >= 3 && month <= 5) return "ภาคฤดูร้อน";
+  if (month >= 6 && month <= 9) return "เทอม 1";
+  return "เทอม 2";
+};
+
+const createDefaultFilter = () => ({
+  year: String(new Date().getFullYear() + 543),
+  term: getDefaultTerm(),
+  university: "all",
+  person: "all",
+  timeRange: "today",
+  customDates: null,
+});
+
+const TERM_VALUES = ["all", ...TERM_OPTIONS.map((option) => option.value)];
 
 const Dashboard = () => {
   const toast = useRef(null);
   const [loading, setLoading] = useState(false);
-
-  // --- 🌟 Helpers ---
-  const getDefaultTerm = () => {
-    const month = new Date().getMonth() + 1; // 1-12
-    if (month >= 3 && month <= 5) return "ภาคฤดูร้อน";
-    if (month >= 6 && month <= 9) return "1";
-    if (month >= 10 || month <= 2) return "2";
-    return "1";
-  };
 
   // --- 🌟 Global Filters State ---
   const [globalFilter, setGlobalFilter] = useState(() => {
     const saved = localStorage.getItem("dashboardGlobalFilter");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const filter = JSON.parse(saved);
+        // ค่าที่บันทึกไว้จากเวอร์ชันเก่าใช้ภาคเรียน "1"/"2" ซึ่งไม่ตรงกับข้อมูลจริง ให้กลับเป็นค่าเริ่มต้น
+        return TERM_VALUES.includes(filter.term) ? filter : { ...filter, term: getDefaultTerm() };
       } catch (e) {
         console.error("Error parsing dashboardGlobalFilter", e);
       }
     }
-    return {
-      year: "2569",
-      term: getDefaultTerm(),
-      university: "all",
-      person: "all",
-      timeRange: "today",
-      customDates: null,
-    };
+    return createDefaultFilter();
   });
 
   useEffect(() => {
@@ -60,7 +67,7 @@ const Dashboard = () => {
 
   const [globalOptions, setGlobalOptions] = useState({
     year: [{ label: "ทุกปีการศึกษา", value: "all" }, { label: "ปีการศึกษา 2566", value: "2566" }, { label: "ปีการศึกษา 2567", value: "2567" }, { label: "ปีการศึกษา 2568", value: "2568" }, { label: "ปีการศึกษา 2569", value: "2569" }],
-    term: [{ label: "ทุกเทอม", value: "all" }, { label: "เทอม 1", value: "1" }, { label: "เทอม 2", value: "2" }, { label: "ภาคฤดูร้อน", value: "ภาคฤดูร้อน" }],
+    term: [{ label: "ทุกเทอม", value: "all" }, ...TERM_OPTIONS],
     university: [{ label: "ทุกมหาวิทยาลัย", value: "all" }],
     person: [{ label: "นักศึกษาทุกคน", value: "all" }],
     timeRange: [
@@ -79,8 +86,6 @@ const Dashboard = () => {
   };
 
   // --- 🚀 Fetch Options (Cascading) ---
-  const prevYearTerm = useRef({ year: globalFilter.year, term: globalFilter.term });
-
   const fetchCascadingOptions = async (filters) => {
     try {
       const response = await api.get("/tasks/workload-filters", {
@@ -100,17 +105,10 @@ const Dashboard = () => {
           person: [{ label: "นักศึกษาทุกคน", value: "all" }, ...students]
         }));
 
-        // Auto-select top university ONLY if year or term changed, or if current selection is invalid
-        const yearTermChanged = prevYearTerm.current.year !== filters.year || prevYearTerm.current.term !== filters.term;
-
-        if (yearTermChanged && universities.length > 0) {
-          setGlobalFilter(prev => ({ ...prev, university: universities[0].value }));
-        } else if (filters.university !== "all" && !universities.find(u => u.value === filters.university)) {
-          // If current uni is not in the new list, reset to 'all' or top
-          setGlobalFilter(prev => ({ ...prev, university: universities.length > 0 ? universities[0].value : "all" }));
+        // สถาบันที่เลือกไว้ไม่มีในรายการใหม่ (เช่น เปลี่ยนปี/เทอม) ให้กลับเป็นทั้งหมด
+        if (filters.university !== "all" && !universities.some((u) => u.value === filters.university)) {
+          setGlobalFilter((prev) => ({ ...prev, university: "all" }));
         }
-
-        prevYearTerm.current = { year: filters.year, term: filters.term };
       }
     } catch (err) {
       console.error("Failed to fetch cascading options", err);
@@ -128,7 +126,7 @@ const Dashboard = () => {
     try {
       const response = await api.get('/tasks/analytics-stats', {
         params: {
-          range: filters.timeRange,
+          ...getTimeRangeBounds(filters.timeRange, filters.customDates),
           year: filters.year,
           term: filters.term,
           university: filters.university,
@@ -156,6 +154,8 @@ const Dashboard = () => {
     setGlobalFilter(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleResetFilter = () => setGlobalFilter(createDefaultFilter());
+
   const handleCardFilterChange = (key, value) => {
     setCardFilter(prev => ({ ...prev, [key]: value }));
     // Ideally fetch specific chart data here or filter locally
@@ -174,6 +174,7 @@ const Dashboard = () => {
             options={globalOptions}
             onChange={handleFilterChange}
             onApply={() => fetchDashboardData(globalFilter)}
+            onReset={handleResetFilter}
             loading={loading}
           />
         </div>

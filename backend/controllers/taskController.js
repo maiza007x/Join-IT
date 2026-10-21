@@ -20,7 +20,7 @@ exports.getTasksCollab = async (req, res) => {
         // ดึงงานหลัก (Staff Tasks)
         let staffSql = `
             SELECT 
-                r.id as id, r.deviceName, r.report, r.time_report, r.date_report, r.username, r.priority,
+                r.id as id, r.deviceName, r.report, r.time_report, r.close_date as end_time, r.status, r.date_report, r.username, r.priority,
                 (SELECT a.nickname FROM ${ORDER_DB}.admin a WHERE a.username = r.username LIMIT 1) as staff_nickname,
                 d.depart_name as department_name,
                 GROUP_CONCAT(DISTINCT COALESCE(u.nickname, u.full_name) SEPARATOR '||') as intern_names,
@@ -31,6 +31,7 @@ exports.getTasksCollab = async (req, res) => {
             LEFT JOIN users u ON t.intern_id = u.id
             WHERE DATE(r.date_report) = ?
             AND r.parent_report_id IS NULL
+            AND r.status <> '1'
         `;
         const staffParams = [userId, targetDate];
         if (q) {
@@ -233,20 +234,11 @@ exports.leaveTask = async (req, res) => {
 // --- 6. ดึงข้อมูลสถิติสำหรับ Analytics Dashboard ---
 exports.getAnalyticsStats = async (req, res) => {
     try {
-        const { range, year, term, university, person } = req.query;
+        const { startDate, endDate, year, term, university, person } = req.query;
 
-        // 1. สร้าง Filter สำหรับช่วงเวลา (Time Range)
-        const getDateFilter = (r) => {
-            switch (r) {
-                case 'week': return 'YEARWEEK(r.date_report, 1) = YEARWEEK(CURDATE(), 1)';
-                case 'month': return 'MONTH(r.date_report) = MONTH(CURDATE()) AND YEAR(r.date_report) = YEAR(CURDATE())';
-                case 'year': return 'YEAR(r.date_report) = YEAR(CURDATE())';
-                case 'today': return 'DATE(r.date_report) = CURDATE()';
-                case 'all': return '1=1';
-                default: return 'DATE(r.date_report) = CURDATE()';
-            }
-        };
-        const dateFilter = getDateFilter(range);
+        // 1. ช่วงเวลา (ไม่ส่งมา = ทั้งหมด)
+        const dateFilter = startDate && endDate ? 'DATE(r.date_report) BETWEEN ? AND ?' : '1=1';
+        const dateParams = startDate && endDate ? [startDate, endDate] : [];
 
         // 2. สร้าง Filter สำหรับ Global Filters (Year, Term, University, Person)
         // สำหรับ Join Tasks และ Top Skill (ใช้ users และ tasks)
@@ -266,7 +258,8 @@ exports.getAnalyticsStats = async (req, res) => {
             FROM ${ORDER_DB}.data_report r 
             WHERE ${dateFilter}
             AND r.parent_report_id IS NULL
-        `);
+            AND r.status <> '1'
+        `, dateParams);
 
         // B. จำนวนงานที่เข้าร่วม (Join Tasks) กรองตามช่วงเวลา + Global Filter
         const [joinRows] = await joinPool.query(`
@@ -274,8 +267,8 @@ exports.getAnalyticsStats = async (req, res) => {
             FROM tasks t
             INNER JOIN users u ON t.intern_id = u.id
             INNER JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
-            WHERE ${dateFilter} AND t.deleted_at IS NULL AND ${globalJoinFilter}
-        `, globalJoinParams);
+            WHERE ${dateFilter} AND r.status <> '1' AND t.deleted_at IS NULL AND ${globalJoinFilter}
+        `, [...dateParams, ...globalJoinParams]);
 
         // C. ทักษะหลัก (Top Skill) - หา Keyword ที่ซ้ำกันมากที่สุดจาก Description
         const [categoryRows] = await joinPool.query(`
@@ -283,11 +276,11 @@ exports.getAnalyticsStats = async (req, res) => {
     FROM tasks t
     INNER JOIN users u ON t.intern_id = u.id
     INNER JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
-    WHERE ${dateFilter} AND t.deleted_at IS NULL AND ${globalJoinFilter}
+    WHERE ${dateFilter} AND r.status <> '1' AND t.deleted_at IS NULL AND ${globalJoinFilter}
     GROUP BY r.problem
     ORDER BY count DESC
     LIMIT 1
-`, globalJoinParams);
+`, [...dateParams, ...globalJoinParams]);
 
         let topSkill = categoryRows.length > 0 ? categoryRows[0].problem : '-';
 
@@ -558,6 +551,7 @@ exports.getWorkloadFilters = async (req, res) => {
             SELECT university_name as label, university_name as value, COUNT(*) as user_count 
             FROM users 
             WHERE university_name IS NOT NULL AND university_name <> ""
+            AND status IN ('approved', 'closed')
         `;
         const uniParams = [];
         if (academicYear && academicYear !== 'all') { uniSql += ` AND academic_year = ?`; uniParams.push(academicYear); }
@@ -569,7 +563,7 @@ exports.getWorkloadFilters = async (req, res) => {
         let studentSql = `
             SELECT full_name as label, id as value 
             FROM users 
-            WHERE 1=1
+            WHERE status IN ('approved', 'closed')
         `;
         const studentParams = [];
         if (academicYear && academicYear !== 'all') { studentSql += ` AND academic_year = ?`; studentParams.push(academicYear); }
