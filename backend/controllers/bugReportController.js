@@ -7,7 +7,7 @@ const LIST_LIMIT = 50;
 // ดึงข้อความแจ้งปัญหา (ล่าสุดก่อน) พร้อมชื่อผู้ส่งและรูปที่แนบ
 async function findBugReports({ id } = {}) {
     const [reports] = await db.query(
-        `SELECT b.id, b.user_id, COALESCE(u.nickname, u.full_name, u.username) AS sender_name,
+        `SELECT b.id, b.user_id, COALESCE(u.nickname, u.full_name, u.username) AS sender_name, u.avatar_url AS sender_avatar,
                 b.message, b.is_urgent, b.created_at
          FROM bug_reports b
          LEFT JOIN users u ON u.id = b.user_id

@@ -12,7 +12,7 @@ import EducationLevelInput from "../components/EducationLevelInput";
 import { toDateString, dateToAcademicYear, formatAcademicYear } from "../utils/dateString";
 
 const REQUIRED_FIELDS = [
-  "first_name", "last_name", "nickname", "university_name", "education_level", "term", "academic_year",
+  "first_name", "last_name", "nickname", "university_name", "faculty", "education_level", "term", "academic_year",
   "internship_start_date", "internship_end_date", "username", "password", "confirmPassword",
 ];
 
@@ -59,7 +59,7 @@ function Field({ label, hint, error, children }) {
 }
 
 const EMPTY_FORM = {
-  first_name: "", last_name: "", nickname: "", university_name: "", education_level: "",
+  first_name: "", last_name: "", nickname: "", university_name: "", faculty: "", education_level: "",
   term: null, academic_year: null, internship_start_date: null, internship_end_date: null,
   username: "", password: "", confirmPassword: "",
 };
@@ -91,6 +91,7 @@ function Register() {
         full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
         nickname: form.nickname.trim(),
         university_name: form.university_name.trim(),
+        faculty: form.faculty.trim(),
         education_level: form.education_level.trim(),
         term: form.term,
         academic_year: dateToAcademicYear(form.academic_year),
@@ -159,6 +160,9 @@ function Register() {
               <Section title="ข้อมูลการฝึกงาน" />
               <Field label="มหาวิทยาลัย / สถานศึกษา" error={errors.university_name}>
                 <InputText value={form.university_name} onChange={setField("university_name")} invalid={!!errors.university_name} />
+              </Field>
+              <Field label="คณะ / สาขาวิชา" error={errors.faculty}>
+                <InputText value={form.faculty} onChange={setField("faculty")} invalid={!!errors.faculty} />
               </Field>
               <Field label="ระดับการศึกษา" error={errors.education_level}>
                 <EducationLevelInput value={form.education_level} onChange={(level) => setForm((prev) => ({ ...prev, education_level: level }))} invalid={!!errors.education_level} />

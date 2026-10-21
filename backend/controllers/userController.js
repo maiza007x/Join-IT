@@ -244,7 +244,7 @@ exports.addUser = async (req, res) => {
             return res.status(403).json({ message: "คุณไม่มีสิทธิ์เพิ่มผู้ใช้งาน" });
         }
 
-        const { full_name, role, nickname, university_name, education_level, term, academic_year, internship_start_date, internship_end_date } = req.body;
+        const { full_name, role, nickname, university_name, faculty, education_level, term, academic_year, internship_start_date, internship_end_date } = req.body;
 
         if (!full_name || !role) {
             return res.status(400).json({ message: "กรุณากรอกชื่อและบทบาทให้ครบถ้วน" });
@@ -279,11 +279,11 @@ exports.addUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(plainPassword, salt);
 
         const sql = `INSERT INTO users
-            (username, password, full_name, role, verified, status, nickname, university_name, education_level, term, academic_year, internship_start_date, internship_end_date)
-            VALUES (?, ?, ?, ?, 0, 'approved', ?, ?, ?, ?, ?, ?, ?)`;
+            (username, password, full_name, role, verified, status, nickname, university_name, faculty, education_level, term, academic_year, internship_start_date, internship_end_date)
+            VALUES (?, ?, ?, ?, 0, 'approved', ?, ?, ?, ?, ?, ?, ?, ?)`;
         const [result] = await joinPool.query(sql, [
             username, hashedPassword, full_name, role,
-            nickname ?? null, university_name ?? null, education_level ?? null, term ?? null, academic_year ?? null,
+            nickname ?? null, university_name ?? null, faculty ?? null, education_level ?? null, term ?? null, academic_year ?? null,
             internship_start_date ?? null, internship_end_date ?? null,
         ]);
 
@@ -357,7 +357,7 @@ exports.resetPassword = async (req, res) => {
 exports.getPendingUsers = async (req, res) => {
     try {
         const [users] = await joinPool.query(`
-            SELECT id, username, full_name, nickname, university_name, education_level, term, academic_year,
+            SELECT id, username, full_name, nickname, university_name, faculty, education_level, term, academic_year,
                    internship_start_date, internship_end_date
             FROM users
             WHERE status = 'pending'
@@ -395,7 +395,7 @@ exports.rejectUser = decideRegistration('rejected');
 
 // --- 9. PUT /api/users/:id (แอดมินแก้ข้อมูลนักศึกษา) ---
 const EDITABLE_USER_FIELDS = [
-    'full_name', 'nickname', 'university_name', 'education_level', 'term', 'academic_year',
+    'full_name', 'nickname', 'university_name', 'faculty', 'education_level', 'term', 'academic_year',
     'internship_start_date', 'internship_end_date',
 ];
 

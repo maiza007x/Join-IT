@@ -94,11 +94,11 @@ exports.getMe = async (req, res) => {
 
 exports.register = async (req, res) => {
   const {
-    username, password, full_name, nickname, university_name, education_level,
+    username, password, full_name, nickname, university_name, faculty, education_level,
     term, academic_year, internship_start_date, internship_end_date,
   } = req.body;
 
-  const required = [username, password, full_name, nickname, university_name, education_level, term, academic_year, internship_start_date, internship_end_date];
+  const required = [username, password, full_name, nickname, university_name, faculty, education_level, term, academic_year, internship_start_date, internship_end_date];
   if (!required.every(Boolean)) {
     return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
   }
@@ -119,10 +119,10 @@ exports.register = async (req, res) => {
     // role และ status กำหนดที่ backend เสมอ ไม่รับจาก request
     await db.query(
       `INSERT INTO users
-        (username, password, full_name, nickname, university_name, education_level, term, academic_year,
+        (username, password, full_name, nickname, university_name, faculty, education_level, term, academic_year,
          internship_start_date, internship_end_date, role, status, verified)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 'pending', 0)`,
-      [username, hashedPassword, full_name, nickname, university_name, education_level, term, academic_year,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', 'pending', 0)`,
+      [username, hashedPassword, full_name, nickname, university_name, faculty, education_level, term, academic_year,
        internship_start_date, internship_end_date]
     );
 

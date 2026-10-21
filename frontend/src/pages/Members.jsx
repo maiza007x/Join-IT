@@ -111,6 +111,7 @@ function Members() {
             full_name: row.full_name || '',
             nickname: row.nickname || '',
             university_name: row.university_name || '',
+            faculty: row.faculty || '',
             education_level: row.education_level || '',
             term: row.term || null,
             academic_year: academicYearToDate(row.academic_year),
@@ -257,6 +258,7 @@ function Members() {
                                 )} />
                                 <Column field="username" header="Username" />
                                 <Column field="university_name" header="มหาวิทยาลัย" />
+                                <Column field="faculty" header="คณะ / สาขา" />
                                 <Column field="education_level" header="ระดับ" />
                                 <Column header="เทอม / ปีการศึกษา" body={(row) => `${row.term} / ${row.academic_year}`} />
                                 <Column header="ช่วงฝึกงาน" body={(row) => `${formatThaiDate(row.internship_start_date)} - ${formatThaiDate(row.internship_end_date)}`} />
@@ -426,6 +428,10 @@ function Members() {
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-bold text-slate-700">มหาวิทยาลัย</label>
                         <InputText value={editForm.university_name} onChange={setEditField('university_name')} />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-700">คณะ / สาขาวิชา</label>
+                        <InputText value={editForm.faculty} onChange={setEditField('faculty')} />
                     </div>
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-bold text-slate-700">ระดับการศึกษา</label>

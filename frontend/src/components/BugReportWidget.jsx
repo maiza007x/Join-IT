@@ -265,40 +265,49 @@ function BugReportWidget() {
                   : "bg-white text-slate-700 border border-slate-200";
 
               return (
-                <div key={report.id} className={`flex flex-col max-w-[85%] ${isMine ? "self-end items-end" : "self-start items-start"}`}>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1">
-                    <span className="font-semibold text-slate-500">{report.sender_name}</span>
-                    <span>{formatSentAt(report.created_at)}</span>
-                    {(isMine || isAdmin) && (
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(report)}
-                        className="border-none bg-transparent p-0 text-slate-300 hover:text-rose-500 cursor-pointer"
-                        aria-label="ลบข้อความ"
-                      >
-                        <i className="pi pi-trash text-[11px]"></i>
-                      </button>
-                    )}
-                  </div>
-                  <div className={`px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${bubbleClass}`}>
-                    {report.is_urgent && (
-                      <span className="block text-[10px] font-bold mb-1 opacity-90">🚨 ปัญหาด่วน</span>
-                    )}
-                    {report.message}
-                    {report.images.length > 0 && (
-                      <div className={`grid gap-1 ${report.images.length > 1 ? "grid-cols-2" : "grid-cols-1"} ${report.message ? "mt-2" : ""}`}>
-                        {report.images.map((path) => (
-                          <img
-                            key={path}
-                            src={getImageUrl(path)}
-                            alt="รูปแนบ"
-                            loading="lazy"
-                            onClick={() => setViewerUrl(getImageUrl(path))}
-                            className="w-full max-w-[200px] max-h-40 object-cover rounded-lg cursor-zoom-in bg-slate-100"
-                          />
-                        ))}
-                      </div>
-                    )}
+                <div key={report.id} className={`flex gap-2 max-w-[90%] ${isMine ? "self-end" : "self-start"}`}>
+                  {!isMine && (
+                    <img
+                      src={getImageUrl(report.sender_avatar)}
+                      alt={report.sender_name}
+                      className="w-8 h-8 shrink-0 rounded-full object-cover border border-slate-200 bg-white"
+                    />
+                  )}
+                  <div className={`flex flex-col min-w-0 ${isMine ? "items-end" : "items-start"}`}>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1">
+                      <span className="font-semibold text-slate-500">{report.sender_name}</span>
+                      <span>{formatSentAt(report.created_at)}</span>
+                      {(isMine || isAdmin) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(report)}
+                          className="border-none bg-transparent p-0 text-slate-300 hover:text-rose-500 cursor-pointer"
+                          aria-label="ลบข้อความ"
+                        >
+                          <i className="pi pi-trash text-[11px]"></i>
+                        </button>
+                      )}
+                    </div>
+                    <div className={`px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${bubbleClass}`}>
+                      {report.is_urgent && (
+                        <span className="block text-[10px] font-bold mb-1 opacity-90">🚨 ปัญหาด่วน</span>
+                      )}
+                      {report.message}
+                      {report.images.length > 0 && (
+                        <div className={`grid gap-1 ${report.images.length > 1 ? "grid-cols-2" : "grid-cols-1"} ${report.message ? "mt-2" : ""}`}>
+                          {report.images.map((path) => (
+                            <img
+                              key={path}
+                              src={getImageUrl(path)}
+                              alt="รูปแนบ"
+                              loading="lazy"
+                              onClick={() => setViewerUrl(getImageUrl(path))}
+                              className="w-full max-w-[200px] max-h-40 object-cover rounded-lg cursor-zoom-in bg-slate-100"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
