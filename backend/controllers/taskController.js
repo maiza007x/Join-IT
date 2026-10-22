@@ -20,7 +20,7 @@ exports.getTasksCollab = async (req, res) => {
         // ดึงงานหลัก (Staff Tasks)
         let staffSql = `
             SELECT 
-                r.id as id, r.deviceName, r.report, r.time_report, r.close_date as end_time, r.status, r.date_report, r.username, r.priority,
+                r.id as id, r.device, r.deviceName, r.report, r.time_report, r.close_date as end_time, r.status, r.date_report, r.username, r.priority,
                 (SELECT a.nickname FROM ${ORDER_DB}.admin a WHERE a.username = r.username LIMIT 1) as staff_nickname,
                 d.depart_name as department_name,
                 GROUP_CONCAT(DISTINCT COALESCE(u.nickname, u.full_name) SEPARATOR '||') as intern_names,

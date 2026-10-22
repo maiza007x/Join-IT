@@ -137,7 +137,7 @@ function Tasks() {
             toast.current.show({
                 severity: "error",
                 summary: "ผิดพลาด",
-                detail: "ไม่สามารถเข้าร่วมงานได้",
+                detail: err.response?.data?.message || "ไม่สามารถเข้าร่วมงานได้",
             });
         } finally {
             setActionLoading(null);
@@ -159,7 +159,7 @@ function Tasks() {
             toast.current.show({
                 severity: "error",
                 summary: "ผิดพลาด",
-                detail: "ไม่สามารถยกเลิกได้",
+                detail: err.response?.data?.message || "ไม่สามารถยกเลิกได้",
             });
         } finally {
             setActionLoading(null);

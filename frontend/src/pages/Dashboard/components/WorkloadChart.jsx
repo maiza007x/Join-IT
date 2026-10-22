@@ -5,6 +5,7 @@ import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
 import { Skeleton } from "primereact/skeleton";
 import api from "../../../services/api";
+import Timeline from "../../../components/timeline/Timeline";
 
 const getWeekRange = (date) => {
   const d = date ? new Date(date) : new Date();
@@ -108,8 +109,6 @@ const WorkloadChart = ({ globalFilter }) => {
     });
   };
 
-  const ganttHours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
-
   const categories = [
     { label: "อุปกรณ์", value: "device" },
     { label: "รูปแบบ activity", value: "problemList" },
@@ -117,37 +116,6 @@ const WorkloadChart = ({ globalFilter }) => {
     { label: "ร่วมงานกับเจ้าหน้าที่", value: "staff" },
     { label: "รูปแบบการทำงาน", value: "workingList" },
   ];
-
-  const packTasksIntoLanes = (tasks) => {
-    // 1. เรียงงานตามเวลาเริ่มต้น
-    const sortedTasks = [...tasks].sort((a, b) => a.start - b.start);
-    const lanes = []; // เก็บเวลาจบ (End time) ของงานล่าสุดในแต่ละเลน
-
-    return sortedTasks.map(task => {
-      let placed = false;
-      let laneIndex = 0;
-      const taskEnd = task.start + task.duration;
-
-      // 2. หาเลนแรกที่ว่าง (เวลาเริ่มของงาน >= เวลาจบของงานในเลนนั้น)
-      for (let i = 0; i < lanes.length; i++) {
-        if (task.start >= lanes[i]) {
-          laneIndex = i;
-          lanes[i] = taskEnd; // อัปเดตเวลาจบของเลนนี้
-          placed = true;
-          break;
-        }
-      }
-
-      // 3. ถ้าไม่มีเลนว่างเลย ให้เปิดเลนใหม่ด้านล่าง
-      if (!placed) {
-        laneIndex = lanes.length;
-        lanes.push(taskEnd);
-      }
-
-      // 4. ส่งค่า lane กลับไปพร้อมกับ object งานเดิม
-      return { ...task, lane: laneIndex };
-    });
-  };
 
   // Fetch local filter options
   useEffect(() => {
@@ -237,13 +205,6 @@ const WorkloadChart = ({ globalFilter }) => {
 
   const handleMouseLeave = () => {
     setTooltip({ ...tooltip, visible: false });
-  };
-
-  const getGanttStyle = (start, duration) => {
-    const totalHours = 9;
-    const leftPercent = ((start - 8) / totalHours) * 100;
-    const widthPercent = (duration / totalHours) * 100;
-    return { left: `${leftPercent}%`, width: `${widthPercent}%` };
   };
 
   const chartConfig = {
@@ -346,95 +307,47 @@ const WorkloadChart = ({ globalFilter }) => {
           <Chart type="bar" data={data.barData} options={chartConfig} />
         ) : (
           <div className="w-full h-full flex flex-col">
-            <div className="relative mb-3 ml-24 border-b border-slate-200 h-6">
-              <div className="absolute inset-0 right-2">
-                {ganttHours.map((hour, i) => (
-                  <div
-                    key={i}
-                    className="absolute text-[10px] font-bold text-slate-400 -translate-x-1/2 whitespace-nowrap"
-                    style={{ left: `${(i / (ganttHours.length - 1)) * 100}%` }}
-                  >
-                    {hour}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex-1 flex flex-col gap-3 relative mt-1 overflow-y-auto max-h-[400px] pr-2">
-              <div className="absolute inset-0 ml-24 right-2 flex pointer-events-none">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="flex-1 border-l border-slate-100 border-dashed h-full"></div>
-                ))}
-                <div className="border-l border-slate-100 border-dashed h-full"></div>
-              </div>
-              {displayYLabels.length > 0 ? displayYLabels.map((label, idx) => {
-                // ดึงงานเฉพาะแถวนี้มา
-                const rowTasksRaw = data.ganttData.filter((t) => t.yLabel === label);
-
-                // รันอัลกอริทึมจัดเลน
-                const packedTasks = packTasksIntoLanes(rowTasksRaw);
-
-                // หาจำนวนเลนที่เยอะที่สุด เพื่อคำนวณความสูงของแถว
-                const maxLanes = packedTasks.length > 0 ? Math.max(...packedTasks.map(t => t.lane)) + 1 : 1;
-                const laneHeight = 36; // ความสูงงาน 32px + ระยะห่าง 4px
-                const rowHeight = maxLanes * laneHeight + 8; // เผื่อ Padding บนล่าง
+            <Timeline
+              rows={displayYLabels.map((label) => ({
+                key: label,
+                label,
+                tasks: data.ganttData.filter((t) => t.yLabel === label),
+              }))}
+              emptyMessage="ไม่มีข้อมูลภาระงานในวันที่เลือก"
+              renderBar={(task, position) => {
+                const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4b99', '#14b8a6', '#f97316'];
+                const catIndex = [...new Set(data.ganttData.map(t => t.category))].indexOf(task.category);
+                const bgColor = colors[catIndex % colors.length];
 
                 return (
-                  // กำหนดความสูงของแถวให้แปรผันตามจำนวนเลน (style={{ minHeight: rowHeight }})
-                  <div key={idx} className="flex border-b border-slate-50 relative transition-all duration-300" style={{ minHeight: `${rowHeight}px` }}>
+                  <div
+                    key={task.id}
+                    className="absolute h-8 rounded-md shadow-sm border px-2 flex items-center overflow-hidden cursor-pointer hover:brightness-95 transition-all text-white group"
+                    style={{
+                      ...position,
+                      backgroundColor: bgColor,
+                      borderColor: bgColor,
+                    }}
+                    onMouseEnter={(e) => handleMouseEnter(task, bgColor, e)}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    {/* ดันตัวหนังสือให้อยู่เหนือแถบสี (z-10) */}
+                    <span className="text-[9px] font-semibold truncate leading-none drop-shadow-sm z-10 w-full relative">
+                      {task.title}
+                    </span>
 
-                    {/* Label ชื่อแถว */}
-                    <div className="w-24 text-[11px] font-medium text-slate-600 shrink-0 truncate pr-2 pt-2" title={label}>
-                      {label}
-                    </div>
-
-                    {/* พื้นที่วางบล็อกงาน */}
-                    <div className="flex-1 relative">
-                      {packedTasks.map((task) => {
-                        const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4b99', '#14b8a6', '#f97316'];
-                        const catIndex = [...new Set(data.ganttData.map(t => t.category))].indexOf(task.category);
-                        const bgColor = colors[catIndex % colors.length];
-
-                        // หาบล็อกนี้ (ประมาณบรรทัดที่ 256) แล้วเปลี่ยนใหม่ทั้งหมดตามนี้
-                        return (
-                          <div
-                            key={task.id}
-                            // 🟢 1. เอากลับมาใส่ overflow-hidden ได้เลยครับ!
-                            className="absolute h-8 rounded-md shadow-sm border px-2 flex items-center overflow-hidden cursor-pointer hover:brightness-95 transition-all text-white group"
-                            style={{
-                              ...getGanttStyle(task.start, task.duration),
-                              backgroundColor: bgColor,
-                              borderColor: bgColor,
-                              top: `${(task.lane * laneHeight) + 4}px`
-                            }}
-                            onMouseEnter={(e) => handleMouseEnter(task, bgColor, e)}
-                            onMouseMove={handleMouseMove}
-                            onMouseLeave={handleMouseLeave}
-                          >
-                            {/* ดันตัวหนังสือให้อยู่เหนือแถบสี (z-10) */}
-                            <span className="text-[9px] font-semibold truncate leading-none drop-shadow-sm z-10 w-full relative">
-                              {task.title}
-                            </span>
-
-                            {/* 🟢 2. Inner Border Bottom: แถบขอบล่าง */}
-                            {task.isInternTask === 1 && (
-                              <div
-                                // ใช้สีขาวโปร่งใส (bg-white/40) เพื่อให้เข้ากับทุกสีพื้นหลังของแท่งกราฟ
-                                className="absolute top-0 left-0 w-full h-[5px] bg-orange-400"
-                                title="งานที่ทำเอง (Self Task)"
-                              ></div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {/* แถบขอบบน: งานที่นักศึกษาทำเอง */}
+                    {task.isInternTask === 1 && (
+                      <div
+                        className="absolute top-0 left-0 w-full h-[5px] bg-orange-400"
+                        title="งานที่ทำเอง (Self Task)"
+                      ></div>
+                    )}
                   </div>
                 );
-              }) : (
-                <div className="flex items-center justify-center h-40 text-slate-400 text-sm">
-                  ไม่มีข้อมูลภาระงานในวันที่เลือก
-                </div>
-              )}
-            </div>
+              }}
+            />
             {/* Legend for Gantt */}
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-6">
               {[...new Set(data.ganttData.map(t => t.category))].map((cat, idx) => {

@@ -8,24 +8,13 @@ import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
 import { Dropdown } from "primereact/dropdown";
 import api from "../services/api";
-
-const PRIORITIES = {
-    1: { label: "⏰งานประจำวัน", className: "text-cyan-600" },
-    2: { label: "🔵 ปกติ", className: "text-emerald-600" },
-    3: { label: "🟡กลาง", className: "text-amber-600" },
-    4: { label: "🔴 เร่งด่วน", className: "text-rose-600" },
-};
-
-const getPriorityText = (priority) => PRIORITIES[priority]?.label ?? "-";
-
-// เจ้าหน้าที่รับงาน: แสดงชื่อเล่น ถ้ายังไม่มีให้แสดง @username
-const getStaffName = (task) => task.staff_nickname || (task.username ? `@${task.username}` : "-");
+import StaffTimeline from "./StaffTimeline";
+import { PRIORITIES, getPriorityText, getStaffName, hasNoHelper } from "../utils/staffTask";
 
 // จำตัวกรอง "เฉพาะงานที่ยังไม่มีคนช่วย" ไว้ในเบราว์เซอร์ (ขึ้นต้น joinit_ เพราะใช้ localStorage ร่วมกับ Order-IT)
 const ONLY_NO_HELPER_KEY = "joinit_staffTasksOnlyNoHelper";
-
-// งานที่ยังไม่มีนักศึกษาช่วย
-const hasNoHelper = (task) => !task.interns || task.interns.length === 0;
+// มุมมองของงานเจ้าหน้าที่บนจอใหญ่: "table" หรือ "timeline"
+const VIEW_KEY = "joinit_staffTasksView";
 
 const StaffTasksSection = ({
     tasks,
@@ -49,6 +38,11 @@ const StaffTasksSection = ({
     useEffect(() => {
         localStorage.setItem(ONLY_NO_HELPER_KEY, onlyNoHelper);
     }, [onlyNoHelper]);
+
+    const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) || "table");
+    useEffect(() => {
+        localStorage.setItem(VIEW_KEY, view);
+    }, [view]);
 
 
     const getCloseTimeText = (t) => {
@@ -216,6 +210,22 @@ const StaffTasksSection = ({
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <div className="hidden md:flex bg-white/10 p-1 rounded-lg">
+                            {[
+                                { value: "table", label: "ตาราง", icon: "pi-table" },
+                                { value: "timeline", label: "ไทม์ไลน์", icon: "pi-align-left" },
+                            ].map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setView(option.value)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border-none text-xs font-bold cursor-pointer transition-all ${view === option.value ? "bg-white text-slate-900" : "bg-transparent text-slate-300 hover:text-white"}`}
+                                >
+                                    <i className={`pi ${option.icon} text-xs`}></i>
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
                         <button
                             type="button"
                             onClick={() => setOnlyNoHelper((value) => !value)}
@@ -236,108 +246,119 @@ const StaffTasksSection = ({
 
                 <div className="p-4">
                     <div className="hidden md:block">
-                        <DataTable
-                            value={processedTasks}
-                            loading={loading}
-                            rowClassName={(rowData) => ({
-                                'bg-blue-500/10 border-l-4 border-blue-500 animate-pulse font-bold shadow-inner': rowData.id === highlightTaskId
-                            })}
-                            paginator
-                            rows={10}
-                            scrollable
-                            rowsPerPageOptions={[10, 25, 50]}
-                            stripedRows
-                            sortField="time_report"
-                            sortOrder={-1}
-                            removableSort
-                            emptyMessage="ไม่พบรายการงานที่ตรงตามเงื่อนไข"
-                            className="p-datatable-sm custom-luxury-table"
-                            rowHover
-                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                            currentPageReportTemplate="{first}-{last} of {totalRecords}"
-                            filters={filters}
-                            onFilter={(e) => setFilters(e.filters)}
-                        >
-                            <Column
-                                field="id"
-                                header="#"
-                                headerStyle={{ width: "4rem" }}
-                                bodyStyle={{
-                                    fontWeight: "black",
-                                    color: "#cbd5e1",
-                                    fontSize: "13px",
-                                }}
-                                sortable
+                        {view === "timeline" ? (
+                            <StaffTimeline
+                                tasks={processedTasks}
+                                highlightTaskId={highlightTaskId}
+                                actionLoading={actionLoading}
+                                confirmJoin={confirmJoin}
+                                confirmLeave={confirmLeave}
+                                onShowDetail={showDetailDialog}
                             />
-                            <Column
-                                field="time_report"
-                                header="เวลาแจ้ง"
-                                body={timeTemplate}
-                                style={{ width: "8rem" }}
-                                sortable
-                            />
-                            <Column
-                                field="priority"
-                                header="ความเร่งด่วน"
-                                body={priorityTemplate}
-                                style={{ width: "9rem" }}
-                                sortable
-                            />
-                            <Column
-                                field="deviceName"
-                                header="อุปกรณ์"
-                                body={(row) => (
-                                    <div className="py-1">
-                                        <div className="font-bold text-slate-800 text-base">
-                                            {row.deviceName}
+                        ) : (
+                            <DataTable
+                                value={processedTasks}
+                                loading={loading}
+                                rowClassName={(rowData) => ({
+                                    'bg-blue-500/10 border-l-4 border-blue-500 animate-pulse font-bold shadow-inner': rowData.id === highlightTaskId
+                                })}
+                                paginator
+                                rows={10}
+                                scrollable
+                                rowsPerPageOptions={[10, 25, 50]}
+                                stripedRows
+                                sortField="time_report"
+                                sortOrder={-1}
+                                removableSort
+                                emptyMessage="ไม่พบรายการงานที่ตรงตามเงื่อนไข"
+                                className="p-datatable-sm custom-luxury-table"
+                                rowHover
+                                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                                currentPageReportTemplate="{first}-{last} of {totalRecords}"
+                                filters={filters}
+                                onFilter={(e) => setFilters(e.filters)}
+                            >
+                                <Column
+                                    field="id"
+                                    header="#"
+                                    headerStyle={{ width: "4rem" }}
+                                    bodyStyle={{
+                                        fontWeight: "black",
+                                        color: "#cbd5e1",
+                                        fontSize: "13px",
+                                    }}
+                                    sortable
+                                />
+                                <Column
+                                    field="time_report"
+                                    header="เวลาแจ้ง"
+                                    body={timeTemplate}
+                                    style={{ width: "8rem" }}
+                                    sortable
+                                />
+                                <Column
+                                    field="priority"
+                                    header="ความเร่งด่วน"
+                                    body={priorityTemplate}
+                                    style={{ width: "9rem" }}
+                                    sortable
+                                />
+                                <Column
+                                    field="deviceName"
+                                    header="อุปกรณ์"
+                                    body={(row) => (
+                                        <div className="py-1">
+                                            <div className="font-bold text-slate-800 text-base">
+                                                {row.deviceName}
+                                            </div>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
+                                                <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                                                    {row.department_name}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                            <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
-                                            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-                                                {row.department_name}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-                                style={{ width: "17rem" }}
-                                sortable
-                            />
-                            <Column
-                                field="report"
-                                header="รายละเอียดปัญหา"
-                                className="text-slate-600 leading-relaxed"
-                                sortable
-                                style={{ width: "20rem" }}
-                            />
-                            <Column
-                                field="username"
-                                header="เจ้าหน้าที่รับงาน"
-                                body={(row) => (
-                                    <span title={row.username} className="text-slate-500 font-semibold">
-                                        {getStaffName(row)}
-                                    </span>
-                                )}
-                                style={{ width: "13rem" }}
-                                sortable
-                                filter
-                                filterElement={reporterFilterTemplate}
-                                showFilterMatchModes={false}
-                            />
-                            <Column
-                                field="interns_str"
-                                header="ผู้ช่วยเหลือ"
-                                body={internTemplate}
-                                style={{ width: "14rem" }}
-                                sortable
-                            />
-                            <Column
-                                field="isContributedByMe"
-                                header="จัดการ"
-                                body={actionTemplate}
-                                style={{ textAlign: "center", width: "14rem" }}
-                                sortable
-                            />
-                        </DataTable>
+                                    )}
+                                    style={{ width: "17rem" }}
+                                    sortable
+                                />
+                                <Column
+                                    field="report"
+                                    header="รายละเอียดปัญหา"
+                                    className="text-slate-600 leading-relaxed"
+                                    sortable
+                                    style={{ width: "20rem" }}
+                                />
+                                <Column
+                                    field="username"
+                                    header="เจ้าหน้าที่รับงาน"
+                                    body={(row) => (
+                                        <span title={row.username} className="text-slate-500 font-semibold">
+                                            {getStaffName(row)}
+                                        </span>
+                                    )}
+                                    style={{ width: "13rem" }}
+                                    sortable
+                                    filter
+                                    filterElement={reporterFilterTemplate}
+                                    showFilterMatchModes={false}
+                                />
+                                <Column
+                                    field="interns_str"
+                                    header="ผู้ช่วยเหลือ"
+                                    body={internTemplate}
+                                    style={{ width: "14rem" }}
+                                    sortable
+                                />
+                                <Column
+                                    field="isContributedByMe"
+                                    header="จัดการ"
+                                    body={actionTemplate}
+                                    style={{ textAlign: "center", width: "14rem" }}
+                                    sortable
+                                />
+                            </DataTable>
+                        )}
                     </div>
                     {/* Mobile Cards (Tasks) */}
                     <div className="md:hidden flex flex-col gap-4">
