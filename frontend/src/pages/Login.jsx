@@ -40,8 +40,8 @@ function Login() {
 
       navigate("/tasks");
     } catch (err) {
-      // 403 = บัญชีรออนุมัติ / ถูกปฏิเสธ / ถูกปิด backend ส่งข้อความที่อธิบายสถานะมาให้
-      if (err.response?.status === 403) {
+      // 403 = บัญชีรออนุมัติ / ถูกปฏิเสธ / ถูกปิด, 429 = login ผิดหลายครั้ง: backend ส่งข้อความอธิบายมาให้
+      if ([403, 429].includes(err.response?.status)) {
         toast.current.show({ severity: 'warn', summary: 'ยังเข้าสู่ระบบไม่ได้', detail: err.response.data.message, life: 5000 });
       } else {
         toast.current.show({ severity: 'error', summary: 'Login Failed', detail: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง', life: 3000 });
