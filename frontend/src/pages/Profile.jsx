@@ -296,9 +296,15 @@ const Profile = () => {
                                     <p className="m-0 text-slate-500 text-xs mt-0.5">ป้องกันบัญชีของคุณด้วยการอัปเดตรหัสผ่าน</p>
                                 </div>
                             </div>
-                            <button className="w-full md:w-auto px-5 py-2.5 bg-white text-slate-600 font-bold border border-slate-200 rounded-xl hover:text-amber-600 hover:border-amber-300 shadow-sm transition-all text-xs" onClick={() => setDisplayBasic(true)}>
-                                จัดการแก้ไขรหัสผ่าน
-                            </button>
+                            {userData.orderit_username ? (
+                                <span className="text-xs font-semibold text-slate-500">
+                                    บัญชีเจ้าหน้าที่ใช้รหัสผ่านเดียวกับ Order-IT — เปลี่ยนรหัสผ่านได้ที่ Order-IT
+                                </span>
+                            ) : (
+                                <button className="w-full md:w-auto px-5 py-2.5 bg-white text-slate-600 font-bold border border-slate-200 rounded-xl hover:text-amber-600 hover:border-amber-300 shadow-sm transition-all text-xs" onClick={() => setDisplayBasic(true)}>
+                                    จัดการแก้ไขรหัสผ่าน
+                                </button>
+                            )}
                         </div>
 
                         {/* ⚙️ การตั้งค่าระบบ (เฉพาะแอดมิน) */}

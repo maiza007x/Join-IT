@@ -28,7 +28,7 @@ exports.getTasksCollab = async (req, res) => {
             FROM ${ORDER_DB}.data_report r
             LEFT JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             LEFT JOIN tasks t ON r.id = t.task_staff_id AND t.deleted_at IS NULL
-            LEFT JOIN users u ON t.intern_id = u.id
+            LEFT JOIN users u ON t.intern_id = u.id AND u.role = 'user'
             WHERE DATE(r.date_report) = ?
             AND r.parent_report_id IS NULL
             AND r.status <> '1'
@@ -57,7 +57,7 @@ exports.getTasksCollab = async (req, res) => {
             LEFT JOIN ${ORDER_DB}.depart d ON i.department = d.depart_id
             LEFT JOIN ${ORDER_DB}.device dev ON i.deviceName = dev.device_id
             LEFT JOIN intern_task_assignees a ON i.id = a.intern_task_id
-            LEFT JOIN users u ON a.intern_id = u.id
+            LEFT JOIN users u ON a.intern_id = u.id AND u.role = 'user'
             WHERE DATE(i.date_report) = ?
         `;
         const internParams = [userId, targetDate];
@@ -265,7 +265,7 @@ exports.getAnalyticsStats = async (req, res) => {
         const [joinRows] = await joinPool.query(`
             SELECT COUNT(DISTINCT t.task_staff_id) as total
             FROM tasks t
-            INNER JOIN users u ON t.intern_id = u.id
+            INNER JOIN users u ON t.intern_id = u.id AND u.role = 'user'
             INNER JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
             WHERE ${dateFilter} AND r.status <> '1' AND t.deleted_at IS NULL AND ${globalJoinFilter}
         `, [...dateParams, ...globalJoinParams]);
@@ -274,7 +274,7 @@ exports.getAnalyticsStats = async (req, res) => {
         const [categoryRows] = await joinPool.query(`
     SELECT r.problem, COUNT(*) as count
     FROM tasks t
-    INNER JOIN users u ON t.intern_id = u.id
+    INNER JOIN users u ON t.intern_id = u.id AND u.role = 'user'
     INNER JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
     WHERE ${dateFilter} AND r.status <> '1' AND t.deleted_at IS NULL AND ${globalJoinFilter}
     GROUP BY r.problem
@@ -385,7 +385,7 @@ exports.getWorkloadChartData = async (req, res) => {
                 ${dayThSql('r.date_report')} as day_th_with_date,
                 0 as is_intern_task
             FROM tasks t
-            JOIN users u ON t.intern_id = u.id
+            JOIN users u ON t.intern_id = u.id AND u.role = 'user'
             JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
             JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE t.deleted_at IS NULL ${studentFilter}
@@ -412,7 +412,7 @@ exports.getWorkloadChartData = async (req, res) => {
                 ${dayThSql('it.date_report')} as day_th_with_date,
                 1 as is_intern_task
             FROM intern_task_assignees ita
-            JOIN users u ON ita.intern_id = u.id
+            JOIN users u ON ita.intern_id = u.id AND u.role = 'user'
             JOIN intern_tasks it ON ita.intern_task_id = it.id
             LEFT JOIN ${ORDER_DB}.depart d_it ON it.department = d_it.depart_id
             LEFT JOIN ${ORDER_DB}.device dev ON it.deviceName = dev.device_id
@@ -551,7 +551,7 @@ exports.getWorkloadFilters = async (req, res) => {
             SELECT university_name as label, university_name as value, COUNT(*) as user_count 
             FROM users 
             WHERE university_name IS NOT NULL AND university_name <> ""
-            AND status IN ('approved', 'closed')
+            AND status IN ('approved', 'closed') AND role = 'user'
         `;
         const uniParams = [];
         if (academicYear && academicYear !== 'all') { uniSql += ` AND academic_year = ?`; uniParams.push(academicYear); }
@@ -563,7 +563,7 @@ exports.getWorkloadFilters = async (req, res) => {
         let studentSql = `
             SELECT full_name as label, id as value 
             FROM users 
-            WHERE status IN ('approved', 'closed')
+            WHERE status IN ('approved', 'closed') AND role = 'user'
         `;
         const studentParams = [];
         if (academicYear && academicYear !== 'all') { studentSql += ` AND academic_year = ?`; studentParams.push(academicYear); }
@@ -620,7 +620,7 @@ exports.getWorkTypeData = async (req, res) => {
                 ${groupColumn} as label,
                 COUNT(*) as count
             FROM tasks t
-            JOIN users u ON t.intern_id = u.id
+            JOIN users u ON t.intern_id = u.id AND u.role = 'user'
             JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
             JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE t.deleted_at IS NULL
@@ -811,7 +811,7 @@ exports.getCollaborationData = async (req, res) => {
                 r.username as staff_name,
                 COUNT(*) as count
             FROM tasks t
-            JOIN users u ON t.intern_id = u.id
+            JOIN users u ON t.intern_id = u.id AND u.role = 'user'
             JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
             WHERE t.deleted_at IS NULL
         `;
@@ -878,7 +878,7 @@ exports.getLearningKeywordsData = async (req, res) => {
                 r.problem as keyword,
                 COUNT(*) as count
             FROM tasks t
-            JOIN users u ON t.intern_id = u.id
+            JOIN users u ON t.intern_id = u.id AND u.role = 'user'
             JOIN ${ORDER_DB}.data_report r ON t.task_staff_id = r.id
             WHERE t.deleted_at IS NULL
         `;
@@ -970,7 +970,7 @@ exports.getHeatmapDetails = async (req, res) => {
                 r.username as staff_name,
                 r.work_type,
                 r.description,
-                (SELECT COUNT(*) FROM tasks t2 WHERE t2.task_staff_id = r.id AND t2.deleted_at IS NULL) as intern_count
+                (SELECT COUNT(*) FROM tasks t2 JOIN users u2 ON u2.id = t2.intern_id AND u2.role = 'user' WHERE t2.task_staff_id = r.id AND t2.deleted_at IS NULL) as intern_count
             FROM ${ORDER_DB}.data_report r
             JOIN ${ORDER_DB}.depart d ON r.department = d.depart_id
             WHERE HOUR(r.time_report) = ?
@@ -1295,7 +1295,7 @@ exports.getInternTaskAssignees = async (req, res) => {
                     ELSE 'working' 
                 END as status
              FROM intern_task_assignees a
-             JOIN users u ON a.intern_id = u.id
+             JOIN users u ON a.intern_id = u.id AND u.role = 'user'
              WHERE a.intern_task_id = ?`,
             [isMainClosed, taskId]
         );

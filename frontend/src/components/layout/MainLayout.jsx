@@ -16,7 +16,7 @@ const MainLayout = () => {
   const internship = getInternshipStatus(user);
   const outOfInternship = internship && (internship.ended || internship.notStarted);
 
-  const noNavbarPaths = ["/", "/login", "/register", "/forgot-password"];
+  const noNavbarPaths = ["/", "/login", "/register", "/forgot-password", "/sso"];
   const shouldShowNavbar = !noNavbarPaths.includes(location.pathname);
 
   // --- Real-time Notification Listener ---

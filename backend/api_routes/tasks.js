@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const internOnly = require('../middleware/internOnly');
 const taskController = require('../controllers/taskController');
 
 // --- 1. GET /api/tasks/tasks_collab (ดึงงานหน้าหลัก - Tasks.jsx) ---
@@ -13,10 +14,10 @@ router.get('/my-tasks', auth, taskController.getMyTasks);
 router.put('/contribution/:id', auth, taskController.updateContribution);
 
 // --- 4. POST /api/tasks/join (กดเข้าร่วมงาน) ---
-router.post('/join', auth, taskController.joinTask);
+router.post('/join', auth, internOnly, taskController.joinTask);
 
 // --- 5. DELETE /api/tasks/leave/:id (ยกเลิกการเข้าร่วม - Soft Delete) ---
-router.delete('/leave/:id', auth, taskController.leaveTask);
+router.delete('/leave/:id', auth, internOnly, taskController.leaveTask);
 
 // --- 6. GET /api/tasks/analytics-stats (ข้อมูลสถิติกราฟ Dashboard) ---
 router.get('/analytics-stats', auth, taskController.getAnalyticsStats);
@@ -49,10 +50,10 @@ router.get('/form-options', auth, taskController.getFormOptions);
 router.post('/create-intern-task', auth, taskController.createInternTask);
 
 // --- 9. PUT /api/tasks/accept-intern/:id (รับงานนักศึกษา) ---
-router.put('/accept-intern/:id', auth, taskController.acceptInternTask);
+router.put('/accept-intern/:id', auth, internOnly, taskController.acceptInternTask);
 
 // --- 10. PUT /api/tasks/leave-intern/:id (ยกเลิกการรับงานนักศึกษา) ---
-router.put('/leave-intern/:id', auth, taskController.leaveInternTask);
+router.put('/leave-intern/:id', auth, internOnly, taskController.leaveInternTask);
 
 // --- 11. PUT /api/tasks/intern-details/:id (อัปเดตรายละเอียดงานนักศึกษา) ---
 router.put('/intern-details/:id', auth, taskController.updateInternTaskDetails);

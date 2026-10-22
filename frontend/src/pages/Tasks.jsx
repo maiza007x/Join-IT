@@ -451,6 +451,7 @@ function Tasks() {
                             confirmJoin={confirmJoin}
                             confirmLeave={confirmLeave}
                             highlightTaskId={highlightTaskId}
+                            canJoin={user?.role === "user"}
                         />
                     )}
 

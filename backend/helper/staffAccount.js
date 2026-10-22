@@ -4,7 +4,7 @@ const { query } = require('./db');
 // บัญชีเจ้าหน้าที่ IT อยู่ในตาราง admin ของ Order-IT (รหัสผ่านเป็นของ Order-IT; Join-IT ตรวจอย่างเดียว)
 async function findOrderItStaff(username) {
     const [rows] = await query(
-        'SELECT username, password, fname, lname, nickname, is_active FROM admin WHERE username = ? LIMIT 1',
+        'SELECT id, username, password, fname, lname, nickname, is_active FROM admin WHERE username = ? LIMIT 1',
         [username],
         'order'
     );

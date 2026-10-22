@@ -6,6 +6,9 @@ const { findOrderItStaff, verifyStaffPassword, upsertStaffUser } = require('../h
 
 const JWT_SECRET = process.env.SECRET_ACCESS_TOKEN;
 
+// SSO จาก Order-IT: ตั๋วที่ใช้แล้ว (jti -> เวลาหมดอายุ) เก็บไว้จนหมดอายุ กันใช้ซ้ำ (backend รัน process เดียว)
+const usedSsoTickets = new Map();
+
 const ACCOUNT_STATUS_MESSAGES = {
   pending: "บัญชีของคุณรอแอดมินอนุมัติ",
   rejected: "คำขอสมัครของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อเจ้าหน้าที่",
@@ -72,6 +75,40 @@ exports.login = async (req, res) => {
     return res.status(401).json({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
   } catch (err) {
     console.error(err);
+    return res.status(500).json({ message: "มีบางอย่างผิดพลาด โปรดลองอีกครั้ง" });
+  }
+};
+
+// --- POST /api/auth/sso: เข้าจาก Order-IT ด้วยตั๋วใช้ครั้งเดียว (ดู docs/PLAN-staff-login.md Phase 7) ---
+exports.ssoLogin = async (req, res) => {
+  let ticket;
+  try {
+    ticket = jwt.verify(String(req.body.ticket ?? ''), process.env.SSO_SHARED_SECRET, {
+      algorithms: ['HS256'],
+      issuer: 'order-it',
+      audience: 'join-it',
+      clockTolerance: 30, // เผื่อเวลาเครื่อง Order-IT / Join-IT ไม่ตรงกัน
+    });
+  } catch {
+    return res.status(401).json({ message: "ลิงก์เข้าสู่ระบบไม่ถูกต้องหรือหมดอายุ กรุณากดจาก Order-IT ใหม่" });
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  usedSsoTickets.forEach((exp, jti) => exp < now && usedSsoTickets.delete(jti));
+  if (!ticket.jti || !ticket.sub || !ticket.oid || usedSsoTickets.has(ticket.jti)) {
+    return res.status(401).json({ message: "ลิงก์เข้าสู่ระบบนี้ถูกใช้ไปแล้ว กรุณากดจาก Order-IT ใหม่" });
+  }
+  usedSsoTickets.set(ticket.jti, ticket.exp);
+
+  try {
+    // username และ id (oid) ต้องเป็นบัญชีเดียวกัน เพราะ username ใน Order-IT ไม่มี unique index
+    const staff = await findOrderItStaff(ticket.sub);
+    if (!staff || staff.id !== Number(ticket.oid) || !staff.is_active) {
+      return res.status(403).json({ message: "บัญชีเจ้าหน้าที่นี้ถูกปิดใช้งานใน Order-IT" });
+    }
+    return sendLoginSuccess(res, await upsertStaffUser(staff));
+  } catch (err) {
+    console.error("SSO Login Error:", err);
     return res.status(500).json({ message: "มีบางอย่างผิดพลาด โปรดลองอีกครั้ง" });
   }
 };

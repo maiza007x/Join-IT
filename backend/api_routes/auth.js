@@ -17,6 +17,8 @@ const loginLimiter = rateLimit({
 });
 
 router.post('/login', loginLimiter, authController.login);
+// เข้าจาก Order-IT ด้วยตั๋วใช้ครั้งเดียว (เจ้าหน้าที่)
+router.post('/sso', authController.ssoLogin);
 router.get('/getMe', authMiddleware, authController.getMe);
 router.post('/register', authController.register);
 

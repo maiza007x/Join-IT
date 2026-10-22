@@ -18,6 +18,8 @@ const InternTasksSection = ({
     confirmCloseMain,
     confirmReopenMain
 }) => {
+    // รับงานได้เฉพาะนักศึกษา (แอดมิน/เจ้าหน้าที่ดูได้อย่างเดียว)
+    const canJoin = user?.role === "user";
     const [assigneesDialogVisible, setAssigneesDialogVisible] = React.useState(false);
     const [selectedTaskForAssignees, setSelectedTaskForAssignees] = React.useState(null);
     const [assigneesDetails, setAssigneesDetails] = React.useState([]);
@@ -120,7 +122,7 @@ const InternTasksSection = ({
                             />
                         )}
                     </div>
-                ) : (
+                ) : canJoin && (
                     <Button
                         label={isTaker ? "รับงานแล้ว" : "รับงาน"}
                         icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
@@ -416,7 +418,7 @@ const InternTasksSection = ({
                                                         />
                                                     )}
                                                 </div>
-                                            ) : (
+                                            ) : canJoin && (
                                                 <Button
                                                     label={isTaker ? "รับงานแล้ว" : "รับงาน"}
                                                     icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}

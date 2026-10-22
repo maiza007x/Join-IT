@@ -8,7 +8,7 @@ const { validateStudentInfo } = require('../helper/userFields');
 exports.getProfile = async (req, res) => {
     try {
         const [rows] = await joinPool.query(
-            `SELECT id, username, full_name, nickname, university_name, education_level, academic_year, term, faculty, role, avatar_url, verified,
+            `SELECT id, username, orderit_username, full_name, nickname, university_name, education_level, academic_year, term, faculty, role, avatar_url, verified,
                     internship_start_date, internship_end_date
              FROM users WHERE id = ?`,
             [req.user.id]
@@ -40,6 +40,7 @@ exports.getAllUsers = async (req, res) => {
             SELECT 
                 id, 
                 username, 
+                orderit_username,
                 full_name,
                 avatar_url,
                 updated_at,
@@ -75,7 +76,7 @@ exports.getStudentList = async (req, res) => {
         const [students] = await joinPool.query(`
             SELECT id as value, full_name as label 
             FROM users
-            WHERE status IN ('approved', 'closed')
+            WHERE status IN ('approved', 'closed') AND role = 'user'
             ORDER BY full_name ASC
         `);
         res.json({ success: true, data: students });

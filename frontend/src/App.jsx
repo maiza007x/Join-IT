@@ -17,6 +17,7 @@ import Tasks from "./pages/Tasks";
 import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
+import SsoLogin from "./pages/SsoLogin";
 import Members from "./pages/Members";
 import MyTasks from "./pages/MyTasks";
 import Dashboard from "./pages/Dashboard";
@@ -36,6 +37,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/sso" element={<SsoLogin />} />
 
             {/* User Routes (Protected) */}
             <Route

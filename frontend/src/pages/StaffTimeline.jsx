@@ -47,7 +47,7 @@ const SYMBOL_LEGEND = [
 ];
 
 // ไทม์ไลน์งานเจ้าหน้าที่ (แถว = เจ้าหน้าที่) ใช้ข้อมูลชุดเดียวกับตาราง
-function StaffTimeline({ tasks, highlightTaskId, actionLoading, confirmJoin, confirmLeave, onShowDetail }) {
+function StaffTimeline({ tasks, highlightTaskId, actionLoading, confirmJoin, confirmLeave, onShowDetail, canJoin }) {
   const [showRoutine, setShowRoutine] = useState(() => localStorage.getItem(SHOW_ROUTINE_KEY) === "true");
   const [tooltip, setTooltip] = useState(null); // { task, x, y }
   const [selectedId, setSelectedId] = useState(null);
@@ -211,6 +211,7 @@ function StaffTimeline({ tasks, highlightTaskId, actionLoading, confirmJoin, con
               <span>ผู้ช่วย: {hasNoHelper(selected) ? "ยังไม่มี" : selected.interns.join(", ")}</span>
             </div>
             <div className="flex gap-2 mt-1">
+              {canJoin && (
               <button
                 type="button"
                 onClick={() => runAction(selected.isContributedByMe ? confirmLeave : confirmJoin)}
@@ -220,13 +221,14 @@ function StaffTimeline({ tasks, highlightTaskId, actionLoading, confirmJoin, con
                 <i className={`pi ${actionLoading === selected.id ? "pi-spin pi-spinner" : selected.isContributedByMe ? "pi-times" : "pi-plus"} text-xs mr-1.5`}></i>
                 {selected.isContributedByMe ? "ยกเลิก" : "ผูกงาน"}
               </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
                   cardRef.current.hide();
                   onShowDetail(selected);
                 }}
-                className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-50"
+                className="flex-1 h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-50"
               >
                 <i className="pi pi-eye text-xs mr-1.5"></i>
                 ดูรายละเอียด

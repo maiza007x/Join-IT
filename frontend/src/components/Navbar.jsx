@@ -83,7 +83,7 @@ const Navbar = () => {
                             <div className="absolute bottom-0 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
                         </div>
                         <span className="text-[11px] font-black text-slate-700 hidden lg:block mr-2">
-                            {user?.username || 'User'}
+                            {user?.nickname || user?.username || 'User'}
                         </span>
                     </div>
 

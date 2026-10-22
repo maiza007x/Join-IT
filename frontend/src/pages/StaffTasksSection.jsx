@@ -26,7 +26,8 @@ const StaffTasksSection = ({
     fetchTasks,
     confirmJoin,
     confirmLeave,
-    highlightTaskId
+    highlightTaskId,
+    canJoin
 }) => {
     const myContributedTasks = tasks.filter((t) => t.isContributedByMe).length;
     const [detailDialogVisible, setDetailDialogVisible] = useState(false);
@@ -119,18 +120,19 @@ const StaffTasksSection = ({
         const isLoading = actionLoading === rowData.id;
         return (
             <div className="flex gap-2 items-center justify-center">
-
-                <Button
-                    label={isJoined ? "ยกเลิก" : "ผูกงาน"}
-                    icon={isJoined ? "pi pi-times" : "pi pi-plus"}
-                    rounded
-                    severity={isJoined ? "danger" : "info"}
-                    loading={isLoading}
-                    className={`px-3 py-1.5 text-[10px] font-bold border-none transition-all ${isJoined ? "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-100" : "bg-slate-900 hover:bg-slate-700 shadow-lg shadow-slate-200"}`}
-                    onClick={() =>
-                        isJoined ? confirmLeave(rowData.id) : confirmJoin(rowData.id)
-                    }
-                />
+                {canJoin && (
+                    <Button
+                        label={isJoined ? "ยกเลิก" : "ผูกงาน"}
+                        icon={isJoined ? "pi pi-times" : "pi pi-plus"}
+                        rounded
+                        severity={isJoined ? "danger" : "info"}
+                        loading={isLoading}
+                        className={`px-3 py-1.5 text-[10px] font-bold border-none transition-all ${isJoined ? "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-100" : "bg-slate-900 hover:bg-slate-700 shadow-lg shadow-slate-200"}`}
+                        onClick={() =>
+                            isJoined ? confirmLeave(rowData.id) : confirmJoin(rowData.id)
+                        }
+                    />
+                )}
                 <Button
                     icon="pi pi-eye"
                     rounded
@@ -254,6 +256,7 @@ const StaffTasksSection = ({
                                 confirmJoin={confirmJoin}
                                 confirmLeave={confirmLeave}
                                 onShowDetail={showDetailDialog}
+                                canJoin={canJoin}
                             />
                         ) : (
                             <DataTable
@@ -434,15 +437,17 @@ const StaffTasksSection = ({
                                                 className="flex-1 h-10 p-button-sm border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
                                                 onClick={() => showDetailDialog(row)}
                                             />
-                                            <Button
-                                                label={isJoined ? "ยกเลิก" : "ผูกงาน"}
-                                                icon={isJoined ? "pi pi-times" : "pi pi-plus"}
-                                                loading={isLoading}
-                                                className={`flex-1 h-10 p-button-sm border-none rounded-xl text-xs font-bold shadow-md transition-all ${isJoined ? "bg-red-500 hover:bg-red-600 shadow-red-100" : "bg-slate-900 hover:bg-slate-700 shadow-slate-200"}`}
-                                                onClick={() =>
-                                                    isJoined ? confirmLeave(row.id) : confirmJoin(row.id)
-                                                }
-                                            />
+                                            {canJoin && (
+                                                <Button
+                                                    label={isJoined ? "ยกเลิก" : "ผูกงาน"}
+                                                    icon={isJoined ? "pi pi-times" : "pi pi-plus"}
+                                                    loading={isLoading}
+                                                    className={`flex-1 h-10 p-button-sm border-none rounded-xl text-xs font-bold shadow-md transition-all ${isJoined ? "bg-red-500 hover:bg-red-600 shadow-red-100" : "bg-slate-900 hover:bg-slate-700 shadow-slate-200"}`}
+                                                    onClick={() =>
+                                                        isJoined ? confirmLeave(row.id) : confirmJoin(row.id)
+                                                    }
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 );

@@ -323,7 +323,14 @@ function Members() {
                                 <span className="text-sm font-medium">{row.nickname || '-'}</span>
                             )} />
                             <Column field="role" header="บทบาท ↑↓" body={(row) => (
-                                <Tag value={row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'}`} />
+                                <div className="flex flex-col items-start gap-1">
+                                    <Tag value={row.role} className={`px-3 py-1 text-[11px] font-bold border-none ${row.role === 'admin' ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'}`} />
+                                    {row.orderit_username && (
+                                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 whitespace-nowrap">
+                                            เจ้าหน้าที่ (Order-IT)
+                                        </span>
+                                    )}
+                                </div>
                             )} />
                             <Column field="university_name" header="มหาวิทยาลัย" sortable body={(row) => (
                                 <span className="text-sm font-medium">{row.university_name || '-'}</span>
@@ -355,7 +362,9 @@ function Members() {
                                 return `${d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })} ${d.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })}`;
                             }} />
 
-                            <Column header="จัดการ" body={(row) => (
+                            <Column header="จัดการ" body={(row) => row.orderit_username ? (
+                                <span className="text-[11px] text-slate-400">จัดการที่ Order-IT</span>
+                            ) : (
                                 <div className="flex gap-2">
                                     <Button
                                         icon="pi pi-key"
