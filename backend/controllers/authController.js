@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../helper/db.js');
 const jwt = require('jsonwebtoken');
 const { validateStudentInfo } = require('../helper/userFields');
+const { findOrderItStaff, verifyStaffPassword, upsertStaffUser } = require('../helper/staffAccount');
 
 const JWT_SECRET = process.env.SECRET_ACCESS_TOKEN;
 
@@ -11,57 +12,64 @@ const ACCOUNT_STATUS_MESSAGES = {
   closed: "บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อเจ้าหน้าที่",
 };
 
+// ตอบกลับเมื่อ login สำเร็จ (ใช้ทั้งนักศึกษา/แอดมิน Join-IT และเจ้าหน้าที่ Order-IT)
+const sendLoginSuccess = (res, user) => {
+  const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
+
+  return res.status(200).json({
+    message: "เข้าสู่ระบบสำเร็จ",
+    status: true,
+    data: {
+      id: user.id,
+      username: user.username,
+      full_name: user.full_name,
+      nickname: user.nickname,
+      role: user.role,
+      verified: user.verified,
+      avatar_url: user.avatar_url,
+      orderit_username: user.orderit_username,
+      internship_start_date: user.internship_start_date,
+      internship_end_date: user.internship_end_date
+    },
+    token,
+  });
+};
+
+// login หน้าเดียวสองแหล่ง: ตรวจบัญชี Join-IT ก่อน ถ้าไม่ผ่านค่อยตรวจบัญชีเจ้าหน้าที่ใน Order-IT
 exports.login = async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ message: "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน" });
+  }
+
   try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ message: "username and password is required" });
-    }
-
+    // 1) บัญชีของ Join-IT (ไม่รวมแถวเจ้าหน้าที่ ซึ่งรหัสผ่านอยู่ที่ Order-IT)
     const [results] = await db.query(
-      "SELECT * FROM users WHERE username = ? LIMIT 1",
+      "SELECT * FROM users WHERE username = ? AND orderit_username IS NULL LIMIT 1",
       [username]
     );
-
-    if (results.length === 0) {
-      return res.status(404).json({ message: "ไม่พบผู้ใช้งานนี้ในระบบ" });
-    }
-
     const user = results[0];
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "รหัสผ่านไม่ถูกต้อง" });
+    if (user && await bcrypt.compare(password, user.password)) {
+      // ตรวจสถานะหลังรหัสผ่านถูกแล้ว เพื่อไม่เปิดเผยสถานะให้คนที่ไม่รู้รหัสผ่าน
+      if (user.status !== 'approved') {
+        return res.status(403).json({ message: ACCOUNT_STATUS_MESSAGES[user.status] });
+      }
+      return sendLoginSuccess(res, user);
     }
 
-    // ตรวจสถานะบัญชีหลังตรวจรหัสผ่านแล้ว เพื่อไม่เปิดเผยสถานะให้คนที่ไม่รู้รหัสผ่าน
-    if (user.status !== 'approved') {
-      return res.status(403).json({ message: ACCOUNT_STATUS_MESSAGES[user.status] });
+    // 2) บัญชีเจ้าหน้าที่ IT ใน Order-IT (Order-IT ไม่ตรวจ is_active ตอน login จึงตรวจที่นี่)
+    const staff = await findOrderItStaff(username);
+    if (staff && await verifyStaffPassword(staff, password)) {
+      if (!staff.is_active) {
+        return res.status(403).json({ message: "บัญชีเจ้าหน้าที่นี้ถูกปิดใช้งานใน Order-IT" });
+      }
+      return sendLoginSuccess(res, await upsertStaffUser(staff));
     }
 
-    // ✅ แก้ไขจุดนี้: เปลี่ยนจาก 'secret' เป็นตัวแปร JWT_SECRET
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
-
-    delete user.password;
-
-    return res.status(200).json({
-      message: "เข้าสู่ระบบสำเร็จ",
-      status: true,
-      data: {
-        id: user.id,
-        username: user.username,
-        full_name: user.full_name,
-        nickname: user.nickname,
-        role: user.role,
-        verified: user.verified,
-        avatar_url: user.avatar_url,
-        internship_start_date: user.internship_start_date,
-        internship_end_date: user.internship_end_date
-      },
-      token,
-    });
-
+    // ข้อความเดียวกันทุกกรณี ไม่บอกว่า username มีอยู่หรือไม่
+    return res.status(401).json({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "มีบางอย่างผิดพลาด โปรดลองอีกครั้ง" });
