@@ -2,40 +2,59 @@ import React, { useState, useEffect } from "react";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { Tag } from "primereact/tag";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
-import { Dropdown } from "primereact/dropdown";
 import api from "../services/api";
 import StaffTimeline from "./StaffTimeline";
+import InternAssigneesDialog from "./InternAssigneesDialog";
+import TaskKindBadge from "../components/TaskKindBadge";
+import { KIND_OPTIONS, filterByKind } from "../utils/taskKind";
 import { PRIORITIES, getPriorityText, getStaffName, hasNoHelper } from "../utils/staffTask";
 
-// จำตัวกรอง "เฉพาะงานที่ยังไม่มีคนช่วย" ไว้ในเบราว์เซอร์ (ขึ้นต้น joinit_ เพราะใช้ localStorage ร่วมกับ Order-IT)
+// ค่าที่จำไว้ในเบราว์เซอร์ (ขึ้นต้น joinit_ เพราะใช้ localStorage ร่วมกับ Order-IT)
 const ONLY_NO_HELPER_KEY = "joinit_staffTasksOnlyNoHelper";
-// มุมมองของงานเจ้าหน้าที่บนจอใหญ่: "table" หรือ "timeline"
+// มุมมองบนจอใหญ่: "table" หรือ "timeline" (ไทม์ไลน์แสดงเฉพาะงานเจ้าหน้าที่)
 const VIEW_KEY = "joinit_staffTasksView";
+// ประเภทงานที่แสดง: "all" | "staff" | "intern"
+const KIND_KEY = "joinit_todayTasksKind";
 
-const StaffTasksSection = ({
+// งานนักศึกษาที่ปิดแล้วไม่ต้องการคนช่วยอีก
+const needsHelper = (row) => hasNoHelper(row) && !row.isClosed;
+
+// งานนักศึกษาเก็บผู้รับงานเป็น "ชื่อ::closed|working"
+const parseInternHelper = (value) => {
+    const [name, status = "working"] = value.split("::");
+    return { name, closed: status === "closed" };
+};
+
+const TodayTasksSection = ({
     tasks,
+    internTasks,
     loading,
     actionLoading,
     filters,
     setFilters,
     reporterFilterTemplate,
     fetchTasks,
+    highlightTaskId,
+    user,
     confirmJoin,
     confirmLeave,
-    highlightTaskId,
-    canJoin
+    confirmAcceptIntern,
+    confirmLeaveIntern,
+    openEditModal,
+    confirmCloseMain,
+    confirmReopenMain,
 }) => {
-    const myContributedTasks = tasks.filter((t) => t.isContributedByMe).length;
+    // ผูกงาน/รับงานได้เฉพาะนักศึกษา (แอดมิน/เจ้าหน้าที่ดูได้อย่างเดียว)
+    const canJoin = user?.role === "user";
     const [detailDialogVisible, setDetailDialogVisible] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
-    // กรองเฉพาะงานที่ยังไม่มีนักศึกษาช่วย (กดการ์ดส้มหรือปุ่มในหัวตาราง)
-    const [onlyNoHelper, setOnlyNoHelper] = useState(() => localStorage.getItem(ONLY_NO_HELPER_KEY) === "true");
+    const [assigneesTask, setAssigneesTask] = useState(null);
 
+    const [onlyNoHelper, setOnlyNoHelper] = useState(() => localStorage.getItem(ONLY_NO_HELPER_KEY) === "true");
     useEffect(() => {
         localStorage.setItem(ONLY_NO_HELPER_KEY, onlyNoHelper);
     }, [onlyNoHelper]);
@@ -45,6 +64,10 @@ const StaffTasksSection = ({
         localStorage.setItem(VIEW_KEY, view);
     }, [view]);
 
+    const [kind, setKind] = useState(() => localStorage.getItem(KIND_KEY) || "all");
+    useEffect(() => {
+        localStorage.setItem(KIND_KEY, kind);
+    }, [kind]);
 
     const getCloseTimeText = (t) => {
         if (!t || t.startsWith('00:00') || t === '00:000') return '-';
@@ -70,16 +93,44 @@ const StaffTasksSection = ({
         }
     };
 
-    const noHelperCount = tasks.filter(hasNoHelper).length;
+    // รวมงานเจ้าหน้าที่และงานนักศึกษาเป็นแถวรูปแบบเดียวกัน (id ของสองตารางซ้ำกันได้ จึงใช้ rowKey)
+    const allRows = React.useMemo(() => [
+        ...tasks.map((t) => ({
+            ...t,
+            kind: "staff",
+            rowKey: `staff-${t.id}`,
+            interns_str: t.interns.join(", "),
+        })),
+        ...internTasks.map((t) => ({
+            ...t,
+            kind: "intern",
+            rowKey: `intern-${t.id}`,
+            interns_str: t.interns.map((value) => parseInternHelper(value).name).join(", "),
+        })),
+    ], [tasks, internTasks]);
 
-    const processedTasks = React.useMemo(() => {
-        return tasks
-            .filter((t) => !onlyNoHelper || hasNoHelper(t))
-            .map((t) => ({
-                ...t,
-                interns_str: t.interns && t.interns.length > 0 ? t.interns.join(", ") : "",
-            }));
-    }, [tasks, onlyNoHelper]);
+    const kindCounts = {
+        all: allRows.length,
+        staff: tasks.length,
+        intern: internTasks.length,
+    };
+
+    const kindRows = React.useMemo(
+        () => filterByKind(allRows, kind),
+        [allRows, kind]
+    );
+    const processedRows = React.useMemo(
+        () => (onlyNoHelper ? kindRows.filter(needsHelper) : kindRows),
+        [kindRows, onlyNoHelper]
+    );
+    const timelineTasks = processedRows.filter((row) => row.kind === "staff");
+
+    const myContributedTasks = kindRows.filter((row) => row.isContributedByMe).length;
+    const noHelperCount = kindRows.filter(needsHelper).length;
+
+    const isOwner = (row) => row.created_by === (user?.full_name || user?.username);
+
+    const kindTemplate = (row) => <TaskKindBadge kind={row.kind} />;
 
     const priorityTemplate = (rowData) => {
         const priority = PRIORITIES[rowData.priority];
@@ -96,66 +147,178 @@ const StaffTasksSection = ({
         );
     };
 
-    const internTemplate = (rowData) => (
-        <div className="flex flex-wrap gap-1">
-            {rowData.interns && rowData.interns.length > 0 ? (
-                rowData.interns.map((name, index) => (
-                    <Tag
-                        key={index}
-                        value={name}
-                        rounded
-                        className="px-2.5 py-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 font-bold"
-                    />
-                ))
-            ) : (
-                <span className="text-slate-300 text-[10px]">
-                    ยังไม่มีคนช่วย
-                </span>
-            )}
-        </div>
+    // ผู้รับผิดชอบ: งานเจ้าหน้าที่ = เจ้าหน้าที่รับงาน, งานนักศึกษา = ผู้สร้างงาน
+    const ownerName = (row) => (row.kind === "intern" ? row.created_by : getStaffName(row));
+
+    const ownerTemplate = (row) => (
+        <span
+            title={row.kind === "intern" ? "ผู้สร้างงาน" : row.username}
+            className={`font-semibold ${row.kind === "intern" ? "text-orange-600" : "text-slate-500"}`}
+        >
+            {ownerName(row)}
+        </span>
     );
 
-    const actionTemplate = (rowData) => {
-        const isJoined = rowData.isContributedByMe;
-        const isLoading = actionLoading === rowData.id;
+    const helpersTemplate = (row) => {
+        if (row.interns.length === 0) {
+            return (
+                <span className="text-slate-300 text-[10px]">
+                    {row.kind === "intern" ? "รอผู้รับงาน" : "ยังไม่มีคนช่วย"}
+                </span>
+            );
+        }
+
+        if (row.kind === "staff") {
+            return (
+                <div className="flex flex-wrap gap-1">
+                    {row.interns.map((name, index) => (
+                        <span key={index} className="px-2.5 py-1 rounded-full text-[10px] bg-blue-50 text-blue-600 border border-blue-100 font-bold">
+                            {name}
+                        </span>
+                    ))}
+                </div>
+            );
+        }
+
         return (
-            <div className="flex gap-2 items-center justify-center">
+            <button
+                type="button"
+                onClick={() => setAssigneesTask(row)}
+                title="คลิกเพื่อดูรายละเอียดการช่วยเหลือ"
+                className="flex flex-wrap gap-1 items-center bg-transparent border-none p-0 cursor-pointer hover:opacity-80"
+            >
+                {row.interns.map(parseInternHelper).map((helper, index) => (
+                    <span
+                        key={index}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white ${helper.closed ? "bg-green-600" : "bg-amber-500"}`}
+                    >
+                        <i className={`pi ${helper.closed ? "pi-check-circle" : "pi-clock"} text-[9px]`}></i>
+                        {helper.name}
+                    </span>
+                ))}
+                <i className="pi pi-info-circle text-slate-400 text-[10px] ml-0.5"></i>
+            </button>
+        );
+    };
+
+    const staffActions = (row) => {
+        const isJoined = row.isContributedByMe;
+        return (
+            <>
                 {canJoin && (
                     <Button
                         label={isJoined ? "ยกเลิก" : "ผูกงาน"}
                         icon={isJoined ? "pi pi-times" : "pi pi-plus"}
                         rounded
-                        severity={isJoined ? "danger" : "info"}
-                        loading={isLoading}
+                        loading={actionLoading === row.id}
                         className={`px-3 py-1.5 text-[10px] font-bold border-none transition-all ${isJoined ? "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-100" : "bg-slate-900 hover:bg-slate-700 shadow-lg shadow-slate-200"}`}
-                        onClick={() =>
-                            isJoined ? confirmLeave(rowData.id) : confirmJoin(rowData.id)
-                        }
+                        onClick={() => (isJoined ? confirmLeave(row.id) : confirmJoin(row.id))}
                     />
                 )}
                 <Button
                     icon="pi pi-eye"
                     rounded
                     text
+                    tooltip="ดูรายละเอียด"
+                    tooltipOptions={{ position: "top" }}
                     className="px-3 py-1.5 text-[10px] font-bold text-slate-700"
-                    onClick={() => showDetailDialog(rowData)}
+                    onClick={() => showDetailDialog(row)}
                 />
-            </div>
+            </>
         );
     };
 
+    const internActions = (row) => {
+        const isTaker = row.isContributedByMe;
+        const owner = isOwner(row);
+
+        if (row.isClosed) {
+            return (
+                <>
+                    <span className="px-3 py-1.5 rounded-full text-[10px] bg-red-100 text-red-600 font-bold whitespace-nowrap">
+                        ปิดงานแล้ว
+                    </span>
+                    {owner && (
+                        <Button
+                            icon="pi pi-undo"
+                            rounded
+                            tooltip="ยกเลิกการปิดงาน (เปิดงานใหม่)"
+                            tooltipOptions={{ position: "top" }}
+                            className="w-7 h-7 p-0 bg-purple-500 hover:bg-purple-600 border-none text-white"
+                            onClick={() => confirmReopenMain(row.id)}
+                            loading={actionLoading === `intern-reopen-${row.id}`}
+                        />
+                    )}
+                </>
+            );
+        }
+
+        return (
+            <>
+                {canJoin && (
+                    <Button
+                        label={isTaker ? "รับงานแล้ว" : "รับงาน"}
+                        icon={isTaker ? "pi pi-check-circle" : "pi pi-check"}
+                        rounded
+                        loading={actionLoading === `intern-${row.id}`}
+                        className={`px-3 py-1.5 text-[10px] font-bold border-none transition-all ${isTaker ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-100" : "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100"}`}
+                        onClick={() => (isTaker ? confirmLeaveIntern(row.id) : confirmAcceptIntern(row.id))}
+                    />
+                )}
+                {owner && (
+                    <>
+                        <Button
+                            icon="pi pi-pencil"
+                            rounded
+                            tooltip="แก้ไขงาน"
+                            tooltipOptions={{ position: "top" }}
+                            className="w-7 h-7 p-0 bg-yellow-500 hover:bg-yellow-600 border-none"
+                            onClick={() => openEditModal(row)}
+                        />
+                        <Button
+                            icon="pi pi-power-off"
+                            rounded
+                            tooltip="ปิดงาน (เสร็จสิ้น)"
+                            tooltipOptions={{ position: "top" }}
+                            className="w-7 h-7 p-0 bg-red-500 hover:bg-red-600 border-none"
+                            onClick={() => confirmCloseMain(row.id)}
+                            loading={actionLoading === `intern-close-${row.id}`}
+                        />
+                    </>
+                )}
+                <Button
+                    icon="pi pi-users"
+                    rounded
+                    text
+                    tooltip="ดูผู้รับงาน"
+                    tooltipOptions={{ position: "top" }}
+                    className="px-3 py-1.5 text-[10px] font-bold text-slate-700"
+                    onClick={() => setAssigneesTask(row)}
+                />
+            </>
+        );
+    };
+
+    const actionTemplate = (row) => (
+        <div className="flex flex-wrap gap-2 items-center justify-center">
+            {row.kind === "intern" ? internActions(row) : staffActions(row)}
+        </div>
+    );
+
+    const isHighlighted = (row) => row.kind === "staff" && row.id === highlightTaskId;
+
     return (
         <div className="flex flex-col gap-5">
-            {/* 📊 Dashboard Cards */}
+            {/* 📊 Dashboard Cards (นับตามประเภทงานที่เลือก) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-50 flex items-center gap-4 border-l-4 border-l-blue-500">
                     <i className="pi pi-briefcase text-3xl text-blue-500 bg-blue-50 p-4 rounded-3xl" />
                     <div>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                            งานทั้งหมดในระบบ
+                            งานทั้งหมด
                         </span>
                         <h2 className="text-3xl font-black text-blue-950 mt-1">
-                            {tasks.length}{" "}
+                            {kindRows.length}{" "}
                             <span className="text-sm font-medium text-slate-400">
                                 รายการ
                             </span>
@@ -199,7 +362,7 @@ const StaffTasksSection = ({
 
             {/* Main Data Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-50 overflow-hidden">
-                <div className="p-7 flex items-center justify-between bg-slate-900 border-b border-slate-700">
+                <div className="p-7 flex flex-wrap gap-4 items-center justify-between bg-slate-900 border-b border-slate-700">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-10 bg-blue-500 rounded-full"></div>
                         <div>
@@ -211,7 +374,19 @@ const StaffTasksSection = ({
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex bg-white/10 p-1 rounded-lg">
+                            {KIND_OPTIONS.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setKind(option.value)}
+                                    className={`px-3 py-1.5 rounded-md border-none text-xs font-bold cursor-pointer transition-all ${kind === option.value ? "bg-white text-slate-900" : "bg-transparent text-slate-300 hover:text-white"}`}
+                                >
+                                    {option.label} ({kindCounts[option.value]})
+                                </button>
+                            ))}
+                        </div>
                         <div className="hidden md:flex bg-white/10 p-1 rounded-lg">
                             {[
                                 { value: "table", label: "ตาราง", icon: "pi-table" },
@@ -250,7 +425,7 @@ const StaffTasksSection = ({
                     <div className="hidden md:block">
                         {view === "timeline" ? (
                             <StaffTimeline
-                                tasks={processedTasks}
+                                tasks={timelineTasks}
                                 highlightTaskId={highlightTaskId}
                                 actionLoading={actionLoading}
                                 confirmJoin={confirmJoin}
@@ -260,10 +435,12 @@ const StaffTasksSection = ({
                             />
                         ) : (
                             <DataTable
-                                value={processedTasks}
+                                value={processedRows}
+                                dataKey="rowKey"
                                 loading={loading}
                                 rowClassName={(rowData) => ({
-                                    'bg-blue-500/10 border-l-4 border-blue-500 animate-pulse font-bold shadow-inner': rowData.id === highlightTaskId
+                                    'bg-blue-500/10 border-l-4 border-blue-500 animate-pulse font-bold shadow-inner': isHighlighted(rowData),
+                                    'bg-orange-50/40': rowData.kind === "intern",
                                 })}
                                 paginator
                                 rows={10}
@@ -300,6 +477,13 @@ const StaffTasksSection = ({
                                     sortable
                                 />
                                 <Column
+                                    field="kind"
+                                    header="ประเภท"
+                                    body={kindTemplate}
+                                    style={{ width: "8rem" }}
+                                    sortable
+                                />
+                                <Column
                                     field="priority"
                                     header="ความเร่งด่วน"
                                     body={priorityTemplate}
@@ -322,7 +506,7 @@ const StaffTasksSection = ({
                                             </div>
                                         </div>
                                     )}
-                                    style={{ width: "17rem" }}
+                                    style={{ width: "15rem" }}
                                     sortable
                                 />
                                 <Column
@@ -334,13 +518,9 @@ const StaffTasksSection = ({
                                 />
                                 <Column
                                     field="username"
-                                    header="เจ้าหน้าที่รับงาน"
-                                    body={(row) => (
-                                        <span title={row.username} className="text-slate-500 font-semibold">
-                                            {getStaffName(row)}
-                                        </span>
-                                    )}
-                                    style={{ width: "13rem" }}
+                                    header="ผู้รับผิดชอบ"
+                                    body={ownerTemplate}
+                                    style={{ width: "12rem" }}
                                     sortable
                                     filter
                                     filterElement={reporterFilterTemplate}
@@ -349,109 +529,73 @@ const StaffTasksSection = ({
                                 <Column
                                     field="interns_str"
                                     header="ผู้ช่วยเหลือ"
-                                    body={internTemplate}
+                                    body={helpersTemplate}
                                     style={{ width: "14rem" }}
                                     sortable
                                 />
                                 <Column
-                                    field="isContributedByMe"
                                     header="จัดการ"
                                     body={actionTemplate}
-                                    style={{ textAlign: "center", width: "14rem" }}
-                                    sortable
+                                    style={{ textAlign: "center", width: "15rem" }}
                                 />
                             </DataTable>
                         )}
                     </div>
-                    {/* Mobile Cards (Tasks) */}
+                    {/* Mobile Cards */}
                     <div className="md:hidden flex flex-col gap-4">
-                        {processedTasks.length > 0 ? (
-                            processedTasks.map((row, i) => {
-                                const isJoined = row.isContributedByMe;
-                                const isLoading = actionLoading === row.id;
-                                return (
-                                    <div
-                                        key={i}
-                                        className={`bg-white border rounded-2xl p-5 flex flex-col gap-3 relative transition-all duration-500 ${row.id === highlightTaskId
-                                            ? 'border-blue-500 bg-blue-50/40 shadow-lg shadow-blue-100 animate-pulse'
-                                            : 'border-slate-100 shadow-sm'
-                                            }`}
-                                    >
-                                        <div className="flex justify-between items-center border-b border-slate-50 pb-3">
-                                            <div className="flex items-center gap-2">
-                                                <i className="pi pi-clock text-slate-400 text-xs"></i>
-                                                <span className="font-black text-slate-700 text-sm">
-                                                    {row.time_report
-                                                        ? row.time_report.substring(0, 5) + " น."
-                                                        : "-"}
-                                                </span>
-                                            </div>
-                                            <span className="text-slate-500 font-semibold text-xs bg-slate-50 px-2 py-1 rounded-md">
-                                                {getStaffName(row)}
+                        {processedRows.length > 0 ? (
+                            processedRows.map((row) => (
+                                <div
+                                    key={row.rowKey}
+                                    className={`bg-white border rounded-2xl p-5 flex flex-col gap-3 relative transition-all duration-500 ${isHighlighted(row)
+                                        ? 'border-blue-500 bg-blue-50/40 shadow-lg shadow-blue-100 animate-pulse'
+                                        : row.kind === "intern" ? 'border-orange-100 shadow-sm' : 'border-slate-100 shadow-sm'
+                                        }`}
+                                >
+                                    <div className="flex justify-between items-center gap-2 border-b border-slate-50 pb-3">
+                                        <div className="flex items-center gap-2">
+                                            <i className="pi pi-clock text-slate-400 text-xs"></i>
+                                            <span className="font-black text-slate-700 text-sm">
+                                                {row.time_report
+                                                    ? row.time_report.substring(0, 5) + " น."
+                                                    : "-"}
                                             </span>
+                                            {kindTemplate(row)}
                                         </div>
-                                        <div className="flex flex-col gap-1">
-                                            <h4 className="font-bold text-slate-800 text-base m-0 leading-tight">
-                                                {row.deviceName}
-                                            </h4>
-                                            <div className="flex items-center gap-1.5">
-                                                <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
-                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                                    {row.department_name}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        {PRIORITIES[row.priority] && (
-                                            <div>{priorityTemplate(row)}</div>
-                                        )}
-                                        <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                            {row.report}
-                                        </p>
-
-                                        <div className="flex flex-col gap-2 mt-1">
-                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                                                ผู้ช่วยเหลือ
+                                        <span className="text-slate-500 font-semibold text-xs bg-slate-50 px-2 py-1 rounded-md">
+                                            {ownerName(row)}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <h4 className="font-bold text-slate-800 text-base m-0 leading-tight">
+                                            {row.deviceName}
+                                        </h4>
+                                        <div className="flex items-center gap-1.5">
+                                            <i className="pi pi-map-marker text-blue-400 text-[10px]"></i>
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                                {row.department_name}
                                             </span>
-                                            <div className="flex flex-wrap gap-1">
-                                                {row.interns && row.interns.length > 0 ? (
-                                                    row.interns.map((name, index) => (
-                                                        <Tag
-                                                            key={index}
-                                                            value={name}
-                                                            rounded
-                                                            className="px-2.5 py-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 font-bold"
-                                                        />
-                                                    ))
-                                                ) : (
-                                                    <span className="text-slate-300 text-[10px]">
-                                                        ยังไม่มีคนช่วย
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-2 mt-2">
-                                            <Button
-                                                label="ดูรายละเอียด"
-                                                icon="pi pi-eye"
-                                                className="flex-1 h-10 p-button-sm border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
-                                                onClick={() => showDetailDialog(row)}
-                                            />
-                                            {canJoin && (
-                                                <Button
-                                                    label={isJoined ? "ยกเลิก" : "ผูกงาน"}
-                                                    icon={isJoined ? "pi pi-times" : "pi pi-plus"}
-                                                    loading={isLoading}
-                                                    className={`flex-1 h-10 p-button-sm border-none rounded-xl text-xs font-bold shadow-md transition-all ${isJoined ? "bg-red-500 hover:bg-red-600 shadow-red-100" : "bg-slate-900 hover:bg-slate-700 shadow-slate-200"}`}
-                                                    onClick={() =>
-                                                        isJoined ? confirmLeave(row.id) : confirmJoin(row.id)
-                                                    }
-                                                />
-                                            )}
                                         </div>
                                     </div>
-                                );
-                            })
+                                    {PRIORITIES[row.priority] && (
+                                        <div>{priorityTemplate(row)}</div>
+                                    )}
+                                    <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        {row.report}
+                                    </p>
+
+                                    <div className="flex flex-col gap-2 mt-1">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                            ผู้ช่วยเหลือ
+                                        </span>
+                                        {helpersTemplate(row)}
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 items-center justify-end mt-2">
+                                        {row.kind === "intern" ? internActions(row) : staffActions(row)}
+                                    </div>
+                                </div>
+                            ))
                         ) : (
                             <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-sm font-medium pr-2">
                                 ไม่พบรายการงานที่ตรงตามเงื่อนไข
@@ -459,6 +603,14 @@ const StaffTasksSection = ({
                         )}
                     </div>
                 </div>
+
+                {assigneesTask && (
+                    <InternAssigneesDialog
+                        key={assigneesTask.id}
+                        task={assigneesTask}
+                        onHide={() => setAssigneesTask(null)}
+                    />
+                )}
 
                 {/* Premium Task Detail Dialog */}
                 <Dialog
@@ -632,4 +784,4 @@ const StaffTasksSection = ({
     );
 };
 
-export default StaffTasksSection;
+export default TodayTasksSection;

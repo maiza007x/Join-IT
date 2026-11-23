@@ -13,8 +13,7 @@ import { FilterMatchMode } from "primereact/api";
 import { MultiSelect } from "primereact/multiselect";
 import socket from "../services/socket";
 import InternTaskModal from "./InternTaskModal";
-import StaffTasksSection from "./StaffTasksSection";
-import InternTasksSection from "./InternTasksSection";
+import TodayTasksSection from "./TodayTasksSection";
 import { useAuth } from "../context/AuthContext";
 import { fromDateString } from "../utils/dateString";
 
@@ -35,7 +34,6 @@ function Tasks() {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [createModalVisible, setCreateModalVisible] = useState(false);
-    const [activeTab, setActiveTab] = useState("staff");
     const [highlightTaskId, setHighlightTaskId] = useState(null);
 
     useEffect(() => {
@@ -53,7 +51,6 @@ function Tasks() {
     const reporters = Array.from(
         new Map(tasks.filter(t => t.username).map(t => [t.username, { label: t.staff_nickname || `@${t.username}`, value: t.username }])).values()
     );
-    const incompleteInternTasksCount = internTasks.filter(t => Number(t.status) !== 3).length;
 
     const reporterFilterTemplate = (options) => {
         return (
@@ -398,77 +395,38 @@ function Tasks() {
                                 />
                             </div>
                         </div>
-
+                        <button
+                            type="button"
+                            onClick={() => setCreateModalVisible(true)}
+                            className="h-12 flex items-center gap-2 px-5 rounded-2xl border-none bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold cursor-pointer shadow-md shadow-orange-500/20 transition-all whitespace-nowrap"
+                        >
+                            <i className="pi pi-plus text-xs"></i>
+                            เพิ่มงานนักศึกษา
+                        </button>
                     </div>
                 </div>
 
-                {/* Custom HRMS-style Tabs */}
-                <div className="flex gap-4 border-b border-slate-200 mt-2 mb-2">
-                    <button
-                        className={`pb-4 px-4 font-bold text-sm transition-all relative ${activeTab === "staff" ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
-                            }`}
-                        onClick={() => setActiveTab("staff")}
-                    >
-                        <div className="flex items-center gap-2">
-                            <i className="pi pi-briefcase"></i>
-                            งานประจำวัน (โดยเจ้าหน้าที่)
-                        </div>
-                        {activeTab === "staff" && (
-                            <span className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-t-md"></span>
-                        )}
-                    </button>
-                    <button
-                        className={`pb-4 px-4 font-bold text-sm transition-all relative ${activeTab === "intern" ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
-                            }`}
-                        onClick={() => setActiveTab("intern")}
-                    >
-                        <div className="flex items-center gap-2">
-                            <i className="pi pi-star"></i>
-                            งานสำหรับนักศึกษา
-                            {incompleteInternTasksCount > 0 && (
-                                <span className="ml-1 bg-red-500 text-white text-[9px] font-extrabold w-4 h-4 flex items-center justify-center rounded-full shadow-sm shadow-red-500/30">
-                                    {incompleteInternTasksCount}
-                                </span>
-                            )}
-                        </div>
-                        {activeTab === "intern" && (
-                            <span className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-t-md"></span>
-                        )}
-                    </button>
-                </div>
-
-                {/* Tab Content */}
+                {/* งานเจ้าหน้าที่ + งานนักศึกษา ในตารางเดียว */}
                 <div className="animate-fade-in-up">
-                    {activeTab === "staff" && (
-                        <StaffTasksSection
-                            tasks={tasks}
-                            loading={loading}
-                            actionLoading={actionLoading}
-                            filters={filters}
-                            setFilters={setFilters}
-                            reporterFilterTemplate={reporterFilterTemplate}
-                            fetchTasks={fetchTasks}
-                            confirmJoin={confirmJoin}
-                            confirmLeave={confirmLeave}
-                            highlightTaskId={highlightTaskId}
-                            canJoin={user?.role === "user"}
-                        />
-                    )}
-
-                    {activeTab === "intern" && (
-                        <InternTasksSection
-                            internTasks={internTasks}
-                            loading={loading}
-                            actionLoading={actionLoading}
-                            user={user}
-                            setCreateModalVisible={setCreateModalVisible}
-                            confirmAcceptIntern={confirmAcceptIntern}
-                            confirmLeaveIntern={confirmLeaveIntern}
-                            openEditModal={openEditModal}
-                            confirmCloseMain={confirmCloseMain}
-                            confirmReopenMain={confirmReopenMain}
-                        />
-                    )}
+                    <TodayTasksSection
+                        tasks={tasks}
+                        internTasks={internTasks}
+                        loading={loading}
+                        actionLoading={actionLoading}
+                        filters={filters}
+                        setFilters={setFilters}
+                        reporterFilterTemplate={reporterFilterTemplate}
+                        fetchTasks={fetchTasks}
+                        highlightTaskId={highlightTaskId}
+                        user={user}
+                        confirmJoin={confirmJoin}
+                        confirmLeave={confirmLeave}
+                        confirmAcceptIntern={confirmAcceptIntern}
+                        confirmLeaveIntern={confirmLeaveIntern}
+                        openEditModal={openEditModal}
+                        confirmCloseMain={confirmCloseMain}
+                        confirmReopenMain={confirmReopenMain}
+                    />
                 </div>
 
                 {/* Intern Task Modal (Create / Edit) */}
