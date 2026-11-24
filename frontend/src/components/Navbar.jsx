@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { confirmDialog } from 'primereact/confirmdialog';
 import { useAuth } from '../context/AuthContext';
 import { getImageUrl } from '../services/api';
+import JoinItLogo from "./JoinItLogo";
 
 const Navbar = () => {
     const navigate = useNavigate();
@@ -46,28 +47,26 @@ const Navbar = () => {
 
                 {/* --- ฝั่งซ้าย: โลโก้ --- */}
                 <div className="flex items-center gap-2 md:gap-4 cursor-pointer min-w-0" onClick={() => navigate('/tasks')}>
-                    <div className="bg-linear-to-tr from-blue-600 to-indigo-500 p-2 md:p-2.5 rounded-2xl shadow-md shadow-blue-100 shrink-0">
-                        <i className="pi pi-briefcase text-white text-lg md:text-xl"></i>
-                    </div>
+                    <JoinItLogo className="w-9 h-9 md:w-11 md:h-11 shrink-0" />
                     <div className="hidden sm:block">
-                        <h1 className="text-base md:text-lg font-black text-[#1e293b] leading-none tracking-tighter">JOIN-IT</h1>
-                        <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mt-1 text-nowrap">Operation Center</p>
+                        <h1 className="text-base md:text-lg font-black text-[#0f1f4d] leading-none tracking-tight">Join<span className="text-blue-600">IT</span></h1>
+                        <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mt-1 text-nowrap">Staff & Intern</p>
                     </div>
                 </div>
 
                 {/* --- ฝั่งขวา: กลุ่มปุ่มเมนู --- */}
                 <div className="flex items-center gap-2 md:gap-3 shrink-0">
                     {/* ปุ่มแดชบอร์ด */}
-                            <PrimaryBtn icon="pi-th-large" label="แดชบอร์ด" path="/dashboard" />
+                    <PrimaryBtn icon="pi-th-large" label="แดชบอร์ด" path="/dashboard" />
 
-                            {/* ปุ่มงานวันนี้ */}
-                            <PrimaryBtn icon="pi-list" label="งานวันนี้" path="/tasks" />
+                    {/* ปุ่มงานวันนี้ */}
+                    <PrimaryBtn icon="pi-list" label="งานวันนี้" path="/tasks" />
 
-                            {/* ปุ่มงานของฉัน */}
-                            <PrimaryBtn icon="pi-user-edit" label="งานของฉัน" path="/my-tasks" />
+                    {/* ปุ่มงานของฉัน */}
+                    <PrimaryBtn icon="pi-user-edit" label="งานของฉัน" path="/my-tasks" />
 
-                            {/* ปุ่มจัดการสมาชิก - แสดงเฉพาะ Admin */}
-                            {isAdmin && <PrimaryBtn icon="pi-users" label="จัดการสมาชิก" path="/members" />}
+                    {/* ปุ่มจัดการสมาชิก - แสดงเฉพาะ Admin */}
+                    {isAdmin && <PrimaryBtn icon="pi-users" label="จัดการสมาชิก" path="/members" />}
 
                     <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
 

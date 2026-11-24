@@ -6,6 +6,7 @@ import { InputText } from "primereact/inputtext";
 import { Password } from "primereact/password";
 import { Button } from "primereact/button";
 import { Toast } from "primereact/toast";
+import JoinItLogo from "../components/JoinItLogo";
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -67,11 +68,9 @@ function Login() {
                 <img src={getImageUrl(siteLogo)} alt="Site Logo" className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-tr from-blue-600 to-indigo-500 shadow-xl shadow-blue-200 mb-6 transform -rotate-6">
-                <i className="pi pi-bolt text-white text-3xl"></i>
-              </div>
+              <JoinItLogo className="inline-block w-16 h-16 mb-6" />
             )}
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">JOIN-IT</h1>
+            <h1 className="text-3xl font-black text-[#0f1f4d] tracking-tight mb-2">Join<span className="text-blue-600">IT</span></h1>
             <p className="text-slate-500 text-sm font-medium">เข้าสู่ระบบเพื่อจัดการงานของคุณ</p>
           </div>
 

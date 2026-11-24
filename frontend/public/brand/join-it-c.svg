@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+     <rect width="48" height="48" rx="11" fill="#0f1f4d"/>
+     <g transform="translate(6 6) scale(.75)">
+    <defs>
+      <clipPath id="fbar"><rect x="24" y="5" width="11" height="29" rx="5.5"/></clipPath>
+    </defs>
+    <rect x="24" y="5" width="11" height="29" rx="5.5" fill="#ffffff"/>
+    <path d="M29.5 29 a9.75 9.75 0 0 1 -19.5 0" fill="none" stroke="#f97316" stroke-width="10" stroke-linecap="round"/>
+    <g clip-path="url(#fbar)"><path d="M29.5 29 a9.75 9.75 0 0 1 -19.5 0" fill="none" stroke="#1e40af" stroke-width="10" stroke-linecap="round"/></g></g>
+   </svg>
